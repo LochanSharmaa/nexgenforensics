@@ -113,8 +113,13 @@
 
 .nx-scene-copy {
   left: var(--page-gutter);
-  bottom: 7vh;
-  max-width: 420px;
+  bottom: 5vh;
+  max-width: 380px;
+}
+
+.nx-scene-copy h2 {
+  font-size: clamp(2rem, 3.1vw, 3.65rem);
+  line-height: 0.98;
 }
 
 .nx-evidence-chip {

@@ -48,15 +48,15 @@
 .nx-scene-copy {
   position: absolute;
   left: 7vw;
-  bottom: 9vh;
-  max-width: 520px;
+  bottom: 6vh;
+  max-width: 390px;
   z-index: 5;
 }
 
 .nx-scene-copy h2 {
   margin: 0;
-  font: 700 clamp(2.6rem, 5vw, 5.6rem)/0.96 var(--serif);
-  letter-spacing: -0.045em;
+  font: 700 clamp(2.35rem, 4vw, 4.45rem)/0.96 var(--serif);
+  letter-spacing: -0.035em;
   text-wrap: balance;
 }
 
