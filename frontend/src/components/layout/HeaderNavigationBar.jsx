@@ -16,6 +16,7 @@ export function HeaderNavigationBar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const navRef = useRef(null);
+  const closeTimerRef = useRef(null);
   const pathname = window.location.pathname;
 
   const groups = useMemo(() => Object.entries(navGroups), []);
@@ -42,10 +43,21 @@ export function HeaderNavigationBar() {
       window.removeEventListener("scroll", onScroll);
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
+      if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
     };
   }, []);
 
+  const cancelClose = () => {
+    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+  };
+
+  const scheduleClose = () => {
+    cancelClose();
+    closeTimerRef.current = window.setTimeout(() => setOpenGroup(null), 120);
+  };
+
   const closeAll = () => {
+    cancelClose();
     setOpenGroup(null);
     setMobileOpen(false);
   };
@@ -54,7 +66,8 @@ export function HeaderNavigationBar() {
     <nav
       className={scrolled ? "nx-nav scrolled" : "nx-nav"}
       ref={navRef}
-      onMouseLeave={() => setOpenGroup(null)}
+      onMouseEnter={cancelClose}
+      onMouseLeave={scheduleClose}
       aria-label="NexGen Forensics primary navigation"
     >
       <a href="/" className="nx-brand" onClick={closeAll}>
@@ -81,13 +94,24 @@ export function HeaderNavigationBar() {
                 className={isActiveHref(group.href, pathname) ? "active" : ""}
                 aria-expanded={openGroup === key}
                 aria-controls={`mega-${key}`}
-                onMouseEnter={() => setOpenGroup(key)}
+                onMouseEnter={() => {
+                  cancelClose();
+                  setOpenGroup(key);
+                }}
                 onFocus={() => setOpenGroup(key)}
                 onClick={() => setOpenGroup((value) => (value === key ? null : key))}
               >
                 {group.label}
+                <span aria-hidden="true" />
               </button>
-              <MegaMenu group={group} groupKey={key} open={openGroup === key} onNavigate={closeAll} />
+              <MegaMenu
+                group={group}
+                groupKey={key}
+                open={openGroup === key}
+                onNavigate={closeAll}
+                onPointerEnter={cancelClose}
+                onPointerLeave={scheduleClose}
+              />
             </div>
           ))}
 
@@ -119,9 +143,14 @@ export function HeaderNavigationBar() {
   );
 }
 
-function MegaMenu({ group, groupKey, open, onNavigate }) {
+function MegaMenu({ group, groupKey, open, onNavigate, onPointerEnter, onPointerLeave }) {
   return (
-    <div className={open ? "nx-mega open" : "nx-mega"} id={`mega-${groupKey}`}>
+    <div
+      className={open ? "nx-mega open" : "nx-mega"}
+      id={`mega-${groupKey}`}
+      onMouseEnter={onPointerEnter}
+      onMouseLeave={onPointerLeave}
+    >
       <div className="nx-mega-panel">
         <div className="nx-mega-intro">
           <span>{group.title}</span>

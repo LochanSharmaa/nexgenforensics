@@ -26,10 +26,7 @@ export function HeroForensicsIntro() {
         <p className="nx-hero-kicker">Intelligence beyond evidence</p>
 
         <div className="nx-hero-main">
-          <h1>
-            NexGen
-            <span>Forensics</span>
-          </h1>
+          <h1>NexGen <span>Forensics</span></h1>
           <p>Advanced forensic technology designed to reveal what others leave unseen.</p>
         </div>
 

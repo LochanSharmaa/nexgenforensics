@@ -16,6 +16,7 @@ const maskedSelectors = [
   ".im-final-cta h2",
   ".fp-copy h1",
   ".fp-hand-title",
+  ".nx-home-fingerprint-slide h2",
   ".fp-heading h2",
   ".fp-final h2",
 ].join(",");
@@ -102,7 +103,7 @@ export function TypographyMotionProvider() {
     const stagger = Array.from(document.querySelectorAll(staggerSelectors));
     const kinetic = Array.from(
       document.querySelectorAll(
-        ".nx-hero-main h1, .im-hero-copy h1, .fp-copy h1, .fp-hand-title, .nx-future h2, .nx-platform-header h2"
+        ".nx-hero-main h1, .im-hero-copy h1, .fp-copy h1, .fp-hand-title, .nx-home-fingerprint-slide h2, .nx-future h2, .nx-platform-header h2"
       )
     );
 

@@ -47,8 +47,8 @@
 }
 
 .nx-hero-main h1 {
-  max-width: 850px;
-  font-size: clamp(48px, 7.3vw, 110px);
+  max-width: 1180px;
+  font-size: clamp(50px, 7.45vw, 118px);
 }
 
 .nx-hero-main > p {
@@ -113,13 +113,18 @@
 
 .nx-scene-copy {
   left: var(--page-gutter);
-  bottom: 5vh;
-  max-width: 380px;
+  bottom: 3vh;
+  max-width: 400px;
 }
 
 .nx-scene-copy h2 {
-  font-size: clamp(2rem, 3.1vw, 3.65rem);
+  font-size: clamp(2.15rem, 3.3vw, 3.8rem);
   line-height: 0.98;
+}
+
+.nx-scene-copy p:not(.nx-kicker) {
+  font-size: clamp(0.95rem, 1vw, 1.05rem);
+  line-height: 1.55;
 }
 
 .nx-evidence-chip {
@@ -449,7 +454,8 @@
   }
 
   .nx-hero-main h1 {
-    font-size: clamp(50px, 13vw, 78px);
+    font-size: clamp(42px, 11vw, 72px);
+    white-space: normal;
   }
 
   .nx-hero-main > p {
@@ -550,7 +556,7 @@
   }
 
   .nx-hero-main h1 {
-    font-size: clamp(46px, 16vw, 68px);
+    font-size: clamp(38px, 12.5vw, 62px);
   }
 
   .nx-hero-main > p {

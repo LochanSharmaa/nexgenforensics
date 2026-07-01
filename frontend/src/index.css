@@ -21,6 +21,7 @@
 html {
   scroll-behavior: smooth;
   scroll-padding-top: 86px;
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -28,6 +29,7 @@ body {
   background: var(--paper);
   color: var(--ink);
   font-family: var(--sans);
+  overscroll-behavior-y: none;
   overflow-x: hidden;
 }
 

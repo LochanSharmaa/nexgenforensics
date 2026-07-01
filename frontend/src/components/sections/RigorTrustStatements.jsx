@@ -1,17 +1,20 @@
 import { motion } from "framer-motion";
+import kavyaAvatar from "../../assets/kavya.jpg";
+import manAvatar from "../../assets/man.jpg";
+import sectorSprite from "../../assets/sector-sprite-ai.png";
 import "./RigorTrustStatements.css";
 
 const trustedSectors = [
-  "Law Enforcement",
-  "Digital Forensics Labs",
-  "National Security",
-  "Cyber Crime Units",
-  "Enterprise Risk",
-  "Border Security",
-  "Fraud Investigation",
-  "Intelligence Teams",
-  "Research Partners",
-  "Public Safety",
+  { title: "Law Enforcement", col: 0, row: 0 },
+  { title: "Digital Forensics Labs", col: 1, row: 0 },
+  { title: "National Security", col: 2, row: 0 },
+  { title: "Cyber Crime Units", col: 3, row: 0 },
+  { title: "Enterprise Risk", col: 4, row: 0 },
+  { title: "Border Security", col: 0, row: 1 },
+  { title: "Fraud Investigation", col: 1, row: 1 },
+  { title: "Intelligence Teams", col: 2, row: 1 },
+  { title: "Research Partners", col: 3, row: 1 },
+  { title: "Public Safety", col: 4, row: 1 },
 ];
 
 const testimonials = [
@@ -22,6 +25,7 @@ const testimonials = [
     role: "Digital Forensics Lead",
     organization: "Regional Investigation Lab",
     initials: "AM",
+    avatar: manAvatar,
     label: "Verified Workflow",
   },
   {
@@ -31,6 +35,7 @@ const testimonials = [
     role: "Forensic Technology Advisor",
     organization: "Public Safety Research Unit",
     initials: "KR",
+    avatar: kavyaAvatar,
     label: "Evidence-Grade",
   },
 ];
@@ -83,6 +88,7 @@ export function RigorTrustStatements() {
         className="nx-sector-marquee"
         variants={reveal}
         aria-label="Sectors using NexGen Forensics"
+        style={{ "--sector-sprite": `url(${sectorSprite})` }}
       >
         <div className="nx-sector-track">
           {[0, 1].map((groupIndex) => (
@@ -94,16 +100,17 @@ export function RigorTrustStatements() {
               {trustedSectors.map((sector) => (
                 <div
                   className="nx-sector-mark"
-                  key={`${groupIndex}-${sector}`}
+                  key={`${groupIndex}-${sector.title}`}
                 >
-                  <span className="nx-sector-emblem" aria-hidden="true">
-                    {sector
-                      .split(" ")
-                      .map((word) => word[0])
-                      .join("")
-                      .slice(0, 3)}
-                  </span>
-                  <span>{sector}</span>
+                  <span
+                    className="nx-sector-image"
+                    aria-hidden="true"
+                    style={{
+                      "--sector-x": sector.col,
+                      "--sector-y": sector.row,
+                    }}
+                  />
+                  <span className="nx-sector-name">{sector.title}</span>
                 </div>
               ))}
             </div>
@@ -134,9 +141,12 @@ export function RigorTrustStatements() {
             </div>
             <blockquote>{testimonial.quote}</blockquote>
             <footer className="nx-testimonial-author">
-              <span className="nx-author-avatar" aria-hidden="true">
-                {testimonial.initials}
-              </span>
+              <img
+                className="nx-author-avatar"
+                src={testimonial.avatar}
+                alt=""
+                aria-hidden="true"
+              />
               <span>
                 <strong>{testimonial.name}</strong>
                 <small>{testimonial.role}</small>

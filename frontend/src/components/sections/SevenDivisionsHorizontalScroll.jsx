@@ -54,7 +54,6 @@ export function SevenDivisionsHorizontalScroll() {
           <h2>Explore our product</h2>
         </div>
         <div className="nx-platform-footer">
-          <p className="nx-kicker">Chapter Three</p>
           <div className="nx-platform-index">
             {divisions.map((division, index) => (
               <span

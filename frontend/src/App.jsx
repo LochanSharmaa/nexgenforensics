@@ -1,4 +1,5 @@
 import { ScrollProgressIndicator } from "./components/shared/ScrollProgressIndicator";
+import { SmoothScrollProvider } from "./components/shared/SmoothScrollProvider";
 import { TypographyMotionProvider } from "./components/shared/TypographyMotionProvider";
 import { HeaderNavigationBar } from "./components/layout/HeaderNavigationBar";
 import { HeroForensicsIntro } from "./components/sections/HeroForensicsIntro";
@@ -34,6 +35,7 @@ export default function App() {
   return (
     <main className="nexgen-home">
       <TypographyMotionProvider />
+      <SmoothScrollProvider />
       <ScrollProgressIndicator />
       <HeaderNavigationBar />
 

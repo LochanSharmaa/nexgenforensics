@@ -20,42 +20,34 @@ export function EvidenceScatterChip({ item, index, total, scrollYProgress }) {
   const orbitRadiusX = 31 + (index % 2) * 7;
   const orbitRadiusY = 24 + (index % 2) * 5;
 
-  const finalRadiusX = 25 + (index % 2) * 8;
-  const finalRadiusY = 19 + (index % 2) * 5;
-
   const farX = Math.cos(angle) * farRadiusX;
   const farY = Math.sin(angle) * farRadiusY;
 
   const orbitX = Math.cos(angle) * orbitRadiusX;
   const orbitY = Math.sin(angle) * orbitRadiusY;
 
-  const finalX = Math.cos(angle) * finalRadiusX;
-  const finalY = Math.sin(angle) * finalRadiusY;
-
-  const appearStart = 0.03 + index * 0.01;
-
   const itemOpacity = useTransform(
     scrollYProgress,
-    [appearStart, appearStart + 0.05, 0.85],
-    [0, 1, 1]
+    [0.04, 0.1, 0.56, 0.68],
+    [0, 1, 1, 0]
   );
 
   const itemX = useTransform(
     scrollYProgress,
-    [0.06, 0.32, 0.58],
-    [`${farX}vw`, `${orbitX}vw`, `${finalX}vw`]
+    [0.06, 0.3, 0.5, 0.64],
+    [`${farX}vw`, `${orbitX}vw`, "0vw", "0vw"]
   );
 
   const itemY = useTransform(
     scrollYProgress,
-    [0.06, 0.32, 0.58],
-    [`${farY}vh`, `${orbitY}vh`, `${finalY}vh`]
+    [0.06, 0.3, 0.5, 0.64],
+    [`${farY}vh`, `${orbitY}vh`, "0vh", "0vh"]
   );
 
   const itemScale = useTransform(
     scrollYProgress,
-    [0.03, 0.28, 0.58],
-    [0.88, 1, 0.96]
+    [0.04, 0.3, 0.5, 0.64],
+    [0.88, 1, 0.62, 0.16]
   );
 
   return (
