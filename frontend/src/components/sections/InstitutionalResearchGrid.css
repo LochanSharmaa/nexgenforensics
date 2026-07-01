@@ -1,0 +1,56 @@
+.nx-research {
+  padding: 11vw 7vw;
+}
+
+.nx-section-heading {
+  max-width: 930px;
+  margin-bottom: 70px;
+}
+
+.nx-section-heading h2 {
+  margin: 0;
+  font: 700 clamp(2.6rem, 5vw, 5.6rem)/0.96 var(--serif);
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+}
+
+.nx-research-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+}
+
+.nx-research-card {
+  min-height: 300px;
+  padding: 28px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 253, 248, 0.45);
+}
+
+.nx-research-card span {
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.nx-research-card h3 {
+  margin: 70px 0 18px;
+  font: 650 32px/1 var(--serif);
+  letter-spacing: -0.035em;
+}
+
+.nx-research-card p {
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .nx-research-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

@@ -1,0 +1,20 @@
+.nx-btn {
+  border: 0;
+  cursor: pointer;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 17px 24px;
+  font-weight: 800;
+  box-shadow: 0 14px 38px rgba(22, 21, 16, 0.18);
+  display: inline-block;
+  text-align: center;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.nx-btn-secondary {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  box-shadow: none;
+}

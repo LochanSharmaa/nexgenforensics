@@ -1,0 +1,95 @@
+export const divisions = [
+  {
+    id: "identity",
+    eyebrow: "01 / Identity Intelligence",
+    title: "Who is this?",
+    thesis: "The simplest question in an investigation is often the hardest one to answer.",
+    products: ["iMatch", "Face Recognition", "Age Progression"],
+    proof: ["Unknown subject", "Feature extraction", "Cross-source comparison", "Investigator review"],
+  },
+  {
+    id: "digital",
+    eyebrow: "02 / Digital Intelligence",
+    title: "Devices become timelines.",
+    thesis: "Files, messages, media, locations, and metadata resolve into one structured evidence record.",
+    products: ["Device Forensics", "Media Intelligence", "Cloud Evidence"],
+    proof: ["Extraction", "Normalization", "Artifact linking", "Case timeline"],
+  },
+  {
+    id: "osint",
+    eyebrow: "03 / OSINT Intelligence",
+    title: "Public signals reveal hidden patterns.",
+    thesis: "Open-source traces become defensible investigative leads instead of unstructured noise.",
+    products: ["OSINT Collection", "Social Intelligence", "Network Discovery"],
+    proof: ["Handles", "Posts", "Aliases", "Relationships"],
+  },
+  {
+    id: "audio",
+    eyebrow: "04 / Audio Intelligence",
+    title: "Voice becomes evidence.",
+    thesis: "Speech samples are measured, compared, and presented with clear confidence boundaries.",
+    products: ["Voice Biometrics", "Speaker Comparison"],
+    proof: ["Sample intake", "Voiceprint model", "Comparison", "Confidence scoring"],
+  },
+  {
+    id: "document",
+    eyebrow: "05 / Document Intelligence",
+    title: "Authenticity becomes inspectable.",
+    thesis: "Documents are separated into layers of structure, authorship, anomaly, and evidence history.",
+    products: ["Document Analysis", "Forgery Detection"],
+    proof: ["Scan", "Layer analysis", "Signature anomaly", "Finding"],
+  },
+  {
+    id: "fusion",
+    eyebrow: "06 / Fusion Intelligence",
+    title: "The case becomes one model.",
+    thesis: "NexFusion connects identity, device, OSINT, voice, document, and operational evidence.",
+    products: ["NexFusion"],
+    proof: ["Entity resolution", "Relationship graph", "Contradiction checks", "Unified model"],
+  },
+  {
+    id: "command",
+    eyebrow: "07 / Command Intelligence",
+    title: "Investigation becomes action.",
+    thesis: "NexCase and NexWatch provide the operational layer for teams, tasks, findings, and escalation.",
+    products: ["NexCase", "NexWatch"],
+    proof: ["Case board", "Priority routing", "Investigator tasks", "Decision record"],
+  },
+];
+
+export const evidenceItems = [
+  "Face Match Candidate",
+  "Latent Fingerprint Lift",
+  "CCTV Subject Track",
+  "Vehicle Movement Path",
+  "OSINT Identity Cluster",
+  "Public Alias Correlation",
+  "Phone Metadata Trace",
+  "Location Intelligence",
+  "Document Authenticity Signal",
+  "Deepfake Risk Flag",
+  "CaseGPT Evidence Summary",
+  "Timeline Reconstruction",
+  "3D Scene Scan",
+  "Suspect-Victim Link",
+  "EvidenceGraph Node",
+  "Court-Ready Finding",
+];
+
+export const research = [
+  { title: "Identity Science", desc: "Biometric accuracy, error rates, and cross-source matching methodologies." },
+  { title: "AI Forensics", desc: "Algorithmic validation, bias detection, and model reliability assessment." },
+  { title: "Digital Evidence", desc: "Extraction standards, artifact integrity, and chain-of-custody protocols." },
+  { title: "Operational Intelligence", desc: "Intelligence fusion, decision frameworks, and operational deployment guides." },
+  { title: "Human-AI Investigation", desc: "Collaborative workflows, analyst augmentation, and oversight models." },
+  { title: "Chain of Custody", desc: "Tamper detection, evidence handling, and court-admissibility standards." },
+  { title: "Explainable Intelligence", desc: "Transparency requirements, result interpretation, and audit trails." },
+  { title: "Model Governance", desc: "Lifecycle management, version control, and compliance documentation." },
+];
+
+export const correlationSources = [
+  { label: "Device Data", meta: "Phones, laptops, storage media" },
+  { label: "CCTV", meta: "Video frames, timestamps, locations" },
+  { label: "OSINT", meta: "Social profiles, public records" },
+  { label: "Voice Sample", meta: "Audio recordings, voiceprints" },
+];

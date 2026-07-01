@@ -1,0 +1,204 @@
+.nx-engage {
+  padding: 8vw 7vw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.nx-pricing-header {
+  text-align: center;
+  max-width: 720px;
+  margin-bottom: 60px;
+}
+
+.nx-pricing-header h2 {
+  margin: 12px 0 20px;
+  font: 700 clamp(2.6rem, 5vw, 5.2rem)/0.96 var(--serif);
+  letter-spacing: -0.045em;
+  color: var(--ink);
+}
+
+.nx-pricing-lead {
+  font-size: 1.15rem;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 0;
+  text-wrap: balance;
+}
+
+.nx-pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+  width: 100%;
+  max-width: 1280px;
+}
+
+.nx-pricing-card {
+  position: relative;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 32px;
+  padding: 48px 40px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 40px rgba(25, 22, 18, 0.03);
+  transition: border-color 0.3s ease;
+}
+
+/* Highlighted Popular Plan */
+.nx-pricing-card.nx-popular {
+  border: 2px solid var(--blue);
+  box-shadow: 0 20px 55px rgba(29, 53, 87, 0.08);
+}
+
+.nx-popular-badge {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--blue);
+  color: var(--white);
+  padding: 6px 16px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  border-radius: 20px;
+  box-shadow: 0 4px 12px rgba(29, 53, 87, 0.2);
+}
+
+.nx-plan-header {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 32px;
+  margin-bottom: 32px;
+}
+
+.nx-plan-header h3 {
+  margin: 0;
+  font: 700 28px/1 var(--sans);
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.nx-plan-subtitle {
+  margin: 8px 0 24px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.nx-plan-price {
+  display: flex;
+  align-items: baseline;
+  color: var(--ink);
+}
+
+.nx-plan-price strong {
+  font-family: var(--sans);
+  font-size: 54px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.nx-plan-price span {
+  font-size: 15px;
+  color: var(--muted);
+  margin-left: 6px;
+  font-weight: 500;
+}
+
+.nx-plan-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex-grow: 1;
+}
+
+.nx-plan-features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.nx-check-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--blue);
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.nx-plan-cta {
+  width: 100%;
+  padding: 16px;
+  border-radius: 18px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.nx-cta-outline {
+  background: transparent;
+  border: 1px solid var(--blue);
+  color: var(--blue);
+}
+
+.nx-cta-outline:hover {
+  background: var(--blue);
+  color: var(--white);
+}
+
+.nx-cta-filled {
+  background: var(--blue);
+  border: 1px solid var(--blue);
+  color: var(--white);
+  box-shadow: 0 6px 20px rgba(29, 53, 87, 0.2);
+}
+
+.nx-cta-filled:hover {
+  background: #2a4870;
+  border-color: #2a4870;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(29, 53, 87, 0.3);
+}
+
+/* Responsive design styles */
+@media (max-width: 1100px) {
+  .nx-pricing-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+
+  /* Make Enterprise card span both columns on medium screens if desired, or let it naturally wrap */
+  .nx-pricing-card:last-child {
+    grid-column: span 2;
+    max-width: 600px;
+    margin: 0 auto;
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .nx-pricing-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .nx-pricing-card:last-child {
+    grid-column: span 1;
+    max-width: 100%;
+  }
+
+  .nx-pricing-card {
+    padding: 36px 28px;
+  }
+}

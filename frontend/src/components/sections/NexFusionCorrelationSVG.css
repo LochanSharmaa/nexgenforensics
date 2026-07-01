@@ -1,0 +1,114 @@
+.nx-correlation-scene {
+  height: 240vh;
+  position: relative;
+}
+
+.nx-correlation-stage {
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow: hidden;
+  display: grid;
+  align-items: center;
+  grid-template-columns: minmax(420px, 0.9fr) minmax(520px, 1.4fr);
+  padding: 7vw;
+  gap: 5vw;
+}
+
+.nx-correlation-copy {
+  max-width: 520px;
+}
+
+.nx-correlation-copy h2 {
+  margin: 0;
+  font: 700 clamp(2.6rem, 5vw, 5.6rem)/0.96 var(--serif);
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+}
+
+.nx-correlation-copy p {
+  font-size: 1.15rem;
+  line-height: 1.55;
+  color: var(--muted);
+  margin-top: 18px;
+}
+
+.nx-correlation-svg {
+  width: 100%;
+  height: min(70vh, 720px);
+  overflow: visible;
+}
+
+.nx-link-path {
+  fill: none;
+  stroke: rgba(29, 53, 87, 0.48);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.nx-svg-card {
+  fill: #fffdf8;
+  stroke: rgba(22, 21, 16, 0.15);
+}
+
+.nx-svg-core {
+  fill: #1d3557;
+}
+
+.nx-svg-label {
+  fill: #161510;
+  font: 700 18px Inter, sans-serif;
+}
+
+.nx-svg-meta {
+  fill: #686158;
+  font: 500 14px Inter, sans-serif;
+}
+
+.nx-svg-core-label {
+  fill: rgba(255, 255, 255, 0.7);
+  font: 800 13px Inter, sans-serif;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.nx-svg-core-title {
+  fill: #fff;
+  font: 650 32px 'Source Serif 4', Georgia, serif;
+}
+
+.nx-svg-meta-light {
+  fill: rgba(255, 255, 255, 0.7);
+}
+
+@media (max-width: 1200px) {
+  .nx-correlation-stage {
+    grid-template-columns: 1fr;
+    align-content: center;
+  }
+  .nx-correlation-copy {
+    max-width: 760px;
+  }
+  .nx-correlation-svg {
+    height: 52vh;
+  }
+}
+
+@media (max-width: 900px) {
+  .nx-correlation-stage {
+    grid-template-columns: 1fr;
+    padding: 24px;
+  }
+  .nx-correlation-copy {
+    position: absolute;
+    top: 90px;
+    left: 24px;
+    right: 24px;
+    z-index: 2;
+  }
+  .nx-correlation-svg {
+    margin-top: 160px;
+    height: 60vh;
+  }
+}
+
