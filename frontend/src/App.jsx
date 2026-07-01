@@ -13,12 +13,14 @@ import { FutureOfForensicsQuote } from "./components/sections/FutureOfForensicsQ
 import { ExecutiveBriefingCallToAction } from "./components/sections/ExecutiveBriefingCallToAction";
 import { FaceSearchExperience } from "./components/sections/FaceSearchExperience";
 import { FingerprintAIPage } from "./components/sections/FingerprintAIPage";
+import { LoginPage } from "./components/pages/LoginPage";
 import { NavigationPage } from "./components/pages/NavigationPages";
 import { FooterNavigationGrid } from "./components/layout/FooterNavigationGrid";
 import "./responsive-scale.css";
 
 export default function App() {
   const pathname = window.location.pathname;
+  const isLoginPage = pathname === "/login";
   const isFaceSearchPage = pathname === "/face-search" || pathname === "/products/imatch";
   const isFingerprintPage = pathname === "/fingerprint-ai" || pathname === "/products/fingerprint-ai";
   const isNavigationPage =
@@ -35,7 +37,9 @@ export default function App() {
       <ScrollProgressIndicator />
       <HeaderNavigationBar />
 
-      {isFingerprintPage ? (
+      {isLoginPage ? (
+        <LoginPage />
+      ) : isFingerprintPage ? (
         <FingerprintAIPage />
       ) : isFaceSearchPage ? (
         <FaceSearchExperience />

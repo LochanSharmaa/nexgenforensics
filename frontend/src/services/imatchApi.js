@@ -1,9 +1,12 @@
-const DEFAULT_IMATCH_API_URL = "http://localhost:8443/api/imatch/search";
+const LOCAL_IMATCH_API_URL = "http://localhost:8443/api/imatch/search";
 
 export const imatchApiUrl =
-  import.meta.env.VITE_IMATCH_API_URL?.trim() || DEFAULT_IMATCH_API_URL;
+  import.meta.env.VITE_IMATCH_API_URL?.trim() ||
+  (import.meta.env.DEV ? LOCAL_IMATCH_API_URL : "");
 
 export async function runImatchSearch({ file, mode, sourceUrl, checks }) {
+  validateApiConfiguration();
+
   if (!file && !sourceUrl?.trim()) {
     throw new Error("Upload a photo or enter a secure image URL first.");
   }
@@ -39,6 +42,16 @@ export async function runImatchSearch({ file, mode, sourceUrl, checks }) {
   }
 
   return normalizeImatchResult(payload);
+}
+
+function validateApiConfiguration() {
+  if (!imatchApiUrl) {
+    throw new Error("Secure iMatch API endpoint is not configured for this deployment.");
+  }
+
+  if (import.meta.env.PROD && !imatchApiUrl.startsWith("https://")) {
+    throw new Error("Production iMatch API endpoint must use HTTPS.");
+  }
 }
 
 function normalizeImatchResult(payload) {

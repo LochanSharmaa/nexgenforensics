@@ -15,7 +15,33 @@ dist-ssr
 .vercel-home
 .vercel-local
 .vercel-data
+.vercel
+.env
+.env.*
+!.env.template
+!.env.example.txt
 *.local
+
+# Secrets and production-only credentials
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.jks
+*.keystore
+id_rsa*
+id_ed25519*
+secrets.*
+*.secret
+
+# Local databases and dumps
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.sql
 
 # Editor directories and files
 .vscode/*

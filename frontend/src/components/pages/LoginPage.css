@@ -1,0 +1,224 @@
+.nx-login-page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 430px);
+  align-items: center;
+  gap: clamp(30px, 6vw, 86px);
+  padding: clamp(106px, 12vw, 156px) var(--page-gutter, clamp(20px, 5vw, 72px)) clamp(70px, 8vw, 112px);
+  background:
+    linear-gradient(rgba(91, 23, 36, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(29, 53, 87, 0.035) 1px, transparent 1px),
+    radial-gradient(circle at 18% 18%, rgba(154, 47, 66, 0.16), transparent 27rem),
+    radial-gradient(circle at 86% 12%, rgba(29, 53, 87, 0.14), transparent 24rem),
+    linear-gradient(135deg, #fbfaf6, #f1eadf 58%, #fffdf8);
+  background-size: 48px 48px, 48px 48px, auto, auto, auto;
+}
+
+.nx-login-copy {
+  max-width: 720px;
+}
+
+.nx-login-copy h1 {
+  max-width: 720px;
+  margin: 0;
+  color: #15110f;
+  font: 730 clamp(3.2rem, 6.6vw, 7.7rem) / 0.9 var(--serif);
+  letter-spacing: -0.055em;
+  text-wrap: balance;
+}
+
+.nx-login-copy > p:not(.nx-kicker) {
+  max-width: 610px;
+  margin: 24px 0 0;
+  color: #625b53;
+  font-size: clamp(1rem, 1.2vw, 1.18rem);
+  line-height: 1.72;
+}
+
+.nx-login-access-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 34px;
+}
+
+.nx-login-access-list span,
+.nx-login-trust-row span {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  border: 1px solid rgba(60, 45, 35, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 253, 248, 0.72);
+  color: #251113;
+  padding: 0 13px;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.nx-login-panel {
+  border: 1px solid rgba(60, 45, 35, 0.14);
+  border-radius: 24px;
+  background: rgba(255, 253, 248, 0.86);
+  box-shadow: 0 30px 90px rgba(43, 33, 24, 0.14);
+  padding: clamp(24px, 3vw, 34px);
+  backdrop-filter: blur(18px);
+}
+
+.nx-login-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 26px;
+}
+
+.nx-login-panel-header > span {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 14px;
+  background: #251113;
+  color: #fffdf8;
+  font-size: 0.78rem;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+}
+
+.nx-login-panel-header strong,
+.nx-login-panel-header small {
+  display: block;
+}
+
+.nx-login-panel-header strong {
+  color: #15110f;
+  font: 650 1.38rem / 1.1 var(--serif);
+  letter-spacing: -0.025em;
+}
+
+.nx-login-panel-header small {
+  margin-top: 3px;
+  color: #6f6860;
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.nx-login-form {
+  display: grid;
+  gap: 16px;
+}
+
+.nx-login-form label {
+  display: grid;
+  gap: 8px;
+}
+
+.nx-login-form label > span,
+.nx-login-options a {
+  color: #5b1724;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.nx-login-form input[type="email"],
+.nx-login-form input[type="password"] {
+  width: 100%;
+  min-height: 50px;
+  border: 1px solid rgba(60, 45, 35, 0.14);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #15110f;
+  padding: 0 16px;
+  font: 650 0.94rem var(--sans);
+  outline: 0;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.nx-login-form input:focus {
+  border-color: rgba(91, 23, 36, 0.42);
+  box-shadow: 0 0 0 4px rgba(91, 23, 36, 0.08);
+}
+
+.nx-login-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.nx-login-options label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6f6860;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.nx-login-options input {
+  accent-color: #5b1724;
+}
+
+.nx-login-form button {
+  min-height: 52px;
+  border: 1px solid rgba(37, 17, 19, 0.18);
+  border-radius: 999px;
+  background: #251113;
+  color: #fffdf8;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  box-shadow: 0 18px 42px rgba(91, 23, 36, 0.18);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.nx-login-form button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 24px 54px rgba(91, 23, 36, 0.22);
+}
+
+.nx-login-trust-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(60, 45, 35, 0.1);
+}
+
+.nx-login-trust-row span {
+  min-height: 30px;
+  background: rgba(29, 53, 87, 0.06);
+  color: #1d3557;
+  font-size: 0.66rem;
+}
+
+@media (max-width: 900px) {
+  .nx-login-page {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .nx-login-panel {
+    max-width: 520px;
+  }
+}
+
+@media (max-width: 560px) {
+  .nx-login-page {
+    padding-top: 96px;
+  }
+
+  .nx-login-copy h1 {
+    font-size: clamp(2.8rem, 14vw, 4.6rem);
+  }
+
+  .nx-login-options {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
