@@ -1,3 +1,12 @@
-from .alignment import FaceAligner, FaceBox, FaceDetector
+from .alignment import CenterCropDetector, FaceAligner, FaceBox, InsightFaceRetinaFaceDetector, MtcnnDetector
+from .registry import DetectorConfig, DetectorRegistry
 
-__all__ = ["FaceAligner", "FaceBox", "FaceDetector"]
+__all__ = [
+    "CenterCropDetector",
+    "DetectorConfig",
+    "DetectorRegistry",
+    "FaceAligner",
+    "FaceBox",
+    "InsightFaceRetinaFaceDetector",
+    "MtcnnDetector",
+]

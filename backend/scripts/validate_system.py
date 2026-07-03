@@ -4,6 +4,7 @@ import base64
 import json
 import py_compile
 import sys
+import uuid
 from io import BytesIO
 from pathlib import Path
 
@@ -12,6 +13,7 @@ from PIL import Image
 
 from app.main import app
 from nexgen_engine.analytics import AccuracyTracker, AnalyticsReportGenerator, UsageMetrics
+from nexgen_engine.auth import AuthService, Principal, require_role
 from nexgen_engine.api.routes.admin import engine_status
 from nexgen_engine.api.routes.verify import verify_embeddings
 from nexgen_engine.api.service import EngineService
@@ -31,8 +33,17 @@ from nexgen_engine.models import (
 )
 from nexgen_engine.data.ingestion_validator import DatasetIngestionValidator
 from nexgen_engine.data.manifest import DatasetManifest
+from nexgen_engine.dependencies import DependencyVerifier
+from nexgen_engine.detection import DetectorConfig, DetectorRegistry, FaceAligner
+from nexgen_engine.detection.smoke import detector_smoke
+from nexgen_engine.quality import FaceQNetScorer, ProductionQualityScorer
+from nexgen_engine.quality.cli import quality_check
 from nexgen_engine.runtime import detect_runtime_capabilities
 from nexgen_engine.search import OptionalFaissIndex
+from nexgen_engine.jobs import JobQueue, JobWorker
+from nexgen_engine.monitoring import MetricsRegistry
+from nexgen_engine.settings import Settings
+from nexgen_engine.storage import Database, UserRecord
 from nexgen_engine.security.presentation_attack import PresentationAttackDetector
 
 
@@ -91,6 +102,7 @@ def run_engine_smoke() -> dict[str, object]:
 def run_api_smoke(payload: bytes) -> dict[str, object]:
     client = TestClient(app)
     image_b64 = base64.b64encode(payload).decode("ascii")
+    suffix = uuid.uuid4().hex[:8]
     enroll = client.post(
         "/api/v1/engine/enroll",
         json={"identity_id": "api-validation-subject", "workspace": "api", "image_base64": image_b64},
@@ -109,12 +121,28 @@ def run_api_smoke(payload: bytes) -> dict[str, object]:
             "image_base64": image_b64,
         },
     )
+    register = client.post(
+        "/api/v1/auth/register",
+        json={
+            "tenant_id": f"api-tenant-{suffix}",
+            "tenant_name": "API Tenant",
+            "email": f"admin-{suffix}@example.com",
+            "password": "secret123",
+            "role": "tenant_admin",
+        },
+    )
+    token = register.json().get("access_token") if register.status_code == 200 else ""
+    me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
+    job = client.post("/api/v1/jobs", json={"job_type": "dataset_ingestion", "payload": {"path": "demo"}}, headers={"Authorization": f"Bearer {token}"})
     return {
         "health": client.get("/api/v1/health").json()["status"],
         "enroll_status": enroll.status_code,
         "identify_status": identify.status_code,
         "identify_matches": len(identify.json().get("matches", [])),
         "imatch_status": imatch.status_code,
+        "register_status": register.status_code,
+        "me_status": me.status_code,
+        "job_status": job.status_code,
     }
 
 
@@ -159,6 +187,40 @@ def run_dataset_smoke(payload: bytes) -> dict[str, object]:
     }
 
 
+def run_detector_quality_smoke() -> dict[str, object]:
+    image, payload = make_image()
+    output_root = ROOT.parent / "runtime" / "detector_quality_smoke"
+    output_root.mkdir(parents=True, exist_ok=True)
+    image_path = output_root / "face.jpg"
+    image_path.write_bytes(payload)
+    detector = DetectorRegistry().create(DetectorConfig(backend="center_crop", allow_fallback=True))
+    boxes = detector.detect(image)
+    aligned = FaceAligner(detector=detector).align(image)
+    quality = ProductionQualityScorer().evaluate(image, detector_confidence=boxes[0].confidence, landmark_confidence=1.0)
+    missing_faceqnet_error = False
+    try:
+        FaceQNetScorer("missing-faceqnet.pt", required=True)
+    except FileNotFoundError:
+        missing_faceqnet_error = True
+    production_fallback_blocked = False
+    try:
+        DetectorRegistry().create(DetectorConfig(backend="center_crop", allow_fallback=False))
+    except RuntimeError:
+        production_fallback_blocked = True
+    return {
+        "detector_backend": boxes[0].backend,
+        "detector_smoke_file": detector_smoke(image_path, "center_crop", True, output_root / "detector.json").exists(),
+        "quality_cli_has_brisque": quality_check(image_path).get("brisque_score") is not None,
+        "aligned_size": aligned.size,
+        "quality_accepts": quality.accepted,
+        "brisque_present": quality.brisque_score is not None,
+        "faceqnet_present": quality.faceqnet_score is not None,
+        "missing_faceqnet_error": missing_faceqnet_error,
+        "production_fallback_blocked": production_fallback_blocked,
+        "dependency_count": len(DependencyVerifier().statuses()),
+    }
+
+
 def run_optional_backend_smoke() -> dict[str, object]:
     import numpy as np
 
@@ -172,6 +234,41 @@ def run_optional_backend_smoke() -> dict[str, object]:
     }
 
 
+def run_production_layer_smoke() -> dict[str, object]:
+    runtime = ROOT.parent / "runtime" / "production_smoke"
+    db = Database(runtime / "nexgen.db")
+    db.migrate()
+    suffix = uuid.uuid4().hex[:8]
+    tenant_id = f"tenant-{suffix}"
+    email = f"user-{suffix}@example.com"
+    db.upsert_tenant(tenant_id, "Tenant A")
+    auth = AuthService("validation-secret")
+    password_hash = auth.hash_password("secret", "salt")
+    db.create_user(UserRecord(f"user-{suffix}", tenant_id, email, "tenant_admin", password_hash))
+    user = db.get_user_by_email(email)
+    assert user is not None
+    token = auth.issue_token(Principal(user.user_id, user.tenant_id, user.role, user.email))
+    principal = auth.verify_token(token)
+    require_role(principal.role, "operator")
+
+    queue = JobQueue(db)
+    job_id = queue.enqueue(tenant_id, "noop", {"ok": True})
+    worker = JobWorker(db, {"noop": lambda payload: None})
+    worker.run_job(job_id)
+    metrics = MetricsRegistry()
+    metrics.increment("validation")
+    with metrics.timer("validation_latency"):
+        pass
+    settings = Settings.from_env()
+    return {
+        "user_loaded": user.email,
+        "principal_role": principal.role,
+        "job_status": queue.status(job_id)["status"],
+        "metrics_has_counter": "nexgen_validation_total" in metrics.prometheus_text(),
+        "settings_env": settings.env,
+    }
+
+
 def main() -> int:
     image, payload = make_image()
     result = {
@@ -180,7 +277,9 @@ def main() -> int:
         "api": run_api_smoke(payload),
         "artifacts": run_artifact_smoke(),
         "dataset": run_dataset_smoke(payload),
+        "detector_quality": run_detector_quality_smoke(),
         "optional_backends": run_optional_backend_smoke(),
+        "production_layers": run_production_layer_smoke(),
     }
     print(json.dumps(result, indent=2, sort_keys=True))
     failures = [
@@ -188,9 +287,15 @@ def main() -> int:
         result["api"]["enroll_status"] != 200,
         result["api"]["identify_status"] != 200,
         result["api"]["imatch_status"] != 200,
+        result["api"]["register_status"] != 200,
+        result["api"]["me_status"] != 200,
+        result["api"]["job_status"] != 200,
         result["engine"]["embedding_dim"] != 512,
         result["engine"]["engine_backbones"] != 8,
         not result["engine"]["audit_valid"],
+        result["production_layers"]["job_status"] != "succeeded",
+        not result["detector_quality"]["missing_faceqnet_error"],
+        not result["detector_quality"]["production_fallback_blocked"],
     ]
     return 1 if any(failures) else 0
 

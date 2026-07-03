@@ -1,4 +1,21 @@
 services:
+  database:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: nexgen
+      POSTGRES_PASSWORD: nexgen
+      POSTGRES_DB: nexgen
+    volumes:
+      - nexgen-postgres:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   nexgen-api:
     build:
       context: ..
@@ -7,8 +24,53 @@ services:
       - "8443:8443"
     environment:
       - NEXGEN_ENV=local
+      - NEXGEN_DATABASE_URL=postgresql://nexgen:nexgen@database:5432/nexgen
+      - NEXGEN_REDIS_URL=redis://redis:6379/0
+      - NEXGEN_SECRET_KEY=change-me
     volumes:
       - nexgen-runtime:/app/runtime
+    depends_on:
+      database:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8443/api/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  worker:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    command: ["python", "-m", "nexgen_engine.cli", "capabilities"]
+    environment:
+      - NEXGEN_ENV=local
+      - NEXGEN_DATABASE_URL=postgresql://nexgen:nexgen@database:5432/nexgen
+      - NEXGEN_REDIS_URL=redis://redis:6379/0
+      - NEXGEN_SECRET_KEY=change-me
+    depends_on:
+      database:
+        condition: service_started
+      redis:
+        condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    ports:
+      - "3001:3000"
+    volumes:
+      - nexgen-grafana:/var/lib/grafana
 
 volumes:
   nexgen-runtime:
+  nexgen-postgres:
+  nexgen-grafana:

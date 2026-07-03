@@ -1,0 +1,32 @@
+services:
+  nexgen-api:
+    environment:
+      - NEXGEN_ENABLE_CUDA=true
+      - NEXGEN_REQUIRE_CUDA=true
+      - NEXGEN_ENABLE_TENSORRT=false
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    volumes:
+      - nexgen-models:/app/models
+      - nexgen-indexes:/app/indexes
+
+  worker:
+    environment:
+      - NEXGEN_ENABLE_CUDA=true
+      - NEXGEN_REQUIRE_CUDA=true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  nexgen-models:
+  nexgen-indexes:

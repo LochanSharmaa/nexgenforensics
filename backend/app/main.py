@@ -9,6 +9,13 @@ from .ai_engine import analyze_imatch_request, parse_checks
 from .schemas import ImatchResponse
 from nexgen_engine.api.service import EngineService
 from nexgen_engine.api.routes import build_engine_router
+from nexgen_engine.api.auth_routes import build_auth_router
+from nexgen_engine.api.job_routes import build_job_router
+from nexgen_engine.auth import AuthService
+from nexgen_engine.jobs import JobQueue
+from nexgen_engine.monitoring import MetricsRegistry
+from nexgen_engine.settings import Settings
+from nexgen_engine.storage import Database
 
 app = FastAPI(
     title="NexGen Identity AI Service",
@@ -19,12 +26,20 @@ app = FastAPI(
     ),
 )
 
-engine_service = EngineService(audit_path="runtime/nexgen_audit.jsonl")
+settings = Settings.from_env()
+metrics = MetricsRegistry()
+database = Database(settings.runtime_dir / "nexgen.db")
+database.migrate()
+auth_service = AuthService(settings.secret_key)
+job_queue = JobQueue(database)
+engine_service = EngineService(audit_path=settings.runtime_dir / "nexgen_audit.jsonl")
 app.include_router(build_engine_router(engine_service))
+app.include_router(build_auth_router(database, auth_service))
+app.include_router(build_job_router(job_queue, auth_service))
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=list(settings.cors_origins),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -33,7 +48,13 @@ app.add_middleware(
 
 @app.get("/api/v1/health")
 def health() -> dict[str, str]:
+    metrics.increment("health_requests")
     return {"status": "ok", "service": "nexgen-identity-ai"}
+
+
+@app.get("/metrics")
+def prometheus_metrics() -> str:
+    return metrics.prometheus_text()
 
 
 @app.post("/api/imatch/search", response_model=ImatchResponse)

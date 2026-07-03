@@ -1,0 +1,14 @@
+{
+  "title": "NexGen Identity Platform",
+  "schemaVersion": 39,
+  "panels": [
+    { "type": "timeseries", "title": "HTTP Requests", "targets": [{ "expr": "nexgen_health_requests_total" }] },
+    { "type": "timeseries", "title": "HTTP Latency", "targets": [{ "expr": "nexgen_http_request_seconds_sum / nexgen_http_request_seconds_count" }] },
+    { "type": "timeseries", "title": "Auth Failures", "targets": [{ "expr": "nexgen_auth_failures_total" }] },
+    { "type": "timeseries", "title": "Detector Latency", "targets": [{ "expr": "nexgen_detector_seconds_sum / nexgen_detector_seconds_count" }] },
+    { "type": "timeseries", "title": "Quality Latency", "targets": [{ "expr": "nexgen_quality_seconds_sum / nexgen_quality_seconds_count" }] },
+    { "type": "timeseries", "title": "Embedding Latency", "targets": [{ "expr": "nexgen_embedding_seconds_sum / nexgen_embedding_seconds_count" }] },
+    { "type": "timeseries", "title": "Search Latency", "targets": [{ "expr": "nexgen_search_seconds_sum / nexgen_search_seconds_count" }] },
+    { "type": "timeseries", "title": "Job Failures", "targets": [{ "expr": "nexgen_job_failures_total" }] }
+  ]
+}

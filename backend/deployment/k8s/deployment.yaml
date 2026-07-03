@@ -17,6 +17,36 @@ spec:
           image: nexgen-identity-api:0.1.0
           ports:
             - containerPort: 8443
+          env:
+            - name: NEXGEN_ENV
+              value: production
+            - name: NEXGEN_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: nexgen-secrets
+                  key: secret-key
+            - name: NEXGEN_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: nexgen-secrets
+                  key: database-url
+            - name: NEXGEN_REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: nexgen-secrets
+                  key: redis-url
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8443
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8443
+            initialDelaySeconds: 30
+            periodSeconds: 20
           resources:
             requests:
               cpu: "500m"

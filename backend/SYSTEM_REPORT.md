@@ -22,6 +22,9 @@ This backend contains a commercial facial-recognition engine scaffold with execu
 - Analytics metrics, accuracy tracking, and report generation.
 - JSON/base64 API support for offline environments without multipart support.
 - One-command local validation script.
+- Settings, local database schema, auth/RBAC, background jobs, metrics, and CI workflow.
+- Detector registry, production dependency verifier, BRISQUE-compatible scorer, FaceQNet-compatible loader, auth routes, and job routes.
+- Split CPU/GPU/dev requirements, detector/quality CLIs, migration script, worker script, compose GPU override, Prometheus config, Grafana dashboard.
 
 ## Validation Position
 

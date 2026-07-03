@@ -5,3 +5,11 @@ pillow==11.1.0
 pydantic==2.10.5
 numpy==2.2.1
 cryptography==44.0.0
+python-jose[cryptography]==3.3.0
+prometheus-client==0.21.1
+redis==5.2.1
+rq==2.1.0
+SQLAlchemy==2.0.36
+psycopg[binary]==3.2.3
+opencv-python-headless==4.10.0.84
+scikit-image==0.25.0
