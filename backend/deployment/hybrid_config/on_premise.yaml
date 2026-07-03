@@ -1,0 +1,11 @@
+mode: on_premise
+air_gapped_capable: true
+template_storage:
+  encryption: AES-256-GCM
+  audit_log: append_only_hash_chain
+search:
+  index_type: local_vector_index
+  cross_client_search_default: disabled
+model_updates:
+  require_validation_report: true
+  require_rollback_checkpoint: true

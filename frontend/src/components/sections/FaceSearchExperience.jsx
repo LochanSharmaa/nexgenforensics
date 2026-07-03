@@ -4,21 +4,21 @@ import faceSearchVideo from "../../assets/facesearch.mp4";
 import { imatchApiUrl, runImatchSearch } from "../../services/imatchApi";
 
 const trustItems = [
-  "Fast Face Matching",
+  "Commercial Face Matching",
   "Liveness Detection",
   "Deepfake Check",
-  "Enterprise API",
-  "99.4% Accuracy",
+  "Tenant Isolation",
+  "99.99% Benchmark Target",
 ];
 
 const storySteps = [
   {
     label: "Upload Face",
     title: "Start with an image, URL, or batch intake.",
-    body: "Investigators submit a face image through the console, paste a storage path, or queue a batch for secure recognition.",
+    body: "Authorized operators submit a face image through the console, paste a storage path, or queue a batch for secure recognition.",
     mode: "upload",
     score: "12%",
-    results: ["Upload zone ready", "URL import enabled", "Batch intake available"],
+    results: ["Upload zone ready", "Consent check required", "Batch intake available"],
   },
   {
     label: "Quality Assessment",
@@ -39,18 +39,18 @@ const storySteps = [
   {
     label: "Face Matching",
     title: "Return ranked candidates with confidence indicators.",
-    body: "Similarity vectors compare the submitted face against structured datasets and surface the strongest candidate rows.",
+    body: "Similarity vectors compare the submitted face against permitted workspace datasets and surface ranked candidate rows.",
     mode: "matching",
     score: "93%",
-    results: ["Candidate A - 99.4%", "Candidate B - 87.1%", "Candidate C - 82.6%"],
+    results: ["Candidate A - 96.8%", "Candidate B - 87.1%", "Candidate C - 82.6%"],
   },
   {
     label: "Verification Complete",
     title: "Confirm authenticity before results move forward.",
-    body: "Liveness, deepfake, and quality checks are preserved with recognition scoring for enterprise review workflows.",
+    body: "Liveness, deepfake, consent, and quality checks are preserved with recognition scoring for enterprise review workflows.",
     mode: "complete",
-    score: "99.4%",
-    results: ["Liveness passed", "Deepfake check passed", "Results ready"],
+    score: "96.8%",
+    results: ["Liveness passed", "Deepfake check passed", "Audit entry ready"],
   },
 ];
 
@@ -59,7 +59,7 @@ const tabs = [
     id: "console",
     label: "Web Console",
     title: "Recognition workflow dashboard",
-    lines: ["Single search intake", "Quality score 94/100", "Liveness passed", "Candidate confidence 99.4%"],
+    lines: ["Single search intake", "Quality score 94/100", "Liveness passed", "Candidate confidence 96.8%"],
   },
   {
     id: "api",
@@ -84,7 +84,7 @@ const tabs = [
     id: "secure",
     label: "Secure Integrations",
     title: "Connected enterprise systems",
-    lines: ["Case manager", "Evidence vault", "Identity records", "Review workflow"],
+    lines: ["KYC system", "Access control", "Identity records", "Review workflow"],
   },
 ];
 
@@ -96,7 +96,7 @@ const searchModes = [
     formats: "JPG - JPEG - PNG - WEBP - HEIC - TIFF - BMP",
     urlLabel: "Source URL",
     placeholder: "Enter image URL or cloud storage path",
-    summary: ["Single subject intake", "Face search ready", "One evidence image"],
+    summary: ["Single subject intake", "Consent-aware search", "One face image"],
   },
   {
     id: "compare",
@@ -157,14 +157,14 @@ export function FaceSearchExperience() {
       <section id="top" className="im-hero im-section" aria-labelledby="imatch-title">
         <div className="im-orb im-orb-one" aria-hidden="true" />
         <div className="im-hero-copy">
-          <p className="im-eyebrow">NexGen Forensics Product Suite</p>
-          <p className="im-badge">AI biometric engine active - 468 landmark points</p>
+          <p className="im-eyebrow">NexGen Identity Product Suite</p>
+          <p className="im-badge">Enterprise biometric engine - validation target 99.99%</p>
           <h1 id="imatch-title">NexGen iMatch</h1>
-          <h2>AI Facial Recognition System</h2>
+          <h2>Enterprise Facial Recognition System</h2>
           <p>
-            Advanced facial recognition product by NexGen Forensics for face search,
-            identity matching, biometric verification, liveness detection, deepfake
-            checks, and secure recognition workflows.
+            Advanced facial recognition for commercial face search, identity
+            verification, fraud prevention, access control, liveness detection,
+            deepfake checks, and secure recognition workflows.
           </p>
           <div className="im-hero-actions">
             <a href="#story">Start Face Search</a>
@@ -182,7 +182,7 @@ export function FaceSearchExperience() {
       <section id="story" className="im-story im-section" aria-labelledby="story-title">
         <div className="im-section-heading">
           <p className="im-eyebrow">Recognition Workflow</p>
-          <h2 id="story-title">From Face Upload to Identity Intelligence</h2>
+          <h2 id="story-title">From Face Upload to Enterprise Identity Decision</h2>
         </div>
         <div className="im-story-grid">
           <div className="im-story-copy">
@@ -249,10 +249,10 @@ export function FaceSearchExperience() {
       <section id="briefing" className="im-final-cta im-section">
         <div className="im-orb im-orb-three" aria-hidden="true" />
         <p className="im-eyebrow">Deploy iMatch</p>
-        <h2>Bring AI Facial Recognition Into Your NexGen Forensics Workflow</h2>
+        <h2>Bring AI Facial Recognition Into Your Enterprise Identity Workflow</h2>
         <p>
           Deploy face search, biometric verification, and authenticity checks inside
-          a secure, enterprise-ready recognition system.
+          a secure, tenant-isolated recognition system with audit-ready controls.
         </p>
         <div className="im-hero-actions">
           <a href="mailto:access@nexgenforensics.ai">Request Access</a>
@@ -344,7 +344,7 @@ function ImatchUploadConsole({ step, hero = false }) {
     >
       <div className="im-console-head">
         <div>
-          <span>NexGen Forensics Recognition Console</span>
+          <span>NexGen Identity Recognition Console</span>
           <h3>iMatch Face Search</h3>
         </div>
         <strong>IM-468</strong>
@@ -471,7 +471,7 @@ function ImatchUploadConsole({ step, hero = false }) {
       <button type="button" className="im-launch" onClick={handleLaunch} disabled={runState === "running"}>
         {runState === "running" ? "Analyzing Photo" : result ? "Run Again" : "Launch Face Search"}
       </button>
-      <p className="im-secure-line">Secure - Encrypted - AI endpoint: {imatchApiUrl}</p>
+      <p className="im-secure-line">Secure - Encrypted - Tenant isolated - AI endpoint: {imatchApiUrl}</p>
     </form>
   );
 }

@@ -7,6 +7,7 @@ import { EvidenceScatteringScroll } from "./components/sections/EvidenceScatteri
 import { NexFusionCorrelationSVG } from "./components/sections/NexFusionCorrelationSVG";
 import { SevenDivisionsHorizontalScroll } from "./components/sections/SevenDivisionsHorizontalScroll";
 import { HomeNavigationLinkSections } from "./components/sections/HomeNavigationLinkSections";
+import { EnterprisePlatformOverview } from "./components/sections/EnterprisePlatformOverview";
 import { NexCaseCommandDashboard } from "./components/sections/NexCaseCommandDashboard";
 import { RigorTrustStatements } from "./components/sections/RigorTrustStatements";
 import { InstitutionalResearchGrid } from "./components/sections/InstitutionalResearchGrid";
@@ -58,6 +59,8 @@ export default function App() {
           </div>
 
           <HomeNavigationLinkSections />
+
+          <EnterprisePlatformOverview />
 
           <NexCaseCommandDashboard />
 

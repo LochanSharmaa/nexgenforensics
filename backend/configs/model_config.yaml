@@ -1,0 +1,53 @@
+engine:
+  final_embedding_dim: 512
+  cohort_size: 200
+  verification_threshold: 0.82
+models:
+  - name: vit_h14
+    provider: timm
+    model_id: vit_huge_patch14_224
+    embedding_dim: 2048
+    image_size: 224
+    weight: 0.25
+  - name: swin_l
+    provider: timm
+    model_id: swin_large_patch4_window12_384
+    embedding_dim: 2048
+    image_size: 384
+    weight: 0.18
+  - name: beit_l
+    provider: timm
+    model_id: beit_large_patch16_224
+    embedding_dim: 2048
+    image_size: 224
+    weight: 0.17
+  - name: resnet100
+    provider: insightface
+    model_id: iresnet100
+    embedding_dim: 2048
+    image_size: 112
+    weight: 0.12
+  - name: efficientnet_xl
+    provider: timm
+    model_id: tf_efficientnetv2_xl
+    embedding_dim: 2048
+    image_size: 384
+    weight: 0.10
+  - name: age_invariant
+    provider: custom
+    model_id: vit_base_patch16_224
+    embedding_dim: 2048
+    image_size: 224
+    weight: 0.10
+  - name: pose_net
+    provider: custom
+    model_id: swin_base_patch4_window7_224
+    embedding_dim: 2048
+    image_size: 224
+    weight: 0.05
+  - name: ir_face_net
+    provider: custom
+    model_id: resnet50
+    embedding_dim: 2048
+    image_size: 112
+    weight: 0.03

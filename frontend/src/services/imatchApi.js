@@ -11,23 +11,21 @@ export async function runImatchSearch({ file, mode, sourceUrl, checks }) {
     throw new Error("Upload a photo or enter a secure image URL first.");
   }
 
-  const formData = new FormData();
-  formData.append("mode", mode);
-  formData.append("purpose", "authorized_imatch_demo");
-  formData.append("lawful_use_reason", "User-submitted iMatch page analysis");
-  formData.append("checks", JSON.stringify(checks));
-
-  if (file) {
-    formData.append("image", file, file.name);
-  }
-
-  if (sourceUrl?.trim()) {
-    formData.append("source_url", sourceUrl.trim());
-  }
+  const requestPayload = {
+    mode,
+    purpose: "authorized_imatch_demo",
+    lawful_use_reason: "User-submitted iMatch page analysis",
+    checks,
+    source_url: sourceUrl?.trim() || undefined,
+    image_base64: file ? await fileToBase64(file) : undefined,
+  };
 
   const response = await fetch(imatchApiUrl, {
     method: "POST",
-    body: formData,
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(requestPayload),
   });
 
   let payload = null;
@@ -42,6 +40,18 @@ export async function runImatchSearch({ file, mode, sourceUrl, checks }) {
   }
 
   return normalizeImatchResult(payload);
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || "");
+      resolve(result.includes(",") ? result.split(",").pop() : result);
+    };
+    reader.onerror = () => reject(new Error("Could not read selected image."));
+    reader.readAsDataURL(file);
+  });
 }
 
 function validateApiConfiguration() {

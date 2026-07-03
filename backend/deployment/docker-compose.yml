@@ -1,0 +1,14 @@
+services:
+  nexgen-api:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    ports:
+      - "8443:8443"
+    environment:
+      - NEXGEN_ENV=local
+    volumes:
+      - nexgen-runtime:/app/runtime
+
+volumes:
+  nexgen-runtime:

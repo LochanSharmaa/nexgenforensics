@@ -1,0 +1,33 @@
+training:
+  framework: numpy-local-fallback
+  production_framework: pytorch
+  distributed: deepspeed_zero3
+  precision: fp16_mixed
+  global_batch: 8192
+  optimizer: adamw
+  learning_rate: 0.001
+  weight_decay: 0.0005
+  warmup_steps: 1000
+  grad_clip_max_norm: 5.0
+  ema_decay: 0.9999
+curriculum:
+  - stage: 1
+    epochs: [1, 10]
+    quality_fraction: 0.40
+    learning_rate: 0.0001
+    loss_profile: cosface
+  - stage: 2
+    epochs: [11, 30]
+    quality_fraction: 0.70
+    learning_rate: 0.001
+    loss_profile: adaface_elasticface
+  - stage: 3
+    epochs: [31, 50]
+    quality_fraction: 1.00
+    learning_rate: 0.0001
+    loss_profile: combined
+  - stage: 4
+    epochs: [51, 60]
+    quality_fraction: 1.00
+    learning_rate: 0.00001
+    loss_profile: triplet_adaface

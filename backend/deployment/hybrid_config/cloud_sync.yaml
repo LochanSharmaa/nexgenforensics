@@ -1,0 +1,8 @@
+mode: hybrid_cloud
+transport: mtls
+sync:
+  strategy: metadata_and_encrypted_delta
+  raw_biometric_data_default: on_premise_only
+conflict_resolution: on_premise_wins
+audit:
+  record_all_sync_events: true

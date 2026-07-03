@@ -18,24 +18,27 @@ export function HeroForensicsIntro() {
         muted
         playsInline
         preload="auto"
-        aria-label="Abstract rose and pearl forensic technology animation"
+        aria-label="Abstract biometric enterprise technology animation"
       />
       <div className="nx-hero-shade" aria-hidden="true" />
 
       <div className="nx-hero-content">
-        <p className="nx-hero-kicker">Intelligence beyond evidence</p>
+        <p className="nx-hero-kicker">Commercial biometric AI platform</p>
 
         <div className="nx-hero-main">
-          <h1>NexGen <span>Forensics</span></h1>
-          <p>Advanced forensic technology designed to reveal what others leave unseen.</p>
+          <h1>NexGen <span>Identity</span></h1>
+          <p>
+            Enterprise facial recognition for identity verification, secure face search,
+            fraud prevention, and privacy-aware biometric deployment.
+          </p>
         </div>
 
         <div className="nx-hero-action">
           <a href="#platform">
-            <span>Explore Our Products</span>
+            <span>Explore Platform</span>
             <span className="nx-hero-arrow" aria-hidden="true">→</span>
           </a>
-          <small>Enter the platform</small>
+          <small>Target accuracy is benchmarked before commercial claims</small>
         </div>
       </div>
     </section>
