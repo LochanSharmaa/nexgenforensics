@@ -1,5 +1,4 @@
-# NexGen Identity AI Service
-
+# NexGen iMATCH
 This backend powers the first AI layer for the NexGen commercial biometric platform. It exposes an iMatch-compatible endpoint for consent-aware demo analysis:
 
 - image quality scoring
