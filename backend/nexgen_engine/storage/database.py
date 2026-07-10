@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlparse
 
 
 @dataclass(frozen=True)
@@ -21,8 +22,15 @@ class UserRecord:
 
 
 class Database:
-    def __init__(self, path: str | Path = "runtime/nexgen.db") -> None:
-        self.path = Path(path)
+    def __init__(self, path: str | Path = "runtime/nexgen.db", database_url: str | None = None) -> None:
+        self.database_url = database_url or _url_from_path(path)
+        self.backend = _backend_from_url(self.database_url)
+        if self.backend != "sqlite":
+            raise RuntimeError(
+                "The synchronous Database adapter currently supports SQLite only. "
+                "Use AsyncDatabase for postgresql+asyncpg production connections."
+            )
+        self.path = _sqlite_path(self.database_url)
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
     def connect(self) -> sqlite3.Connection:
@@ -95,6 +103,47 @@ class Database:
                   metadata_json TEXT NOT NULL DEFAULT '{}',
                   created_at TEXT DEFAULT CURRENT_TIMESTAMP
                 );
+                CREATE TABLE IF NOT EXISTS agency_partitions (
+                  agency_id TEXT PRIMARY KEY,
+                  tenant_id TEXT NOT NULL REFERENCES tenants(tenant_id),
+                  name TEXT NOT NULL,
+                  isolation_policy TEXT NOT NULL DEFAULT 'tenant_scoped',
+                  metadata_json TEXT NOT NULL DEFAULT '{}',
+                  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE TABLE IF NOT EXISTS model_accuracy_history (
+                  record_id TEXT PRIMARY KEY,
+                  version_id TEXT NOT NULL,
+                  benchmark_name TEXT NOT NULL,
+                  accuracy REAL NOT NULL,
+                  false_accept_rate REAL NOT NULL DEFAULT 0,
+                  false_reject_rate REAL NOT NULL DEFAULT 0,
+                  metrics_json TEXT NOT NULL DEFAULT '{}',
+                  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE TABLE IF NOT EXISTS auto_improve_jobs (
+                  job_id TEXT PRIMARY KEY,
+                  tenant_id TEXT NOT NULL REFERENCES tenants(tenant_id),
+                  dataset_upload_id TEXT NOT NULL DEFAULT '',
+                  status TEXT NOT NULL,
+                  progress REAL NOT NULL DEFAULT 0,
+                  current_stage TEXT NOT NULL DEFAULT 'queued',
+                  result_json TEXT NOT NULL DEFAULT '{}',
+                  error TEXT NOT NULL DEFAULT '',
+                  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                  updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE TABLE IF NOT EXISTS dataset_uploads (
+                  upload_id TEXT PRIMARY KEY,
+                  tenant_id TEXT NOT NULL REFERENCES tenants(tenant_id),
+                  filename TEXT NOT NULL,
+                  storage_path TEXT NOT NULL,
+                  size_bytes INTEGER NOT NULL,
+                  checksum_sha256 TEXT NOT NULL,
+                  status TEXT NOT NULL DEFAULT 'uploaded',
+                  metadata_json TEXT NOT NULL DEFAULT '{}',
+                  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                );
                 """
             )
 
@@ -134,3 +183,107 @@ class Database:
         with self.connect() as db:
             row = db.execute("SELECT * FROM jobs WHERE job_id = ?", (job_id,)).fetchone()
         return dict(row) if row else None
+
+    def store_enrolled_identity(self, identity_id: str, tenant_id: str, metadata_json: str = "{}") -> None:
+        with self.connect() as db:
+            db.execute(
+                """
+                INSERT OR REPLACE INTO enrolled_identities(identity_id, tenant_id, metadata_json)
+                VALUES(?, ?, ?)
+                """,
+                (identity_id, tenant_id, metadata_json),
+            )
+
+    def store_template(
+        self,
+        template_id: str,
+        identity_id: str,
+        tenant_id: str,
+        dimensions: int,
+        encrypted_payload: str,
+    ) -> None:
+        with self.connect() as db:
+            db.execute(
+                """
+                INSERT OR REPLACE INTO biometric_templates(
+                  template_id, identity_id, tenant_id, dimensions, encrypted_payload
+                ) VALUES(?, ?, ?, ?, ?)
+                """,
+                (template_id, identity_id, tenant_id, dimensions, encrypted_payload),
+            )
+
+
+class AsyncDatabase:
+    def __init__(self, database_url: str, pool_min: int = 5, pool_max: int = 20) -> None:
+        self.database_url = database_url
+        self.pool_min = pool_min
+        self.pool_max = pool_max
+        self._engine = None
+        self._sessionmaker = None
+
+    @property
+    def available(self) -> bool:
+        return self._engine is not None and self._sessionmaker is not None
+
+    async def connect(self) -> None:
+        try:
+            from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+        except Exception as exc:
+            raise RuntimeError("SQLAlchemy asyncio support is required for Postgres production mode.") from exc
+        self._engine = create_async_engine(
+            self.database_url,
+            pool_size=self.pool_min,
+            max_overflow=max(0, self.pool_max - self.pool_min),
+            pool_pre_ping=True,
+        )
+        self._sessionmaker = async_sessionmaker(self._engine, expire_on_commit=False)
+
+    async def disconnect(self) -> None:
+        if self._engine is not None:
+            await self._engine.dispose()
+        self._engine = None
+        self._sessionmaker = None
+
+    async def healthcheck(self) -> bool:
+        if self._engine is None:
+            await self.connect()
+        assert self._engine is not None
+        from sqlalchemy import text
+
+        async with self._engine.connect() as connection:
+            await connection.execute(text("SELECT 1"))
+        return True
+
+    def session(self):
+        if self._sessionmaker is None:
+            raise RuntimeError("AsyncDatabase.connect() must be called before opening sessions.")
+        return self._sessionmaker()
+
+
+def _url_from_path(path: str | Path) -> str:
+    text = str(path)
+    if "://" in text:
+        return text
+    return f"sqlite:///{text}"
+
+
+def _backend_from_url(database_url: str) -> str:
+    scheme = urlparse(database_url).scheme
+    if scheme.startswith("sqlite"):
+        return "sqlite"
+    if scheme.startswith("postgresql"):
+        return "postgres"
+    return scheme
+
+
+def _sqlite_path(database_url: str) -> Path:
+    parsed = urlparse(database_url)
+    if parsed.scheme == "sqlite" and parsed.path:
+        if parsed.path.startswith("/") and ":" in parsed.path[:4]:
+            raw_path = parsed.path[1:]
+        elif parsed.path.startswith("/") and not parsed.netloc:
+            raw_path = parsed.path[1:]
+        else:
+            raw_path = parsed.path
+        return Path(raw_path)
+    return Path(database_url.replace("sqlite:///", "", 1))

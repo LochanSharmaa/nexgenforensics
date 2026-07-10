@@ -7,6 +7,7 @@ import sys
 import uuid
 from io import BytesIO
 from pathlib import Path
+from zipfile import ZipFile
 
 from fastapi.testclient import TestClient
 from PIL import Image
@@ -32,7 +33,9 @@ from nexgen_engine.models import (
     ViTH14Backbone,
 )
 from nexgen_engine.data.ingestion_validator import DatasetIngestionValidator
+from nexgen_engine.data.image_archive import ImageArchiveCataloger
 from nexgen_engine.data.manifest import DatasetManifest
+from nexgen_engine.data.recordio import RecordIOArchiveCataloger
 from nexgen_engine.dependencies import DependencyVerifier
 from nexgen_engine.detection import DetectorConfig, DetectorRegistry, FaceAligner
 from nexgen_engine.detection.smoke import detector_smoke
@@ -179,11 +182,39 @@ def run_dataset_smoke(payload: bytes) -> dict[str, object]:
     manifest_path = output_root / "manifest.csv"
     DatasetManifest.write_template(manifest_path)
     report = DatasetIngestionValidator().validate(output_root, manifest_path)
+    recordio_zip = output_root / "sample_recordio.zip"
+    with ZipFile(recordio_zip, "w") as archive:
+        archive.writestr("sample/train.rec", b"placeholder")
+        archive.writestr("sample/train.idx", b"placeholder")
+        archive.writestr("sample/train.lst", "0\tperson_001\tperson_001/img_001.jpg\n1\tperson_001\tperson_001/img_002.jpg\n")
+        archive.writestr("sample/lfw.bin", b"placeholder")
+    image_zip = output_root / "sample_images.zip"
+    with ZipFile(image_zip, "w") as archive:
+        archive.writestr("WIDER_val/images/0--Parade/sample.jpg", payload)
+    recordio_report = RecordIOArchiveCataloger().catalog_zip(
+        recordio_zip,
+        output_root / "recordio_catalog",
+        workspace="validation",
+        lawful_basis="validation_fixture",
+        consent=True,
+    )
+    image_archive_report = ImageArchiveCataloger().catalog_zip(
+        image_zip,
+        output_root / "image_archive_catalog",
+        workspace="validation",
+        lawful_basis="validation_fixture",
+        consent=True,
+    )
     return {
         "manifest_template": manifest_path.exists(),
         "records": report.total_records,
         "accepted": report.accepted_records,
         "rejected": report.rejected_records,
+        "recordio_ready": recordio_report.ready_for_catalog,
+        "recordio_records": recordio_report.listed_records,
+        "recordio_identities": recordio_report.listed_identities,
+        "image_archive_ready": image_archive_report.ready_for_catalog,
+        "image_archive_records": image_archive_report.image_records,
     }
 
 

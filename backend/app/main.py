@@ -32,7 +32,12 @@ database = Database(settings.runtime_dir / "nexgen.db")
 database.migrate()
 auth_service = AuthService(settings.secret_key)
 job_queue = JobQueue(database)
-engine_service = EngineService(audit_path=settings.runtime_dir / "nexgen_audit.jsonl")
+engine_service = EngineService(
+    audit_path=settings.runtime_dir / "nexgen_audit.jsonl",
+    index_path=settings.faiss_index_path,
+    database=database,
+    template_secret=settings.encryption_key or settings.secret_key,
+)
 app.include_router(build_engine_router(engine_service))
 app.include_router(build_auth_router(database, auth_service))
 app.include_router(build_job_router(job_queue, auth_service))
@@ -47,9 +52,15 @@ app.add_middleware(
 
 
 @app.get("/api/v1/health")
-def health() -> dict[str, str]:
+def health() -> dict[str, str | int | bool]:
     metrics.increment("health_requests")
-    return {"status": "ok", "service": "nexgen-identity-ai"}
+    return {
+        "status": "ok",
+        "service": "nexgen-identity-ai",
+        "database": settings.database_backend,
+        "redis_configured": settings.redis_enabled,
+        "index_count": int(engine_service.index.snapshot()["count"]),
+    }
 
 
 @app.get("/metrics")

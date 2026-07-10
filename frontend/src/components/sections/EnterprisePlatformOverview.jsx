@@ -42,7 +42,7 @@ export function EnterprisePlatformOverview() {
         <p className="nx-kicker">Enterprise Platform</p>
         <h2 id="enterprise-title">Built for sellable commercial biometric deployment.</h2>
         <p>
-          NexGen Identity is positioned for private-sector identity verification,
+          NexGen Forensics is positioned for private-sector identity verification,
           fraud prevention, access control, and secure face search. The 99.99%
           accuracy figure is treated as a benchmark goal until independently validated.
         </p>

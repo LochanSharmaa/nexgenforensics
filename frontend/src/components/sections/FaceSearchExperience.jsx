@@ -157,7 +157,7 @@ export function FaceSearchExperience() {
       <section id="top" className="im-hero im-section" aria-labelledby="imatch-title">
         <div className="im-orb im-orb-one" aria-hidden="true" />
         <div className="im-hero-copy">
-          <p className="im-eyebrow">NexGen Identity Product Suite</p>
+          <p className="im-eyebrow">NexGen Forensics Product Suite</p>
           <p className="im-badge">Enterprise biometric engine - validation target 99.99%</p>
           <h1 id="imatch-title">NexGen iMatch</h1>
           <h2>Enterprise Facial Recognition System</h2>
@@ -344,7 +344,7 @@ function ImatchUploadConsole({ step, hero = false }) {
     >
       <div className="im-console-head">
         <div>
-          <span>NexGen Identity Recognition Console</span>
+          <span>NexGen Forensics Recognition Console</span>
           <h3>iMatch Face Search</h3>
         </div>
         <strong>IM-468</strong>

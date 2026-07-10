@@ -87,7 +87,7 @@ export const resourceLinks = [
   {
     title: "Documentation",
     href: "/resources/docs",
-    description: "Guides for using NexGen Identity products, APIs, and workflow modules.",
+    description: "Guides for using NexGen Forensics products, APIs, and workflow modules.",
   },
   {
     title: "API Reference",
@@ -160,7 +160,7 @@ export const navGroups = {
     items: resourceLinks,
     featured: {
       title: "Responsible Biometric AI",
-      text: "NexGen Identity is designed to assist expert review, not replace professional judgment.",
+      text: "NexGen Forensics is designed to assist expert review, not replace professional judgment.",
       cta: "Read Validation Notes",
       href: "/resources/validation",
     },

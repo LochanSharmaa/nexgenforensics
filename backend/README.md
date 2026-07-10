@@ -69,6 +69,9 @@ cd backend
 $env:PYTHONPATH = (Get-Location).Path
 python scripts/dataset_cli.py template dataset_manifest.csv
 python scripts/dataset_cli.py validate --root C:\path\to\dataset --manifest C:\path\to\dataset_manifest.csv
+python scripts/dataset_cli.py catalog-recordio-zip --source C:\path\to\faces_webface_112x112.zip --output-dir runtime\datasets --workspace webface
+python scripts/dataset_cli.py catalog-image-zip --source C:\path\to\WIDER_val.zip --output-dir runtime\datasets --workspace wider --task detection_validation --lawful-basis legal --consent
+python scripts/dataset_cli.py catalog-image-zip --source C:\path\to\CACD_VS.tar --output-dir runtime\datasets --workspace cacd_vs --task verification_validation --lawful-basis legal --consent
 ```
 
 Check optional production dependency status:

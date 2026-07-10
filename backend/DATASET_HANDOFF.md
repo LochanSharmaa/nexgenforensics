@@ -49,3 +49,26 @@ Start with a pilot dataset:
 - Clear consent/lawful basis for every record
 
 After the pilot validates cleanly, send the larger dataset.
+
+## RecordIO / WebFace Zip Drops
+
+Large face datasets may arrive as MXNet RecordIO archives, commonly containing `train.rec`, `train.idx`, `train.lst`, and benchmark `.bin` files. Catalog those archives first without extracting them:
+
+```powershell
+cd backend
+$env:PYTHONPATH = (Get-Location).Path
+python scripts/dataset_cli.py catalog-recordio-zip --source C:\path\to\faces_webface_112x112.zip --output-dir runtime\datasets --workspace webface --lawful-basis dataset_provider_terms
+```
+
+The generated manifest intentionally keeps `consent=false` unless `--consent` is passed. Do not train from a cataloged dataset until legal usage rights and consent status are confirmed.
+
+## Image Archive Detection And Verification Datasets
+
+Datasets such as WIDER Face validation archives contain scene images for detector/quality validation, not identity labels. Other archives such as CACD_VS may be used for verification validation. Catalog them separately:
+
+```powershell
+cd backend
+$env:PYTHONPATH = (Get-Location).Path
+python scripts/dataset_cli.py catalog-image-zip --source C:\path\to\WIDER_val.zip --output-dir runtime\datasets --workspace wider --task detection_validation --lawful-basis legal --consent
+python scripts/dataset_cli.py catalog-image-zip --source C:\path\to\CACD_VS.tar --output-dir runtime\datasets --workspace cacd_vs --task verification_validation --lawful-basis legal --consent
+```

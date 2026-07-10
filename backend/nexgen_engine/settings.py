@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlparse
 
 
 @dataclass(frozen=True)
@@ -24,6 +25,19 @@ class Settings:
     sentry_dsn: str
     model_dir: Path
     runtime_dir: Path
+    faiss_index_path: Path
+    checkpoint_path: Path
+    upload_path: Path
+    encryption_key: str
+    postgres_pool_min: int
+    postgres_pool_max: int
+    redis_pool_size: int
+    max_upload_size_gb: int
+    liveness_threshold: float
+    deepfake_threshold: float
+    morphing_threshold: float
+    quality_threshold: float
+    match_threshold: float
     cors_origins: tuple[str, ...]
 
     @classmethod
@@ -46,8 +60,34 @@ class Settings:
             sentry_dsn=os.getenv("NEXGEN_SENTRY_DSN", ""),
             model_dir=Path(os.getenv("NEXGEN_MODEL_DIR", "models")),
             runtime_dir=Path(os.getenv("NEXGEN_RUNTIME_DIR", "runtime")),
+            faiss_index_path=Path(os.getenv("NEXGEN_FAISS_INDEX_PATH", "runtime/faiss.index")),
+            checkpoint_path=Path(os.getenv("NEXGEN_CHECKPOINT_PATH", "runtime/checkpoints")),
+            upload_path=Path(os.getenv("NEXGEN_UPLOAD_PATH", "runtime/uploads")),
+            encryption_key=os.getenv("NEXGEN_ENCRYPTION_KEY", ""),
+            postgres_pool_min=_int("NEXGEN_POSTGRES_POOL_MIN", 5),
+            postgres_pool_max=_int("NEXGEN_POSTGRES_POOL_MAX", 20),
+            redis_pool_size=_int("NEXGEN_REDIS_POOL_SIZE", 10),
+            max_upload_size_gb=_int("NEXGEN_MAX_UPLOAD_SIZE_GB", 50),
+            liveness_threshold=_float("NEXGEN_LIVENESS_THRESHOLD", 0.75),
+            deepfake_threshold=_float("NEXGEN_DEEPFAKE_THRESHOLD", 0.85),
+            morphing_threshold=_float("NEXGEN_MORPHING_THRESHOLD", 0.30),
+            quality_threshold=_float("NEXGEN_QUALITY_THRESHOLD", 0.60),
+            match_threshold=_float("NEXGEN_MATCH_THRESHOLD", 0.65),
             cors_origins=tuple(item.strip() for item in os.getenv("NEXGEN_CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",") if item.strip()),
         )
+
+    @property
+    def database_backend(self) -> str:
+        scheme = urlparse(self.database_url).scheme
+        if scheme.startswith("postgresql"):
+            return "postgres"
+        if scheme.startswith("sqlite"):
+            return "sqlite"
+        return scheme or "unknown"
+
+    @property
+    def redis_enabled(self) -> bool:
+        return bool(self.redis_url.strip())
 
     def validate_runtime_mode(self, runtime_mode: str) -> None:
         if self.require_production_mode and runtime_mode != "production_ready_dependencies":
@@ -66,3 +106,23 @@ def _bool(name: str, default: bool) -> bool:
     if value is None:
         return default
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
+def _float(name: str, default: float) -> float:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except ValueError:
+        return default

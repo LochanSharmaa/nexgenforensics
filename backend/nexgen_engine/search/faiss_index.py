@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -40,3 +42,31 @@ class VectorSearchIndex:
             MatchResult(self._ids[index], round(float(scores[index]), 6), self._metadata[index])
             for index in top_indices
         ]
+
+    def save(self, path: str | Path) -> Path:
+        target = Path(path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "dimensions": self.dimensions,
+            "ids": self._ids,
+            "metadata": self._metadata,
+            "vectors": self._vectors.tolist(),
+        }
+        target.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+        return target
+
+    @classmethod
+    def load(cls, path: str | Path) -> "VectorSearchIndex":
+        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+        index = cls(int(payload["dimensions"]))
+        index._ids = [str(item) for item in payload.get("ids", [])]
+        index._metadata = [dict(item) for item in payload.get("metadata", [])]
+        index._vectors = np.asarray(payload.get("vectors", []), dtype=np.float32).reshape((-1, index.dimensions))
+        return index
+
+    def snapshot(self) -> dict[str, Any]:
+        return {
+            "dimensions": self.dimensions,
+            "count": len(self._ids),
+            "ids": list(self._ids),
+        }
