@@ -43,7 +43,7 @@ engine_service = EngineService(
 app.include_router(build_engine_router(engine_service))
 app.include_router(build_auth_router(database, auth_service))
 app.include_router(build_job_router(job_queue, auth_service))
-app.include_router(build_forensic_report_router(auth_service, AuditLogger(settings.runtime_dir / 'nexgen_audit.jsonl'), settings.runtime_dir / 'reports'))
+app.include_router(build_forensic_report_router(auth_service, AuditLogger(settings.runtime_dir / 'nexgen_audit.jsonl'), settings.runtime_dir / 'reports', job_queue))
 
 app.add_middleware(
     CORSMiddleware,
@@ -138,6 +138,7 @@ async def _read_imatch_request(request: Request) -> dict[str, object]:
         "source_url": form.get("source_url"),
         "image_bytes": image_bytes,
     }
+
 
 
 

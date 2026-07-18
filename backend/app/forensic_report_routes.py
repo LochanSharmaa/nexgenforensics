@@ -1,13 +1,20 @@
 ﻿from datetime import datetime, timezone
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
+from nexgen_engine.jobs import JobQueue
+import uuid
 from app.schemas import ForensicFindings, MeasurementFinding, ModelSimilarityScore, SourceImageFindings
 from app.services.report_pdf import render_report_pdf, tenant_report_path
 from nexgen_engine.auth import AuthService, require_role
 from nexgen_engine.security.audit_logger import AuditLogger
 class ReportGenerateRequest(BaseModel):
     case_id:str; source_images:list[SourceImageFindings]; model_scores:list[ModelSimilarityScore]; fused_score:float=Field(ge=0,le=1); calibrated_match_probability:float=Field(ge=0,le=100); threshold_value:float=Field(ge=0,le=1); false_match_rate:float=Field(ge=0,le=1); measurements:list[MeasurementFinding]=[]; config_version:str='nexgen-default-v1'
-def build_forensic_report_router(auth:AuthService,audit:AuditLogger,root):
+class BatchPair(BaseModel):
+    pair_id: str; source_images: list[SourceImageFindings]; model_scores: list[ModelSimilarityScore]; fused_score: float = Field(ge=0, le=1); threshold_value: float = .72
+class BatchReportRequest(BaseModel):
+    pairs: list[BatchPair]
+
+def build_forensic_report_router(auth:AuthService,audit:AuditLogger,root, queue: JobQueue | None = None):
     router=APIRouter(prefix='/api/v1/forensic-report',tags=['forensic-report'])
     @router.post('/generate')
     def generate(p:ReportGenerateRequest,authorization:str|None=Header(default=None)):
@@ -21,6 +28,14 @@ def build_forensic_report_router(auth:AuthService,audit:AuditLogger,root):
         try: render_report_pdf(f,path)
         except RuntimeError as exc: raise HTTPException(503,str(exc)) from exc
         return {'report_path':str(path),'audit_hash':entry.entry_hash,'findings':f.model_dump(mode='json')}
+    @router.post('/batch')
+    def batch(payload: BatchReportRequest, authorization: str | None = Header(default=None)):
+        if queue is None: raise HTTPException(503, 'Report queue unavailable.')
+        if not authorization or not authorization.lower().startswith('bearer '): raise HTTPException(401, 'Bearer token required.')
+        principal = auth.verify_token(authorization.split(' ', 1)[1]); require_role(principal.role, 'operator')
+        batch_id = f'batch_{uuid.uuid4().hex[:16]}'
+        job_id = queue.enqueue(principal.tenant_id, 'forensic_report_batch', {'batch_id': batch_id, 'tenant_id': principal.tenant_id, 'examiner_id': principal.user_id, 'root': str(root), 'audit_path': str(audit.path), 'pairs': [item.model_dump(mode='json') for item in payload.pairs]})
+        return {'job_id': job_id, 'batch_id': batch_id, 'status': 'queued'}
     return router
 
 def generate_automated_report(*, audit: AuditLogger, root, case_id: str, tenant_id: str, examiner_id: str, source_images: list[SourceImageFindings], model_scores: list[ModelSimilarityScore], fused_score: float, threshold_value: float = 0.72, false_match_rate: float = 0.001, config_version: str = 'nexgen-default-v1') -> dict:
@@ -31,3 +46,4 @@ def generate_automated_report(*, audit: AuditLogger, root, case_id: str, tenant_
     path = tenant_report_path(root, tenant_id, case_id, entry.entry_hash)
     render_report_pdf(findings, path)
     return {'report_path': str(path), 'audit_hash': entry.entry_hash, 'findings': findings.model_dump(mode='json')}
+

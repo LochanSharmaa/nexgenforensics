@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 import json
@@ -6,6 +6,7 @@ import json
 from nexgen_engine.jobs import JobQueue, JobWorker
 from nexgen_engine.settings import Settings
 from nexgen_engine.storage import Database
+from app.batch_reports import run_batch_report_job
 
 
 def main() -> int:
@@ -26,6 +27,7 @@ def main() -> int:
             "model_export": lambda payload: None,
             "training": lambda payload: None,
             "noop": lambda payload: None,
+            "forensic_report_batch": run_batch_report_job,
         },
     )
     worker.run_job(args.job_id)
@@ -35,3 +37,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
