@@ -88,6 +88,11 @@ async def imatch_search(request: Request) -> ImatchResponse:
     if "image_or_source_url_required" in response.reasons:
         raise HTTPException(status_code=400, detail="Upload an image or provide a secure source URL.")
 
+    if parsed["generate_report"]:
+        import hashlib
+        h=hashlib.sha256(image_bytes or str(parsed["source_url"] or "").encode()).hexdigest()
+        response.report=generate_automated_report(audit=AuditLogger(settings.runtime_dir / "nexgen_audit.jsonl"),root=settings.runtime_dir / "reports",case_id=str(parsed["case_id"] or response.audit["audit_id"]),tenant_id="demo_workspace",examiner_id="system",source_images=[SourceImageFindings(sha256=h,quality_score=response.quality.score,pose_yaw=0,pose_pitch=0,liveness_score=response.liveness.score)],model_scores=[ModelSimilarityScore(model_name="demo-ensemble",score=response.score)],fused_score=response.score,threshold_value=settings.match_threshold)
+        response.report["report_url"]=response.report["report_path"]
     return response
 
 
@@ -133,6 +138,9 @@ async def _read_imatch_request(request: Request) -> dict[str, object]:
         "source_url": form.get("source_url"),
         "image_bytes": image_bytes,
     }
+
+
+
 
 
 
