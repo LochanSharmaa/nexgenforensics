@@ -17,3 +17,6 @@ alembic==1.14.0
 psycopg[binary]==3.2.3
 opencv-python-headless==4.10.0.84
 scikit-image==0.25.0
+
+weasyprint==66.0
+mediapipe==0.10.21
