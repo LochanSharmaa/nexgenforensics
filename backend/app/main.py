@@ -6,8 +6,8 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from .ai_engine import analyze_imatch_request, parse_checks
-from .schemas import ImatchResponse
-from .forensic_report_routes import build_forensic_report_router
+from .schemas import ImatchResponse, ModelSimilarityScore, SourceImageFindings
+from .forensic_report_routes import build_forensic_report_router, generate_automated_report
 from nexgen_engine.api.service import EngineService
 from nexgen_engine.api.routes import build_engine_router
 from nexgen_engine.api.auth_routes import build_auth_router
@@ -108,6 +108,8 @@ async def _read_imatch_request(request: Request) -> dict[str, object]:
             "checks": data.get("checks"),
             "source_url": data.get("source_url"),
             "image_bytes": image_bytes,
+            "generate_report": bool(data.get("generate_report", False)),
+            "case_id": data.get("case_id"),
         }
 
     try:
@@ -131,4 +133,6 @@ async def _read_imatch_request(request: Request) -> dict[str, object]:
         "source_url": form.get("source_url"),
         "image_bytes": image_bytes,
     }
+
+
 
