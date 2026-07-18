@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import datetime
 from typing import Any, Literal
@@ -52,6 +52,7 @@ class SourceImageFindings(BaseModel):
     pose_pitch: float = 0.0
     liveness_score: float = Field(ge=0.0, le=1.0)
     thumbnail_base64: str | None = None
+    landmark_overlay_base64: str | None = None
 
 
 class ModelSimilarityScore(BaseModel):
@@ -80,6 +81,8 @@ class ForensicFindings(BaseModel):
     decision: Literal["match", "no_match", "inconclusive"]
     threshold_value: float = Field(ge=0.0, le=1.0)
     false_match_rate: float = Field(ge=0.0, le=1.0)
-    measurements: list[MeasurementFinding] = []
+    measurements: list[MeasurementFinding] = Field(default_factory=list)
     audit_hash: str = Field(min_length=1)
     config_version: str = "nexgen-default-v1"
+
+

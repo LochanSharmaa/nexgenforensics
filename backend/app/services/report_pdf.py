@@ -58,7 +58,7 @@ def render_report_html(findings: ForensicFindings) -> str:
 def render_report_pdf(findings: ForensicFindings, output_path: Path) -> Path:
     try:
         from weasyprint import HTML
-    except ImportError as exc:  # pragma: no cover
+    except (ImportError, OSError) as exc:  # pragma: no cover
         raise RuntimeError("weasyprint is required to render forensic PDFs") from exc
     output_path.parent.mkdir(parents=True, exist_ok=True)
     HTML(string=render_report_html(findings)).write_pdf(str(output_path))
@@ -68,6 +68,7 @@ def render_report_pdf(findings: ForensicFindings, output_path: Path) -> Path:
 def render_and_store_report(findings: ForensicFindings, storage: TenantReportStorage) -> Path:
     try:
         from weasyprint import HTML
-    except ImportError as exc:  # pragma: no cover
+    except (ImportError, OSError) as exc:  # pragma: no cover
         raise RuntimeError("weasyprint is required to render forensic PDFs") from exc
     return storage.put_pdf(findings, HTML(string=render_report_html(findings)).write_pdf())
+
