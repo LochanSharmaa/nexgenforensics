@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import base64
 
@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .ai_engine import analyze_imatch_request, parse_checks
 from .schemas import ImatchResponse
+from .forensic_report_routes import build_forensic_report_router
 from nexgen_engine.api.service import EngineService
 from nexgen_engine.api.routes import build_engine_router
 from nexgen_engine.api.auth_routes import build_auth_router
@@ -16,6 +17,7 @@ from nexgen_engine.jobs import JobQueue
 from nexgen_engine.monitoring import MetricsRegistry
 from nexgen_engine.settings import Settings
 from nexgen_engine.storage import Database
+from nexgen_engine.security.audit_logger import AuditLogger
 
 app = FastAPI(
     title="NexGen Identity AI Service",
@@ -41,6 +43,7 @@ engine_service = EngineService(
 app.include_router(build_engine_router(engine_service))
 app.include_router(build_auth_router(database, auth_service))
 app.include_router(build_job_router(job_queue, auth_service))
+app.include_router(build_forensic_report_router(auth_service, AuditLogger(settings.runtime_dir / 'nexgen_audit.jsonl'), settings.runtime_dir / 'reports'))
 
 app.add_middleware(
     CORSMiddleware,
@@ -128,3 +131,4 @@ async def _read_imatch_request(request: Request) -> dict[str, object]:
         "source_url": form.get("source_url"),
         "image_bytes": image_bytes,
     }
+
