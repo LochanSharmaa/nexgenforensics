@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.env
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node/Next.js
+node_modules/
+.next/
+out/
+build/
+dist/
+.npm
+.yarn-integrity
+*.log
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# IDEs & System
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+.DS_Store
+Thumbs.db
