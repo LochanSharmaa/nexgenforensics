@@ -1,0 +1,172 @@
+.nx-enterprise {
+  background: #f5f7fb;
+  color: #111827;
+  padding: clamp(72px, 10vw, 132px) clamp(18px, 4vw, 64px);
+}
+
+.nx-enterprise-header {
+  max-width: 880px;
+  margin: 0 auto clamp(32px, 5vw, 56px);
+  text-align: center;
+}
+
+.nx-enterprise-header h2 {
+  margin: 0;
+  font-size: clamp(2.15rem, 5vw, 4.8rem);
+  line-height: 0.98;
+  letter-spacing: 0;
+}
+
+.nx-enterprise-header p {
+  max-width: 760px;
+  margin: 20px auto 0;
+  color: #4b5563;
+  font-size: clamp(1rem, 1.5vw, 1.18rem);
+  line-height: 1.7;
+}
+
+.nx-enterprise-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  max-width: 1220px;
+  margin: 0 auto;
+}
+
+.nx-enterprise-card {
+  display: flex;
+  min-height: 330px;
+  flex-direction: column;
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 24px;
+  box-shadow: 0 22px 60px rgba(17, 24, 39, 0.08);
+}
+
+.nx-enterprise-card > span {
+  width: fit-content;
+  border-radius: 999px;
+  background: #111827;
+  color: #ffffff;
+  padding: 7px 12px;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.nx-enterprise-card h3 {
+  margin: 22px 0 12px;
+  font-size: 1.25rem;
+}
+
+.nx-enterprise-card p {
+  margin: 0;
+  color: #4b5563;
+  line-height: 1.55;
+}
+
+.nx-enterprise-card ul {
+  display: grid;
+  gap: 9px;
+  margin: auto 0 0;
+  padding: 22px 0 0;
+  list-style: none;
+}
+
+.nx-enterprise-card li {
+  border-top: 1px solid rgba(17, 24, 39, 0.1);
+  padding-top: 9px;
+  color: #1f2937;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.nx-tenant-console {
+  max-width: 1220px;
+  margin: 22px auto 0;
+  overflow: hidden;
+  border: 1px solid rgba(17, 24, 39, 0.14);
+  border-radius: 8px;
+  background: #111827;
+  color: #ffffff;
+  box-shadow: 0 22px 60px rgba(17, 24, 39, 0.16);
+}
+
+.nx-tenant-topbar,
+.nx-tenant-head,
+.nx-tenant-row {
+  display: grid;
+  grid-template-columns: 1.1fr 1.1fr 1.1fr 1fr;
+  gap: 14px;
+  align-items: center;
+}
+
+.nx-tenant-topbar {
+  grid-template-columns: 1fr auto;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 18px 20px;
+}
+
+.nx-tenant-topbar span {
+  font-weight: 900;
+}
+
+.nx-tenant-topbar strong {
+  color: #9be7c9;
+  font-size: 0.88rem;
+}
+
+.nx-tenant-table {
+  min-width: 760px;
+}
+
+.nx-tenant-head,
+.nx-tenant-row {
+  padding: 15px 20px;
+}
+
+.nx-tenant-head {
+  background: rgba(255, 255, 255, 0.06);
+  color: #9ca3af;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.nx-tenant-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e5e7eb;
+}
+
+.nx-tenant-row span:last-child {
+  color: #facc15;
+  font-weight: 800;
+}
+
+@media (max-width: 1040px) {
+  .nx-enterprise-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .nx-enterprise {
+    padding-inline: 16px;
+  }
+
+  .nx-enterprise-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .nx-enterprise-card {
+    min-height: 0;
+  }
+
+  .nx-tenant-console {
+    overflow-x: auto;
+  }
+
+  .nx-tenant-topbar {
+    grid-template-columns: 1fr;
+  }
+}

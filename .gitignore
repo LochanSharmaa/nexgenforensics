@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Python
 __pycache__/
 *.py[cod]
@@ -29,10 +30,70 @@ dist/
 # IDEs & System
 .idea/
 .vscode/
+=======
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+.vite
+.uv-cache
+.npm-cache
+.vercel-home
+.vercel-local
+.vercel-data
+.vercel
+.env
+.env.*
+!.env.template
+!.env.example.txt
+*.local
+__pycache__/
+*.py[cod]
+runtime/
+
+# Secrets and production-only credentials
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.jks
+*.keystore
+id_rsa*
+id_ed25519*
+secrets.*
+*.secret
+
+# Local databases and dumps
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.sql
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+>>>>>>> 4be368fcc5342fef2e8a88b1f5104b94ffb43690
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
+<<<<<<< HEAD
 *.swp
 .DS_Store
 Thumbs.db
+=======
+*.sw?
+>>>>>>> 4be368fcc5342fef2e8a88b1f5104b94ffb43690

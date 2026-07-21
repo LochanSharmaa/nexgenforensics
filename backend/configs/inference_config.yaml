@@ -1,0 +1,14 @@
+inference:
+  tta_augmentations: 6
+  final_embedding_dim: 512
+  cohort_size: 200
+  verification_threshold: 0.82
+  min_identification_score: 0.72
+  max_upload_mb: 12
+  target_latency_ms: 100
+search:
+  top_k: 20
+  nlist: 65536
+  nprobe: 512
+  pq_segments: 64
+  cross_client_search_default: disabled

@@ -1,0 +1,11 @@
+security:
+  liveness_threshold: 0.95
+  deepfake_threshold: 0.85
+  morphing_threshold: 0.30
+  template_encryption: AES-256-GCM
+  key_derivation: PBKDF2-SHA256
+  pbkdf2_iterations: 600000
+  salt_bytes: 32
+  nonce_bytes: 12
+  audit_hash_algorithm: sha256
+  audit_storage: append_only_jsonl_hash_chain

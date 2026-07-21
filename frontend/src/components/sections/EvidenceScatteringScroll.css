@@ -1,0 +1,68 @@
+.nx-evidence-scene {
+  height: 165vh;
+  position: relative;
+}
+
+.nx-sticky {
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow: hidden;
+}
+
+.nx-evidence-field {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  transform: translateY(-12vh);
+}
+
+.nx-case-core {
+  position: absolute;
+  width: 270px;
+  height: 154px;
+  border-radius: 30px;
+  background: var(--blue);
+  color: white;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  box-shadow: var(--shadow);
+  z-index: 5;
+}
+
+.nx-case-core span {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+
+.nx-case-core strong {
+  display: block;
+  margin-top: 8px;
+  font-family: var(--serif);
+  font-size: 28px;
+}
+
+.nx-scene-copy {
+  position: absolute;
+  left: 7vw;
+  bottom: 3vh;
+  max-width: 430px;
+  z-index: 8;
+}
+
+.nx-scene-copy h2 {
+  margin: 0;
+  font: 700 clamp(2.35rem, 4.2vw, 4.6rem)/0.96 var(--serif);
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+
+.nx-scene-copy p:not(.nx-kicker) {
+  font-size: 1.08rem;
+  line-height: 1.55;
+  color: var(--muted);
+}

@@ -1,0 +1,231 @@
+.nx-typography-motion {
+  --font-display: var(--serif);
+  --font-body: var(--sans);
+  --font-ui: var(--sans);
+  --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-soft: cubic-bezier(0.16, 1, 0.3, 1);
+  scroll-behavior: smooth;
+}
+
+.nx-typography-motion body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  font-kerning: normal;
+}
+
+.nx-masked-text {
+  position: relative;
+  transform: translate3d(0, var(--kinetic-y, 0), 0);
+  opacity: var(--kinetic-opacity, 1);
+  transition: opacity 400ms ease;
+  will-change: transform, opacity;
+}
+
+.nx-word-mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  padding-bottom: 0.06em;
+  margin-bottom: -0.06em;
+}
+
+.nx-word {
+  display: inline-block;
+  opacity: 0;
+  transform: translate3d(0, 0.62em, 0);
+  filter: blur(6px);
+  transition:
+    opacity 980ms var(--motion-ease),
+    transform 980ms var(--motion-ease),
+    filter 980ms var(--motion-ease);
+  transition-delay: calc(var(--word-index, 0) * 72ms);
+  will-change: transform, opacity, filter;
+}
+
+.nx-masked-text.is-visible .nx-word {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  filter: blur(0);
+}
+
+.nx-reveal-text,
+.nx-stagger-item {
+  opacity: 0;
+  transform: translate3d(0, 24px, 0);
+  filter: blur(4px);
+  transition:
+    opacity 820ms var(--motion-soft),
+    transform 820ms var(--motion-soft),
+    filter 820ms var(--motion-soft),
+    border-color 240ms ease,
+    box-shadow 240ms ease,
+    background 240ms ease;
+  will-change: transform, opacity, filter;
+}
+
+.nx-stagger-item {
+  transition-delay: calc(var(--stagger-index, 0) * 84ms);
+}
+
+.nx-reveal-text.is-visible,
+.nx-stagger-item.is-visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  filter: blur(0);
+}
+
+.nx-hero-main h1,
+.im-hero-copy h1,
+.fp-copy h1,
+.fp-hand-title,
+.nx-home-fingerprint-slide h2,
+.nx-scene-copy h2,
+.nx-correlation-copy h2,
+.nx-command-copy h2,
+.nx-platform-header h2,
+.nx-section-heading h2,
+.nx-trust-header h2,
+.nx-pricing-header h2,
+.im-section-heading h2,
+.fp-heading h2,
+.nx-future h2 {
+  font-family: var(--font-display);
+  text-wrap: balance;
+}
+
+.nx-kicker,
+.nx-hero-kicker,
+.im-eyebrow,
+.fp-kicker,
+.fp-badge,
+.im-badge,
+.nx-nav a,
+.nx-btn,
+.nx-nav-cta,
+.im-launch,
+.fp-analysis-launch,
+.nx-plan-cta {
+  font-family: var(--font-ui);
+  letter-spacing: 0.13em;
+}
+
+.nx-typography-motion p {
+  font-family: var(--font-body);
+}
+
+.nx-nav {
+  animation: nx-nav-enter 760ms var(--motion-soft) both;
+}
+
+.nx-nav a:not(.nx-brand) {
+  position: relative;
+}
+
+.nx-nav a:not(.nx-brand)::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -7px;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right;
+  opacity: 0.52;
+  transition: transform 260ms ease;
+}
+
+.nx-nav a:not(.nx-brand):hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+.nx-btn,
+.nx-nav-cta,
+.im-hero-actions a,
+.fp-actions a,
+.im-launch,
+.fp-analysis-launch,
+.nx-plan-cta,
+.nx-hero-action a {
+  transition:
+    transform 240ms var(--motion-soft),
+    box-shadow 240ms var(--motion-soft),
+    background 240ms ease,
+    color 240ms ease;
+}
+
+.nx-btn:hover,
+.nx-nav-cta:hover,
+.im-hero-actions a:hover,
+.fp-actions a:hover,
+.im-launch:hover,
+.fp-analysis-launch:hover,
+.nx-plan-cta:hover,
+.nx-hero-action a:hover {
+  transform: translateY(-3px);
+}
+
+.nx-division-panel:hover,
+.nx-research-card:hover,
+.nx-pricing-card:hover,
+.nx-testimonial-card:hover,
+.im-premium-card:hover,
+.im-cap-card:hover,
+.im-use-card:hover,
+.fp-card:hover {
+  transform: translateY(-5px);
+}
+
+@keyframes nx-nav-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -18px, 0);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    filter: blur(0);
+  }
+}
+
+@media (max-width: 760px) {
+  .nx-masked-text {
+    transform: none;
+  }
+
+  .nx-word {
+    transition-duration: 740ms;
+    transition-delay: calc(var(--word-index, 0) * 38ms);
+  }
+
+  .nx-reveal-text,
+  .nx-stagger-item {
+    transform: translate3d(0, 16px, 0);
+    transition-duration: 680ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nx-masked-text,
+  .nx-word,
+  .nx-reveal-text,
+  .nx-stagger-item,
+  .nx-nav,
+  .nx-btn,
+  .nx-nav-cta,
+  .im-hero-actions a,
+  .fp-actions a,
+  .im-launch,
+  .fp-analysis-launch,
+  .nx-plan-cta,
+  .nx-hero-action a {
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+    animation: none !important;
+    transition-duration: 0.001ms !important;
+    transition-delay: 0ms !important;
+  }
+}

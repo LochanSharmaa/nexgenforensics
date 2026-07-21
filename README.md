@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # SIFS Imagination Expander AI (SIFS IE AI)
 
 > AI-powered creative direction assistant for designers. One imagination. Ten creative directions.
@@ -78,3 +79,6 @@ The app is built as a provider-agnostic monorepo:
 
 ## License
 MIT License. Reference only - final artwork belongs to the designer.
+=======
+
+>>>>>>> 4be368fcc5342fef2e8a88b1f5104b94ffb43690

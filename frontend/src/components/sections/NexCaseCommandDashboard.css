@@ -1,0 +1,149 @@
+.nx-command {
+  min-height: 120vh;
+  padding: 12vw 7vw;
+}
+
+.nx-command-grid {
+  display: grid;
+  grid-template-columns: 0.78fr 1.22fr;
+  gap: 6vw;
+  align-items: center;
+}
+
+.nx-command-copy {
+  position: sticky;
+  top: 28vh;
+  align-self: start;
+}
+
+.nx-command-copy h2 {
+  margin: 0;
+  font: 700 clamp(2.6rem, 5vw, 5.6rem)/0.96 var(--serif);
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+}
+
+.nx-command-copy p {
+  font-size: 1.15rem;
+  line-height: 1.55;
+  color: var(--muted);
+  margin-top: 18px;
+}
+
+.nx-command-ui {
+  background: #fffdf8;
+  border: 1px solid var(--line);
+  border-radius: 36px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  transform-origin: center;
+}
+
+.nx-ui-topbar {
+  height: 70px;
+  padding: 0 26px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.nx-ui-body {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 560px;
+}
+
+.nx-ui-side {
+  border-right: 1px solid var(--line);
+  padding: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.nx-ui-side strong {
+  font-family: var(--serif);
+  font-size: 26px;
+}
+
+.nx-ui-side span {
+  color: var(--muted);
+}
+
+.nx-ui-main {
+  padding: 26px;
+}
+
+.nx-ui-main-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  margin-bottom: 22px;
+}
+
+.nx-ui-main-header span {
+  color: var(--muted);
+}
+
+.nx-ui-main-header strong {
+  font: 750 72px/1 var(--serif);
+  color: var(--blue);
+}
+
+.nx-ui-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 68px;
+  border-top: 1px solid var(--line);
+}
+
+.nx-ui-row span {
+  font-weight: 700;
+}
+
+.nx-ui-row em {
+  font-style: normal;
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+/* Specific colors for verification states */
+.nx-status-verified {
+  color: #2e7d32 !important; /* Elegant green for verified states */
+  font-weight: 600;
+}
+
+.nx-status-review {
+  color: #c62828 !important; /* Elegant dark red for review states */
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .nx-command {
+    padding: 24vw 22px;
+  }
+  .nx-command-grid {
+    grid-template-columns: 1fr;
+  }
+  .nx-command-copy {
+    position: relative;
+    top: auto;
+  }
+  .nx-ui-body {
+    grid-template-columns: 1fr;
+  }
+  .nx-ui-side {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+}
+

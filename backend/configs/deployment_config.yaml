@@ -1,0 +1,11 @@
+deployment:
+  mode: hybrid
+  api_port: 8443
+  health_endpoint: /api/v1/health
+  runtime_volume: runtime
+  tls_required_in_production: true
+  client_max_body_size_mb: 12
+  autoscaling:
+    min_replicas: 2
+    max_replicas: 10
+    cpu_target_percent: 65
