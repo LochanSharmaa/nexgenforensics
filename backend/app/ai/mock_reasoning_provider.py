@@ -42,7 +42,7 @@ class MockReasoningProvider(LLMProvider):
             "What level of creative risk is acceptable? Safe ↔ Adventurous?"
         ]
 
-    def generate_concepts(self, brief: Dict[str, Any], answers: List[Dict[str, Any]], style_profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def generate_concepts(self, brief: Dict[str, Any], answers: List[Dict[str, Any]], style_profile: Optional[Dict[str, Any]] = None, creative_distance: int = 3) -> Dict[str, Any]:
         time.sleep(1.0)
         
         subject = brief.get("main_subject", "A luxury perfume bottle")

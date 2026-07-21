@@ -4,10 +4,9 @@ import Link from "next/link";
 import { api, ConceptRead } from "@/lib/api";
 import { ArrowLeft, AlertTriangle, Brain, Camera, Lightbulb, Package, Shield } from "lucide-react";
 
-function scorePct(v: number) { return `${Math.round(v * 100)}%`; }
 function scoreColor(v: number) {
-  if (v >= 0.8) return "var(--success)";
-  if (v >= 0.6) return "#fbbf24";
+  if (v >= 4.0) return "var(--success)";
+  if (v >= 3.0) return "#fbbf24";
   return "var(--danger)";
 }
 
@@ -58,7 +57,7 @@ export default function ConceptReasoningPage({ params }: { params: Promise<{ id:
           }}>
             {concept.style_category}
           </span>
-          {hasDissent && <span className="dissent-badge"><AlertTriangle size={10} />Critic Dissent</span>}
+          {hasDissent && <span className="dissent-badge" style={{ background: "rgba(249,115,22,0.12)", color: "#fb923c", border: "1px solid rgba(249,115,22,0.2)" }}><AlertTriangle size={10} />Critic Dissent</span>}
           <span className="reference-notice">🔒 Reference only — final artwork belongs to the designer</span>
         </div>
         <h1 style={{ fontSize: "28px", fontFamily: "'Playfair Display', serif", fontWeight: 700, marginBottom: "10px" }}>
@@ -73,12 +72,12 @@ export default function ConceptReasoningPage({ params }: { params: Promise<{ id:
       {scores && (
         <div className="glass-card" style={{ padding: "24px", marginBottom: "24px" }}>
           <h2 style={{ fontSize: "14px", fontWeight: 700, marginBottom: "20px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)" }}>
-            3-Axis Evaluation
+            3-Axis Evaluation (1 to 5 Rubric)
           </h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "16px" }}>
-            <ScoreAxis label="Novelty" value={scores.novelty_score} sublabel="vs other concepts + history" />
+            <ScoreAxis label="Novelty" value={scores.novelty_score} sublabel="vs other concepts + design history" />
             <ScoreAxis label="Feasibility" value={scores.feasibility_score} sublabel={scores.feasibility_reason ?? ""} />
-            <ScoreAxis label="Lens Fidelity" value={scores.lens_fidelity_score} sublabel="does it actually do what the lens claims?" />
+            <ScoreAxis label="Lens Fidelity" value={scores.lens_fidelity_score} sublabel="How strictly the concept embodies the lens move" />
           </div>
         </div>
       )}
@@ -135,23 +134,23 @@ export default function ConceptReasoningPage({ params }: { params: Promise<{ id:
       </div>
 
       {/* Metaphor */}
-      {concept.metaphor && (
+      {concept.metaphor_primary && (
         <div className="glass-card" style={{ padding: "24px", marginBottom: "24px" }}>
           <h2 style={{ fontSize: "14px", fontWeight: 700, marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)" }}>
             Visual Metaphor
           </h2>
           <p style={{ fontSize: "14px", color: "var(--text-primary)", marginBottom: "12px" }}>
-            <strong>Chosen:</strong> {concept.metaphor}
+            <strong>Chosen Metaphor:</strong> {concept.metaphor_primary}
           </p>
-          {concept.rejected_metaphor_1 && (
-            <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>
-              <strong style={{ color: "var(--text-secondary)" }}>Considered & rejected:</strong> {concept.rejected_metaphor_1}
-            </p>
-          )}
-          {concept.rejected_metaphor_2 && (
-            <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "4px" }}>
-              <strong style={{ color: "var(--text-secondary)" }}>Also considered:</strong> {concept.rejected_metaphor_2}
-            </p>
+          {concept.metaphor_rejected && concept.metaphor_rejected.length > 0 && (
+            <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
+              <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Rejected Alternatives</span>
+              {concept.metaphor_rejected.map((item, idx) => (
+                <div key={idx} style={{ fontSize: "13px", color: "var(--text-muted)", paddingLeft: "8px", borderLeft: "2px solid var(--border)" }}>
+                  <strong style={{ color: "var(--text-secondary)" }}>{item.metaphor}:</strong> {item.reason}
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}
@@ -190,7 +189,7 @@ export default function ConceptReasoningPage({ params }: { params: Promise<{ id:
               border: `1px solid ${note.is_dissent ? "rgba(249,115,22,0.25)" : "var(--border)"}`,
             }}>
               <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "6px" }}>
-                {note.is_dissent && <span className="dissent-badge"><AlertTriangle size={10} />Dissent</span>}
+                {note.is_dissent && <span className="dissent-badge" style={{ background: "rgba(249,115,22,0.12)", color: "#fb923c", border: "1px solid rgba(249,115,22,0.2)" }}><AlertTriangle size={10} />Dissent</span>}
                 <span style={{ fontSize: "12px", fontWeight: 600, color: note.is_dissent ? "#fb923c" : "var(--text-secondary)" }}>
                   {note.agent_role}
                 </span>
@@ -217,11 +216,10 @@ export default function ConceptReasoningPage({ params }: { params: Promise<{ id:
 }
 
 function ScoreAxis({ label, value, sublabel }: { label: string; value: number; sublabel: string }) {
-  const pct = Math.round(value * 100);
   return (
     <div style={{ textAlign: "center" }}>
       <div style={{ fontSize: "28px", fontWeight: 700, color: scoreColor(value), fontFamily: "monospace", marginBottom: "4px" }}>
-        {pct}%
+        {value.toFixed(1)}/5
       </div>
       <div style={{ fontSize: "13px", fontWeight: 600, marginBottom: "6px" }}>{label}</div>
       <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5 }}>{sublabel}</div>

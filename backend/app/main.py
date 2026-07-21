@@ -1,6 +1,9 @@
 import logging
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
 from app.core.config import settings
 from app.db.database import create_db_and_tables
 
@@ -13,11 +16,29 @@ from app.api import (
     routes_images,
     routes_feedback,
     routes_settings,
-    routes_export
+    routes_export,
+    routes_billing,
+    routes_auth
 )
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Initialize Sentry if DSN is configured
+if settings.SENTRY_DSN:
+    try:
+        import sentry_sdk
+        sentry_sdk.init(
+            dsn=settings.SENTRY_DSN,
+            traces_sample_rate=1.0,
+            profiles_sample_rate=1.0,
+        )
+        logger.info("Sentry initialized successfully.")
+    except Exception as e:
+        logger.warning(f"Failed to initialize Sentry: {e}")
+
+# Ensure static dir exists before StaticFiles mount
+os.makedirs("static/generated_images", exist_ok=True)
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -52,6 +73,11 @@ app.include_router(routes_images.router, prefix=settings.API_V1_STR)
 app.include_router(routes_feedback.router, prefix=settings.API_V1_STR)
 app.include_router(routes_settings.router, prefix=settings.API_V1_STR)
 app.include_router(routes_export.router, prefix=settings.API_V1_STR)
+app.include_router(routes_billing.router, prefix=settings.API_V1_STR)
+app.include_router(routes_auth.router, prefix=settings.API_V1_STR)
+
+# Serve static generated images
+app.mount("/static", StaticFiles(directory="static", html=False), name="static")
 
 @app.get("/")
 def read_root():

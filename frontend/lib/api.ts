@@ -49,10 +49,10 @@ export const api = {
     }),
 
   // ── Concepts ─────────────────────────────────────────────
-  generateConcepts: (project_id: number) =>
+  generateConcepts: (project_id: number, creative_distance?: number) =>
     apiFetch<ConceptRead[]>("/concepts/generate", {
       method: "POST",
-      body: JSON.stringify({ project_id }),
+      body: JSON.stringify({ project_id, creative_distance }),
     }),
 
   getConcepts: (project_id: number) =>
@@ -109,6 +109,50 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ provider }),
     }),
+
+  // ── Images ────────────────────────────────────────────
+  generateImage: (concept_id: number) =>
+    apiFetch<ImageJobRead>("/images/generate", {
+      method: "POST",
+      body: JSON.stringify({ concept_id }),
+    }),
+
+  generateImageBatch: (project_id: number, concept_ids: number[]) =>
+    apiFetch<ImageJobRead[]>("/images/generate-batch", {
+      method: "POST",
+      body: JSON.stringify({ project_id, concept_ids }),
+    }),
+
+  getImageJob: (job_id: string) =>
+    apiFetch<ImageJobRead>(`/images/jobs/${job_id}`),
+
+  getProjectImages: (project_id: number) =>
+    apiFetch<ImageResponse[]>(`/projects/${project_id}/images`),
+
+  // ── Missing Opportunities ─────────────────────────────
+  getMissingOpportunities: (project_id: number) =>
+    apiFetch<MissingOpportunityReport>(`/projects/${project_id}/missing-opportunities`).catch(() =>
+      // Fallback: derive from concepts if endpoint not available
+      apiFetch<ConceptRead[]>(`/projects/${project_id}/concepts`).then(cs => ({
+        report: "Missing Opportunities analysis requires concept generation first.",
+        gaps: [],
+      }))
+    ),
+
+  // ── Genealogy ─────────────────────────────────────────
+  getGenealogy: (project_id: number) =>
+    apiFetch<GenealogyNode[]>(`/projects/${project_id}/genealogy`).catch(() =>
+      apiFetch<ConceptRead[]>(`/projects/${project_id}/concepts`).then(cs =>
+        cs.map(c => ({
+          id: c.id,
+          title: c.title,
+          lens: c.style_category,
+          parent_id: null,
+          generation: 1,
+          status: c.status,
+        }))
+      )
+    ),
 };
 
 // ── Types (mirroring backend Pydantic schemas) ────────────────
@@ -196,6 +240,8 @@ export interface ConceptRead {
   reasoning_chain?: ReasoningChain;
   scores?: ConceptScore;
   critic_notes: CriticNote[];
+  parent_id?: number | null;
+  generation?: number;
 }
 
 export interface DiversityCheckResult {
@@ -223,4 +269,35 @@ export interface TestResult {
   success: boolean;
   latency_ms: number;
   message: string;
+}
+
+export interface ImageJobRead {
+  id: string;
+  concept_id: number;
+  status: "queued" | "running" | "completed" | "failed";
+  image_url?: string;
+  error_message_sanitized?: string;
+  created_at: string;
+}
+
+export interface ImageResponse {
+  image_url: string;
+  prompt: string;
+  provider: string;
+  reference_only: boolean;
+  notice: string;
+}
+
+export interface MissingOpportunityReport {
+  report: string;
+  gaps: string[];
+}
+
+export interface GenealogyNode {
+  id: number;
+  title: string;
+  lens: string;
+  parent_id: number | null;
+  generation: number;
+  status: string;
 }

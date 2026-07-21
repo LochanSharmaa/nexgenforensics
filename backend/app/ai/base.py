@@ -13,7 +13,7 @@ class LLMProvider(ABC):
         pass
 
     @abstractmethod
-    def generate_concepts(self, brief: Dict[str, Any], answers: List[Dict[str, Any]], style_profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def generate_concepts(self, brief: Dict[str, Any], answers: List[Dict[str, Any]], style_profile: Optional[Dict[str, Any]] = None, creative_distance: int = 3) -> Dict[str, Any]:
         """Generate exactly 10 concepts, one per style category."""
         pass
 

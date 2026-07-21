@@ -72,14 +72,7 @@ class HardConstraint(SQLModel, table=True):
     applies_to: str  # logo, color, tagline, typography, general
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
-class TrendCorpusEntry(SQLModel, table=True):
-    __tablename__ = "trend_corpus_entries"
-    
-    id: Optional[int] = Field(default=None, primary_key=True)
-    embedding: List[float] = Field(sa_column=Column(sa_JSON))
-    source: str
-    ingested_at: datetime = Field(default_factory=datetime.utcnow)
-    decay_weight: float = Field(default=1.0)
+
 
 class MissingOpportunityReport(SQLModel, table=True):
     __tablename__ = "missing_opportunity_reports"

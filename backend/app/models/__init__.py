@@ -16,9 +16,10 @@ from .reasoning import (
     CriticNote,
     ConceptGenealogy,
     HardConstraint,
-    TrendCorpusEntry,
     MissingOpportunityReport
 )
+from .billing import Subscription, UsageEvent, AuditLog
+from .embeddings import TrendCorpusEntry, ConceptEmbedding
 
 __all__ = [
     "User",
@@ -40,5 +41,9 @@ __all__ = [
     "ConceptGenealogy",
     "HardConstraint",
     "TrendCorpusEntry",
-    "MissingOpportunityReport"
+    "MissingOpportunityReport",
+    "Subscription",
+    "UsageEvent",
+    "AuditLog",
+    "ConceptEmbedding"
 ]

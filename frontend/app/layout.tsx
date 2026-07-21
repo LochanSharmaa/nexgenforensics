@@ -17,7 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <Nav />
-        <main style={{ paddingTop: "62px" }}>{children}</main>
+        <main style={{ paddingTop: "100px" }}>{children}</main>
       </body>
     </html>
   );

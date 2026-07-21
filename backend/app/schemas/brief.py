@@ -34,6 +34,7 @@ class ClarifyingQuestionCreate(ClarifyingQuestionBase):
     project_id: int
 
 class ClarifyingQuestionAnswer(BaseModel):
+    question_id: int
     answer: Optional[str] = None
     skipped: bool = False
 

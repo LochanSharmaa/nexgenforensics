@@ -1,13 +1,21 @@
 import json
-from typing import Optional
+from typing import Optional, Dict, Any
 from sqlmodel import Session, select
 from app.models.project import Project
 from app.models.creative_brief import CreativeBrief
 from app.models.concept import Concept
+from app.models.reasoning import Lens
 
 class ExportService:
     @staticmethod
-    def export_json(session: Session, project_id: int) -> str:
+    def _get_lens_name(session: Session, lens_id: Optional[int]) -> str:
+        if not lens_id:
+            return "General Concept"
+        lens = session.get(Lens, lens_id)
+        return lens.name if lens else "Custom Lens"
+
+    @classmethod
+    def export_json(cls, session: Session, project_id: int) -> str:
         project = session.get(Project, project_id)
         if not project:
             raise ValueError("Project not found")
@@ -38,7 +46,7 @@ class ExportService:
                 {
                     "concept_number": c.concept_number,
                     "title": c.title,
-                    "style_category": c.style_category,
+                    "style_category": cls._get_lens_name(session, c.lens_id),
                     "main_visual_idea": c.main_visual_idea,
                     "composition": c.composition,
                     "lighting": c.lighting,
@@ -54,8 +62,8 @@ class ExportService:
         }
         return json.dumps(data, indent=2)
 
-    @staticmethod
-    def export_markdown(session: Session, project_id: int) -> str:
+    @classmethod
+    def export_markdown(cls, session: Session, project_id: int) -> str:
         project = session.get(Project, project_id)
         if not project:
             raise ValueError("Project not found")
@@ -84,7 +92,7 @@ class ExportService:
         md += f"## 3. Visual Concept Directions (Exactly 10 Style Categories)\n\n"
         for c in concepts:
             md += f"### Concept {c.concept_number}: {c.title}\n"
-            md += f"- **Style Category**: {c.style_category}\n"
+            md += f"- **Style Category**: {cls._get_lens_name(session, c.lens_id)}\n"
             md += f"- **Visual Metaphor & Core Idea**: {c.main_visual_idea}\n"
             md += f"- **Composition**: {c.composition}\n"
             md += f"- **Lighting Plan**: {c.lighting}\n"
@@ -98,3 +106,35 @@ class ExportService:
             md += f"---\n\n"
 
         return md
+
+    @classmethod
+    def export_presentation(cls, session: Session, project_id: int) -> Dict[str, Any]:
+        """Returns clean presentation mode dataset: hidden reasoning, dissent, and score detail."""
+        project = session.get(Project, project_id)
+        if not project:
+            raise ValueError("Project not found")
+
+        brief = session.exec(select(CreativeBrief).where(CreativeBrief.project_id == project_id)).first()
+        concepts = session.exec(select(Concept).where(Concept.project_id == project_id).order_by(Concept.concept_number.asc())).all()
+
+        return {
+            "project_title": project.title,
+            "brief_summary": brief.main_subject if brief else project.title,
+            "concepts": [
+                {
+                    "concept_number": c.concept_number,
+                    "title": c.title,
+                    "style_category": cls._get_lens_name(session, c.lens_id),
+                    "main_visual_idea": c.main_visual_idea,
+                    "composition": c.composition,
+                    "lighting": c.lighting,
+                    "background": c.background,
+                    "color_palette": c.color_palette,
+                    "typography_direction": c.typography_direction,
+                    "creative_twist": c.creative_twist,
+                    "designer_execution_notes": c.designer_execution_notes,
+                    "reference_image_prompt": c.reference_image_prompt,
+                    "reference_only_notice": c.reference_only_notice,
+                } for c in concepts
+            ]
+        }
