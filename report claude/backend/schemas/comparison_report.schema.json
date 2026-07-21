@@ -1,0 +1,249 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nextgenforensics.local/schemas/comparison_report.schema.json",
+  "title": "Facial Comparison Report",
+  "type": "object",
+  "required": [
+    "administrative", "evidence", "image_metadata", "quality_metrics",
+    "face_detection", "landmarks", "measurements_continuous",
+    "measurements_discrete", "morphological_features", "embedding_metrics",
+    "similarity_metrics", "limitations", "technical_info", "audit"
+  ],
+  "properties": {
+    "administrative": {
+      "type": "object",
+      "required": ["report_id", "schema_version", "created_at", "software_version"],
+      "properties": {
+        "report_id": {"type": "string"},
+        "case_id": {"type": "string"},
+        "requesting_agency": {"type": "string"},
+        "schema_version": {"type": "string"},
+        "created_at": {"type": "string", "format": "date-time"},
+        "software_version": {"type": "string"}
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["probe_image_id", "candidate_image_id"],
+      "properties": {
+        "probe_image_id": {"type": "string"},
+        "probe_image_hash": {"type": "string"},
+        "candidate_image_id": {"type": "string"},
+        "candidate_image_hash": {"type": "string"},
+        "chain_of_custody_notes": {"type": "string"}
+      }
+    },
+    "image_metadata": {
+      "type": "object",
+      "properties": {
+        "filename": {"type": "string"},
+        "width": {"type": "integer"},
+        "height": {"type": "integer"},
+        "format": {"type": "string"},
+        "capture_date": {"type": ["string", "null"]}
+      }
+    },
+    "quality_metrics": {
+      "type": "object",
+      "required": ["blur_score", "detection_confidence"],
+      "properties": {
+        "resolution": {"type": "string"},
+        "blur_score": {"type": "number"},
+        "noise": {"type": ["number", "null"]},
+        "compression_artifact_score": {"type": ["number", "null"]},
+        "brightness": {"type": "number"},
+        "contrast": {"type": "number"},
+        "lighting_uniformity": {"type": ["number", "null"]},
+        "pose": {
+          "type": "object",
+          "properties": {
+            "yaw": {"type": "number"},
+            "pitch": {"type": "number"},
+            "roll": {"type": "number"}
+          }
+        },
+        "occlusion_score": {"type": ["number", "null"]},
+        "face_visibility_pct": {"type": "number"},
+        "detection_confidence": {"type": "number"}
+      }
+    },
+    "face_detection": {
+      "type": "object",
+      "required": ["bounding_box", "detection_confidence"],
+      "properties": {
+        "bounding_box": {
+          "type": "object",
+          "required": ["x", "y", "w", "h"],
+          "properties": {
+            "x": {"type": "number"}, "y": {"type": "number"},
+            "w": {"type": "number"}, "h": {"type": "number"}
+          }
+        },
+        "detection_confidence": {"type": "number"},
+        "model_name": {"type": "string"},
+        "model_version": {"type": "string"}
+      }
+    },
+    "landmarks": {
+      "type": "object",
+      "required": ["schema", "points"],
+      "properties": {
+        "schema": {"type": "string", "enum": ["68", "106", "468"]},
+        "model_name": {"type": "string"},
+        "model_version": {"type": "string"},
+        "points": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "x", "y", "confidence"],
+            "properties": {
+              "id": {"type": "integer"},
+              "x": {"type": "number"},
+              "y": {"type": "number"},
+              "confidence": {"type": "number"}
+            }
+          }
+        }
+      }
+    },
+    "measurements_continuous": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["feature_id", "name", "value", "unit"],
+        "properties": {
+          "feature_id": {"type": "string"},
+          "name": {"type": "string"},
+          "region": {"type": "string"},
+          "value": {"type": "number"},
+          "unit": {"type": "string", "enum": ["px", "ratio", "mm"]},
+          "landmarks_used": {"type": "array", "items": {"type": "integer"}},
+          "formula_ref": {"type": "string"}
+        }
+      }
+    },
+    "measurements_discrete": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["feature_id", "name", "category"],
+        "properties": {
+          "feature_id": {"type": "string"},
+          "name": {"type": "string"},
+          "region": {"type": "string"},
+          "category": {"type": "string"},
+          "threshold_basis": {"type": "string"},
+          "landmarks_used": {"type": "array", "items": {"type": "integer"}}
+        }
+      }
+    },
+    "morphological_features": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["region", "comparison_label"],
+        "properties": {
+          "region": {"type": "string"},
+          "probe_observation": {"type": "string"},
+          "candidate_observation": {"type": "string"},
+          "comparison_label": {
+            "type": "string",
+            "enum": ["similar", "minor_variation", "observed_variation", "not_assessable"]
+          },
+          "notes": {"type": "string"}
+        }
+      }
+    },
+    "embedding_metrics": {
+      "type": "object",
+      "properties": {
+        "model_name": {"type": "string"},
+        "model_version": {"type": "string"},
+        "embedding_dimension": {"type": "integer"},
+        "vector_hash_probe": {"type": "string"},
+        "vector_hash_candidate": {"type": "string"}
+      }
+    },
+    "similarity_metrics": {
+      "type": "object",
+      "required": ["cosine_similarity", "decision_category"],
+      "properties": {
+        "cosine_similarity": {"type": "number"},
+        "euclidean_distance": {"type": ["number", "null"]},
+        "angular_distance": {"type": ["number", "null"]},
+        "threshold_used": {"type": ["number", "null"]},
+        "decision_category": {"type": "string", "enum": ["below_threshold", "above_threshold", "not_evaluated"]},
+        "candidate_rank": {"type": ["integer", "null"]},
+        "soft_feature_similarity": {
+          "type": "object",
+          "properties": {
+            "euclidean": {"type": ["number", "null"]},
+            "mahalanobis": {"type": ["number", "null"]},
+            "hamming": {"type": ["number", "null"]}
+          }
+        }
+      }
+    },
+    "candidate_ranking": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "candidate_id": {"type": "string"},
+          "score": {"type": "number"},
+          "rank": {"type": "integer"}
+        }
+      }
+    },
+    "explainable_ai": {
+      "type": ["object", "null"],
+      "properties": {
+        "grad_cam": {"type": ["string", "null"]},
+        "attention_map": {"type": ["string", "null"]},
+        "saliency_map": {"type": ["string", "null"]},
+        "occlusion_map": {"type": ["string", "null"]}
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "technical_info": {
+      "type": "object",
+      "properties": {
+        "detection_model": {"type": "string"},
+        "recognition_model": {"type": "string"},
+        "embedding_model": {"type": "string"},
+        "similarity_algorithm": {"type": "string"},
+        "landmark_model": {"type": "string"},
+        "quality_model": {"type": "string"},
+        "hardware": {"type": "string"},
+        "software_version": {"type": "string"},
+        "inference_time_ms": {"type": "number"},
+        "operating_system": {"type": "string"},
+        "gpu": {"type": "string"},
+        "timestamp": {"type": "string", "format": "date-time"},
+        "model_hashes": {"type": "object"}
+      }
+    },
+    "audit": {
+      "type": "object",
+      "properties": {
+        "stages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "stage": {"type": "string"},
+              "started_at": {"type": "string"},
+              "completed_at": {"type": "string"},
+              "input_hash": {"type": "string"},
+              "output_hash": {"type": "string"},
+              "status": {"type": "string", "enum": ["ok", "warning", "error"]}
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,8 @@
+# Quality thresholds used to generate rule-based limitation statements.
+# Tune these against your own validation data — these defaults are
+# illustrative starting points only.
+
+blur_score_min: 80.0
+max_yaw_degrees: 20.0
+min_face_visibility_pct: 85.0
+min_detection_confidence: 0.80

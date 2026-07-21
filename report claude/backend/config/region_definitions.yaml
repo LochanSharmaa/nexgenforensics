@@ -1,0 +1,28 @@
+# Maps landmark-schema -> region name -> landmark ids, so the visualization
+# engine and morphological comparison module both draw/reference the same
+# regions from a single source of truth.
+
+"68":
+  jaw: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+  eyebrow_r: [17, 18, 19, 20, 21]
+  eyebrow_l: [22, 23, 24, 25, 26]
+  nose: [27, 28, 29, 30, 31, 32, 33, 34, 35]
+  eye_r: [36, 37, 38, 39, 40, 41]
+  eye_l: [42, 43, 44, 45, 46, 47]
+  mouth: [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67]
+  # NOTE: 68-point scheme has no forehead/ear/chin-specific landmarks;
+  # 'chin' is approximated by a subset of the jaw region below.
+  chin: [6, 7, 8, 9, 10]
+
+"468":
+  jaw: [234, 93, 132, 58, 172, 136, 150, 149, 176, 148, 152, 377, 400, 378, 379, 365, 397, 288, 361, 323, 454]
+  eyebrow_r: [70, 63, 105, 66, 107]
+  eyebrow_l: [293, 300, 334, 296, 336]
+  nose: [168, 6, 197, 195, 5, 4, 1, 19, 94, 2, 129, 358]
+  eye_r: [263, 362, 373, 380, 385, 387]
+  eye_l: [33, 133, 144, 153, 158, 160]
+  mouth: [61, 185, 40, 39, 37, 0, 267, 269, 270, 291, 325, 307, 290, 17, 60, 95, 78]
+  chin: [152, 377, 400, 378, 148, 176, 149]
+  forehead: [10, 109, 67, 103, 54, 284, 332, 297, 338]
+  ears: [127, 234, 162, 356, 454, 389]
+

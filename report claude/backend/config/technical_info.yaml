@@ -1,0 +1,10 @@
+# Names/versions surfaced in the technical appendix. Fill these in to match
+# your actual deployed components — nothing here should be hardcoded in code.
+
+detection_model: "mock-detector-v0"
+recognition_model: "mock-recognition-v0"
+embedding_model: "mock-recognition-v0"
+similarity_algorithm: "cosine_similarity"
+landmark_model: "mock-landmarker-68"
+quality_model: "opencv-laplacian-blur+geometric-pose-proxy"
+similarity_threshold: 0.55

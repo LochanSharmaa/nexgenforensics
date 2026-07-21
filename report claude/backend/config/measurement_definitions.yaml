@@ -1,0 +1,301 @@
+# Continuous anthropometric measurement definitions, keyed by landmark schema.
+# Each entry: feature_id, name, region, type (distance|angle), landmark ids used,
+# and a formula_ref pointing at the literature this is based on
+# (Tome et al., "Facial Soft Biometric Features for Forensic Face Recognition").
+#
+# NOTE: the 68-point iBUG/dlib layout has no forehead or ear landmarks, so
+# those regions are omitted for schema "68" below. Add "106" / "468" blocks
+# with the equivalent point indices for your landmark model to unlock them —
+# the engine is schema-agnostic and reads whichever block matches
+# landmarks.schema in the incoming JSON.
+
+"68":
+  - feature_id: face_width
+    name: Face width
+    region: face
+    type: distance
+    points: [0, 16]
+    unit: px
+    formula_ref: "Tome et al. Table 1 (analogous to jaw/face width span)"
+
+  - feature_id: face_height
+    name: Face height
+    region: face
+    type: distance
+    points: [27, 8]
+    unit: px
+    formula_ref: "Tome et al. Table 1 (nose-root to chin approximation)"
+
+  - feature_id: interocular_distance
+    name: Interocular distance (inner corners)
+    region: eyes
+    type: distance
+    points: [39, 42]
+    unit: px
+    formula_ref: "Tome et al. #16 d(a8,a9)"
+
+  - feature_id: eye_width_r
+    name: Right eye width
+    region: eyes
+    type: distance
+    points: [36, 39]
+    unit: px
+    formula_ref: "Tome et al. #15 d(a6,a8)"
+
+  - feature_id: eye_width_l
+    name: Left eye width
+    region: eyes
+    type: distance
+    points: [42, 45]
+    unit: px
+    formula_ref: "Tome et al. #14 d(a9,a11)"
+
+  - feature_id: eyebrow_length_r
+    name: Right eyebrow length
+    region: eyebrows
+    type: distance
+    points: [17, 21]
+    unit: px
+    formula_ref: "Tome et al. #9 d(a2,a3)"
+
+  - feature_id: eyebrow_length_l
+    name: Left eyebrow length
+    region: eyebrows
+    type: distance
+    points: [22, 26]
+    unit: px
+    formula_ref: "Tome et al. #8 d(a4,a5)"
+
+  - feature_id: eyebrow_angle_r
+    name: Right eyebrow angle
+    region: eyebrows
+    type: angle
+    points: [17, 21]
+    unit: px
+    formula_ref: "Tome et al. #13 alpha(a2,a3)"
+
+  - feature_id: eyebrow_angle_l
+    name: Left eyebrow angle
+    region: eyebrows
+    type: angle
+    points: [22, 26]
+    unit: px
+    formula_ref: "Tome et al. #12 alpha(a4,a5)"
+
+  - feature_id: nose_width
+    name: Nose width
+    region: nose
+    type: distance
+    points: [31, 35]
+    unit: px
+    formula_ref: "Tome et al. #19 d(a12,a14)"
+
+  - feature_id: nose_height
+    name: Nose height
+    region: nose
+    type: distance
+    points: [27, 33]
+    unit: px
+    formula_ref: "Tome et al. #20 d(a13,b1)"
+
+  - feature_id: mouth_width
+    name: Mouth width
+    region: mouth
+    type: distance
+    points: [48, 54]
+    unit: px
+    formula_ref: "Tome et al. #23 d(a15,a16)"
+
+  - feature_id: mouth_height
+    name: Mouth height (average)
+    region: mouth
+    type: distance
+    points: [51, 57]
+    unit: px
+    formula_ref: "Tome et al. #24 average vertical distance"
+
+  - feature_id: mouth_angle
+    name: Mouth corner angle
+    region: mouth
+    type: angle
+    points: [48, 54]
+    unit: px
+    formula_ref: "Tome et al. #25 alpha(a15,a16)"
+
+  - feature_id: jaw_width
+    name: Jaw width
+    region: jaw
+    type: distance
+    points: [4, 12]
+    unit: px
+    formula_ref: "approximation of Tome et al. chin/jaw width concept"
+
+  - feature_id: chin_height
+    name: Chin height
+    region: chin
+    type: distance
+    points: [8, 57]
+    unit: px
+    formula_ref: "Tome et al. #27 d(b5,a17) approximation"
+
+"468":
+  - feature_id: face_width
+    name: Face width
+    region: face
+    type: distance
+    points: [234, 454]
+    unit: px
+    formula_ref: "Tome et al. Table 1 (analogous to jaw/face width span)"
+
+  - feature_id: face_height
+    name: Face height
+    region: face
+    type: distance
+    points: [10, 152]
+    unit: px
+    formula_ref: "Tome et al. Table 1 (nose-root to chin approximation)"
+
+  - feature_id: interocular_distance
+    name: Interocular distance (inner corners)
+    region: eyes
+    type: distance
+    points: [133, 362]
+    unit: px
+    formula_ref: "Tome et al. #16 d(a8,a9)"
+
+  - feature_id: eye_width_r
+    name: Right eye width
+    region: eyes
+    type: distance
+    points: [362, 263]
+    unit: px
+    formula_ref: "Tome et al. #15 d(a6,a8)"
+
+  - feature_id: eye_width_l
+    name: Left eye width
+    region: eyes
+    type: distance
+    points: [33, 133]
+    unit: px
+    formula_ref: "Tome et al. #14 d(a9,a11)"
+
+  - feature_id: eyebrow_length_r
+    name: Right eyebrow length
+    region: eyebrows
+    type: distance
+    points: [293, 300]
+    unit: px
+    formula_ref: "Tome et al. #9 d(a2,a3)"
+
+  - feature_id: eyebrow_length_l
+    name: Left eyebrow length
+    region: eyebrows
+    type: distance
+    points: [70, 63]
+    unit: px
+    formula_ref: "Tome et al. #8 d(a4,a5)"
+
+  - feature_id: eyebrow_angle_r
+    name: Right eyebrow angle
+    region: eyebrows
+    type: angle
+    points: [293, 300]
+    unit: px
+    formula_ref: "Tome et al. #13 alpha(a2,a3)"
+
+  - feature_id: eyebrow_angle_l
+    name: Left eyebrow angle
+    region: eyebrows
+    type: angle
+    points: [70, 63]
+    unit: px
+    formula_ref: "Tome et al. #12 alpha(a4,a5)"
+
+  - feature_id: nose_width
+    name: Nose width
+    region: nose
+    type: distance
+    points: [129, 358]
+    unit: px
+    formula_ref: "Tome et al. #19 d(a12,a14)"
+
+  - feature_id: nose_height
+    name: Nose height
+    region: nose
+    type: distance
+    points: [168, 2]
+    unit: px
+    formula_ref: "Tome et al. #20 d(a13,b1)"
+
+  - feature_id: mouth_width
+    name: Mouth width
+    region: mouth
+    type: distance
+    points: [61, 291]
+    unit: px
+    formula_ref: "Tome et al. #23 d(a15,a16)"
+
+  - feature_id: mouth_height
+    name: Mouth height (average)
+    region: mouth
+    type: distance
+    points: [0, 17]
+    unit: px
+    formula_ref: "Tome et al. #24 average vertical distance"
+
+  - feature_id: mouth_angle
+    name: Mouth corner angle
+    region: mouth
+    type: angle
+    points: [61, 291]
+    unit: px
+    formula_ref: "Tome et al. #25 alpha(a15,a16)"
+
+  - feature_id: jaw_width
+    name: Jaw width
+    region: jaw
+    type: distance
+    points: [234, 454]
+    unit: px
+    formula_ref: "approximation of Tome et al. chin/jaw width concept"
+
+  - feature_id: chin_height
+    name: Chin height
+    region: chin
+    type: distance
+    points: [152, 17]
+    unit: px
+    formula_ref: "Tome et al. #27 d(b5,a17) approximation"
+
+  - feature_id: forehead_height
+    name: Forehead height
+    region: forehead
+    type: distance
+    points: [10, 168]
+    unit: px
+    formula_ref: "Tome et al. Forehead height approximation"
+
+  - feature_id: forehead_width
+    name: Forehead width
+    region: forehead
+    type: distance
+    points: [109, 338]
+    unit: px
+    formula_ref: "Tome et al. Forehead width approximation"
+
+  - feature_id: ear_height_l
+    name: Left ear height
+    region: ears
+    type: distance
+    points: [127, 162]
+    unit: px
+    formula_ref: "Tome et al. Ear height approximation"
+
+  - feature_id: ear_height_r
+    name: Right ear height
+    region: ears
+    type: distance
+    points: [356, 389]
+    unit: px
+    formula_ref: "Tome et al. Ear height approximation"
+

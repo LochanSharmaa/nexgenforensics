@@ -1,0 +1,10 @@
+numpy
+opencv-python-headless
+Pillow
+PyYAML
+jsonschema
+reportlab
+fastapi
+uvicorn[standard]
+python-multipart
+pytest

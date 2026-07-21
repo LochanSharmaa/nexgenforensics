@@ -1,0 +1,827 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NexGen Forensics — Facial Comparison Reporting</title>
+<meta name="description" content="AI-assisted forensic facial similarity analysis. Upload probe and candidate images to generate investigative comparison reports." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+/* ===== Design Tokens ===== */
+:root {
+  --bg:           #070d14;
+  --surface:      #0d1520;
+  --surface-2:    #121c2a;
+  --surface-3:    #192536;
+  --border:       #1e2f44;
+  --border-hi:    #2a4460;
+  --accent:       #2563eb;
+  --accent-hi:    #3b82f6;
+  --accent-glow:  rgba(37,99,235,0.25);
+  --success:      #22c55e;
+  --warning:      #f59e0b;
+  --danger:       #ef4444;
+  --text:         #e2eaf4;
+  --text-muted:   #7a92ad;
+  --text-dim:     #4a6070;
+  --mono:         'JetBrains Mono', monospace;
+  --sans:         'Inter', -apple-system, sans-serif;
+  --radius:       10px;
+  --radius-sm:    6px;
+  --shadow:       0 4px 24px rgba(0,0,0,0.4);
+  --transition:   0.18s ease;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--surface); }
+::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 3px; }
+
+/* ===== Utility ===== */
+.mono { font-family: var(--mono); }
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600;
+  letter-spacing: 0.5px;
+}
+.badge-blue   { background: rgba(37,99,235,0.18); color: var(--accent-hi); border: 1px solid rgba(59,130,246,0.3); }
+.badge-green  { background: rgba(34,197,94,0.12); color: var(--success);   border: 1px solid rgba(34,197,94,0.25); }
+.badge-yellow { background: rgba(245,158,11,0.12); color: var(--warning);  border: 1px solid rgba(245,158,11,0.25); }
+.badge-red    { background: rgba(239,68,68,0.12); color: var(--danger);    border: 1px solid rgba(239,68,68,0.25); }
+.badge-gray   { background: rgba(122,146,173,0.1); color: var(--text-muted); border: 1px solid var(--border); }
+
+/* ===== Layout ===== */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 32px; height: 62px;
+  background: rgba(13,21,32,0.95);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+  position: sticky; top: 0; z-index: 100;
+}
+
+.logo {
+  display: flex; align-items: center; gap: 10px;
+}
+.logo-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  display: grid; place-items: center;
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+.logo-icon svg { width: 18px; height: 18px; fill: white; }
+.logo-text { font-size: 15px; font-weight: 700; letter-spacing: 0.3px; }
+.logo-sub  { font-size: 11px; color: var(--text-muted); font-weight: 400; margin-top: -2px; }
+
+.nav-pill {
+  display: flex; gap: 4px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 4px;
+}
+.nav-pill button {
+  padding: 6px 14px; border: none; border-radius: 7px; font-size: 13px; font-family: var(--sans); cursor: pointer;
+  transition: var(--transition); background: transparent; color: var(--text-muted);
+}
+.nav-pill button.active { background: var(--surface-3); color: var(--text); box-shadow: 0 1px 6px rgba(0,0,0,0.3); }
+
+main { max-width: 1100px; margin: 0 auto; padding: 32px 24px 64px; }
+
+/* ===== Panels ===== */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow);
+  transition: border-color var(--transition);
+}
+.panel:hover { border-color: var(--border-hi); }
+
+.panel-title {
+  font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;
+  letter-spacing: 1px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+}
+.panel-title::before {
+  content: ''; display: block; width: 3px; height: 14px; border-radius: 2px;
+  background: linear-gradient(to bottom, var(--accent), #1e40af);
+}
+
+/* ===== Tabs ===== */
+.mode-section { display: none; }
+.mode-section.active { display: block; }
+
+/* ===== Form fields ===== */
+.row { display: flex; gap: 16px; flex-wrap: wrap; }
+.field { flex: 1; min-width: 200px; }
+.field label {
+  display: block; font-size: 11px; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 6px;
+}
+
+input[type="text"], input[type="file"], select {
+  width: 100%; padding: 9px 12px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text);
+  font-family: var(--sans); font-size: 13.5px;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  outline: none;
+}
+input[type="text"]:focus, select:focus {
+  border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow);
+}
+input[type="file"] { cursor: pointer; }
+input[type="file"]::-webkit-file-upload-button {
+  background: var(--surface-3); border: 1px solid var(--border-hi); color: var(--text);
+  padding: 4px 10px; border-radius: 5px; cursor: pointer; font-size: 12px;
+  transition: var(--transition);
+}
+input[type="file"]::-webkit-file-upload-button:hover { background: var(--border-hi); }
+
+/* ===== Drop zones ===== */
+.dropzone {
+  border: 2px dashed var(--border-hi); border-radius: var(--radius);
+  padding: 32px 20px; text-align: center; cursor: pointer;
+  transition: all var(--transition); background: var(--surface-2); position: relative;
+}
+.dropzone:hover, .dropzone.drag-over {
+  border-color: var(--accent); background: rgba(37,99,235,0.05); box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.dropzone input[type="file"] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+.dropzone-icon { font-size: 28px; margin-bottom: 8px; }
+.dropzone-label { font-size: 13px; color: var(--text-muted); }
+.dropzone-hint  { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+.dropzone-preview {
+  position: absolute; inset: 0; border-radius: calc(var(--radius) - 2px);
+  object-fit: cover; opacity: 0.35; pointer-events: none;
+}
+.dropzone-filename {
+  margin-top: 8px; font-size: 12px; color: var(--accent-hi); font-family: var(--mono);
+  display: none;
+}
+
+/* ===== Buttons ===== */
+.btn-primary {
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  color: white; border: none; padding: 11px 28px; border-radius: var(--radius-sm);
+  font-size: 14px; font-weight: 600; cursor: pointer; font-family: var(--sans);
+  transition: all var(--transition); box-shadow: 0 2px 12px var(--accent-glow);
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #1e40af, #2563eb);
+  box-shadow: 0 4px 20px rgba(37,99,235,0.45);
+  transform: translateY(-1px);
+}
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+.btn-ghost {
+  background: var(--surface-2); color: var(--text); border: 1px solid var(--border);
+  padding: 9px 18px; border-radius: var(--radius-sm); font-size: 13px; font-family: var(--sans);
+  cursor: pointer; transition: all var(--transition); text-decoration: none; display: inline-flex;
+  align-items: center; gap: 6px;
+}
+.btn-ghost:hover { background: var(--surface-3); border-color: var(--border-hi); }
+
+/* ===== Progress ===== */
+.progress-bar-wrap {
+  background: var(--surface-2); border-radius: 999px; height: 4px; overflow: hidden;
+  margin: 12px 0;
+}
+.progress-bar {
+  height: 100%; border-radius: 999px; width: 0%;
+  background: linear-gradient(90deg, #1d4ed8, #3b82f6, #60a5fa);
+  background-size: 200% 100%;
+  transition: width 0.4s ease;
+  animation: shimmer 1.5s linear infinite;
+}
+@keyframes shimmer {
+  0% { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+.stage-steps {
+  display: flex; gap: 0; margin: 16px 0; overflow: hidden;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+.stage-step {
+  flex: 1; text-align: center; padding: 7px 4px; font-size: 11px;
+  color: var(--text-dim); border-right: 1px solid var(--border);
+  transition: all 0.3s;
+}
+.stage-step:last-child { border-right: none; }
+.stage-step.active { color: var(--accent-hi); background: rgba(37,99,235,0.1); }
+.stage-step.done   { color: var(--success); background: rgba(34,197,94,0.06); }
+
+/* ===== Metrics ===== */
+.metrics-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px;
+  margin-top: 16px;
+}
+.metric-card {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 14px 16px;
+}
+.metric-card .label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.metric-card .value { font-size: 22px; font-weight: 700; margin-top: 4px; font-family: var(--mono); }
+.metric-card .sub   { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+/* ===== Decision badge ===== */
+.decision-block {
+  display: flex; align-items: center; gap: 16px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px 20px; margin-top: 16px;
+}
+.decision-icon {
+  width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+  display: grid; place-items: center; font-size: 20px;
+}
+.decision-text h4 { font-size: 15px; font-weight: 600; }
+.decision-text p  { font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4; }
+
+/* ===== Ranked results ===== */
+.rank-list { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+.rank-item {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px 16px;
+  transition: all var(--transition); animation: fadeIn 0.3s ease forwards;
+  opacity: 0;
+}
+@keyframes fadeIn { to { opacity: 1; transform: translateY(0); } from { transform: translateY(6px); } }
+.rank-item:hover { border-color: var(--border-hi); background: var(--surface-3); }
+.rank-num {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 700; flex-shrink: 0;
+}
+.rank-num.gold   { background: rgba(234,179,8,0.15); color: #facc15; }
+.rank-num.silver { background: rgba(148,163,184,0.15); color: #94a3b8; }
+.rank-num.bronze { background: rgba(180,83,9,0.15); color: #fb923c; }
+.rank-num.other  { background: var(--surface-3); color: var(--text-muted); }
+.rank-name { flex: 1; font-family: var(--mono); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank-score-bar-wrap { width: 100px; background: var(--surface-3); border-radius: 999px; height: 5px; }
+.rank-score-bar { height: 5px; border-radius: 999px; background: linear-gradient(90deg, #1d4ed8, #60a5fa); }
+.rank-score-val { font-size: 13px; font-weight: 600; font-family: var(--mono); width: 46px; text-align: right; }
+
+/* ===== Figure grid ===== */
+.fig-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;
+  margin-top: 14px;
+}
+.fig-thumb {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  overflow: hidden; cursor: pointer; transition: var(--transition);
+}
+.fig-thumb:hover { border-color: var(--accent); transform: scale(1.02); }
+.fig-thumb img { width: 100%; display: block; object-fit: contain; max-height: 140px; }
+.fig-thumb .fig-cap { font-size: 11px; color: var(--text-muted); padding: 6px 8px; text-align: center; }
+
+/* ===== Status messages ===== */
+.status-msg {
+  font-size: 13px; color: var(--text-muted); margin-top: 10px; min-height: 20px;
+  display: flex; align-items: center; gap: 6px;
+}
+.spinner {
+  width: 14px; height: 14px; border: 2px solid var(--border-hi);
+  border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite;
+  display: none; flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner.visible { display: block; }
+
+/* ===== Disclaimer ===== */
+.disclaimer {
+  font-size: 11px; color: var(--text-dim); line-height: 1.6;
+  border-top: 1px solid var(--border); padding-top: 20px; margin-top: 32px;
+  max-width: 780px;
+}
+
+/* ===== Candidate DB list ===== */
+.cand-list {
+  display: flex; flex-direction: column; gap: 6px; margin-top: 10px; max-height: 200px; overflow-y: auto;
+}
+.cand-chip {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+  padding: 7px 12px; font-family: var(--mono); font-size: 12px;
+}
+.cand-chip button {
+  background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 14px; line-height: 1;
+  transition: color var(--transition); padding: 0 3px;
+}
+.cand-chip button:hover { color: var(--danger); }
+
+/* ===== Lightbox ===== */
+#lightbox {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+  z-index: 999; align-items: center; justify-content: center;
+}
+#lightbox.open { display: flex; }
+#lightbox img { max-width: 90vw; max-height: 90vh; border-radius: var(--radius); box-shadow: var(--shadow); }
+#lightbox-close {
+  position: absolute; top: 20px; right: 24px; color: white; font-size: 28px;
+  cursor: pointer; background: none; border: none; line-height: 1;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 640px) {
+  header { padding: 0 16px; }
+  main { padding: 20px 12px 48px; }
+  .metrics-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+    </div>
+    <div>
+      <div class="logo-text">NexGen Forensics</div>
+      <div class="logo-sub">Facial Comparison Reporting &mdash; Investigator Interface</div>
+    </div>
+  </div>
+  <div class="nav-pill">
+    <button id="tab-11" class="active" onclick="switchMode('11')">1:1 Comparison</button>
+    <button id="tab-1n" onclick="switchMode('1n')">1:N Ranking</button>
+  </div>
+</header>
+
+<main>
+
+<!-- ===================== 1:1 MODE ===================== -->
+<div id="section-11" class="mode-section active">
+
+  <div class="panel">
+    <div class="panel-title">Evidence Images</div>
+    <div class="row">
+      <div class="field">
+        <label>Probe Image</label>
+        <div class="dropzone" id="probe-dz" ondragover="dzDrag(event,this)" ondragleave="dzLeave(this)" ondrop="dzDrop(event,'probe')">
+          <input type="file" id="probe" accept="image/*" onchange="dzPick(this,'probe-dz','probe-name')" />
+          <div class="dropzone-icon">🕵️</div>
+          <div class="dropzone-label">Drop probe image or click to browse</div>
+          <div class="dropzone-hint">JPG, PNG, BMP up to 20 MB</div>
+          <div class="dropzone-filename mono" id="probe-name"></div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Candidate Image</label>
+        <div class="dropzone" id="candidate-dz" ondragover="dzDrag(event,this)" ondragleave="dzLeave(this)" ondrop="dzDrop(event,'candidate')">
+          <input type="file" id="candidate" accept="image/*" onchange="dzPick(this,'candidate-dz','candidate-name')" />
+          <div class="dropzone-icon">🔍</div>
+          <div class="dropzone-label">Drop candidate image or click to browse</div>
+          <div class="dropzone-hint">JPG, PNG, BMP up to 20 MB</div>
+          <div class="dropzone-filename mono" id="candidate-name"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:16px">
+      <div class="field">
+        <label>Case ID</label>
+        <input type="text" id="caseId" placeholder="e.g. CASE-2026-0142" />
+      </div>
+      <div class="field">
+        <label>Requesting Agency</label>
+        <input type="text" id="agency" placeholder="e.g. Investigations Unit" />
+      </div>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:14px; margin-top:18px; flex-wrap:wrap;">
+      <button class="btn-primary" id="runBtn" onclick="runCompare()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        Run Comparison
+      </button>
+      <div class="status-msg">
+        <div class="spinner" id="spinner11"></div>
+        <span id="status11"></span>
+      </div>
+    </div>
+
+    <!-- Progress stages -->
+    <div id="progress11" style="display:none; margin-top:14px;">
+      <div class="progress-bar-wrap"><div class="progress-bar" id="pbar11"></div></div>
+      <div class="stage-steps" id="stages11">
+        <div class="stage-step" id="st-detect">Detection</div>
+        <div class="stage-step" id="st-quality">Quality</div>
+        <div class="stage-step" id="st-measure">Measurements</div>
+        <div class="stage-step" id="st-embed">Embedding</div>
+        <div class="stage-step" id="st-sim">Similarity</div>
+        <div class="stage-step" id="st-report">Report</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="results11" style="display:none;">
+    <div class="panel">
+      <div class="panel-title">Similarity Analysis</div>
+      <div id="decision11"></div>
+      <div class="metrics-grid" id="metrics11"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Annotated Figures</div>
+      <div class="fig-grid" id="figGrid11"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Downloads</div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <a class="btn-ghost" id="pdfLink" href="#" target="_blank">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+          PDF Report
+        </a>
+        <a class="btn-ghost" id="jsonLink" href="#" target="_blank">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M9 11.24V7.5C9 6.12 10.12 5 11.5 5S14 6.12 14 7.5v3.74c1.21-.81 2-2.18 2-3.74C16 5.01 13.99 3 11.5 3S7 5.01 7 7.5c0 1.56.79 2.93 2 3.74zm9.84 4.63l-4.54-2.26c-.17-.07-.35-.11-.54-.11H13v-6c0-.83-.67-1.5-1.5-1.5S10 6.67 10 7.5v10.74l-3.43-.72c-.08-.01-.15-.03-.24-.03-.31 0-.59.13-.79.33l-.79.8 4.94 4.94c.27.27.65.44 1.06.44h6.79c.75 0 1.33-.55 1.44-1.28l.75-5.27c.01-.07.02-.14.02-.2 0-.62-.38-1.16-.91-1.38z"/></svg>
+          JSON Findings
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== 1:N RANKING MODE ===================== -->
+<div id="section-1n" class="mode-section">
+
+  <div class="panel">
+    <div class="panel-title">Probe Image</div>
+    <div style="max-width:360px">
+      <div class="dropzone" id="rankprobe-dz" ondragover="dzDrag(event,this)" ondragleave="dzLeave(this)" ondrop="dzDrop(event,'rankprobe')">
+        <input type="file" id="rankprobe" accept="image/*" onchange="dzPick(this,'rankprobe-dz','rankprobe-name')" />
+        <div class="dropzone-icon">🕵️</div>
+        <div class="dropzone-label">Probe image</div>
+        <div class="dropzone-filename mono" id="rankprobe-name"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Candidate Database</div>
+    <label style="display:block; font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:.7px; margin-bottom:8px">
+      Add candidate images (select multiple)
+    </label>
+    <input type="file" id="candidates-input" accept="image/*" multiple onchange="addCandidates(this)" />
+    <div class="cand-list" id="cand-list"></div>
+    <div style="margin-top:10px; font-size:12px; color:var(--text-muted);">
+      <span id="cand-count">0 images loaded</span>
+    </div>
+
+    <div class="row" style="margin-top:16px">
+      <div class="field">
+        <label>Case ID</label>
+        <input type="text" id="rankCaseId" placeholder="e.g. CASE-2026-0142" />
+      </div>
+      <div class="field">
+        <label>Top K results</label>
+        <input type="text" id="topK" value="20" placeholder="20" style="width:100px;" />
+      </div>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:14px; margin-top:18px; flex-wrap:wrap;">
+      <button class="btn-primary" id="rankBtn" onclick="runRanking()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h6v-2H3v2zm0-5h12v-2H3v2zm0-7v2h18V6H3z"/></svg>
+        Run 1:N Ranking
+      </button>
+      <div class="status-msg">
+        <div class="spinner" id="spinner1n"></div>
+        <span id="status1n"></span>
+      </div>
+    </div>
+
+    <div id="progress1n" style="display:none; margin-top:14px;">
+      <div class="progress-bar-wrap"><div class="progress-bar" id="pbar1n"></div></div>
+    </div>
+  </div>
+
+  <!-- Ranking results -->
+  <div id="results1n" style="display:none;">
+    <div class="panel">
+      <div class="panel-title">Ranked Results</div>
+      <div id="rankSummary" style="margin-bottom:12px; font-size:13px; color:var(--text-muted);"></div>
+      <div class="rank-list" id="rankList"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Downloads</div>
+      <a class="btn-ghost" id="rankJsonLink" href="#" target="_blank">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M9 11.24V7.5C9 6.12 10.12 5 11.5 5S14 6.12 14 7.5v3.74c1.21-.81 2-2.18 2-3.74C16 5.01 13.99 3 11.5 3S7 5.01 7 7.5c0 1.56.79 2.93 2 3.74zm9.84 4.63l-4.54-2.26c-.17-.07-.35-.11-.54-.11H13v-6c0-.83-.67-1.5-1.5-1.5S10 6.67 10 7.5v10.74l-3.43-.72c-.08-.01-.15-.03-.24-.03-.31 0-.59.13-.79.33l-.79.8 4.94 4.94c.27.27.65.44 1.06.44h6.79c.75 0 1.33-.55 1.44-1.28l.75-5.27c.01-.07.02-.14.02-.2 0-.62-.38-1.16-.91-1.38z"/></svg>
+        Ranking JSON
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Disclaimer -->
+<p class="disclaimer">
+  <strong>Important Notice:</strong> This system provides algorithmic facial similarity assessments as investigative support material only.
+  Results are <em>not</em> a determination of identity and must be interpreted by a qualified forensic examiner in conjunction with all
+  available investigative information. The AI system reports statistical measures of resemblance between image representations —
+  it does not confirm or exclude personal identity. No output should be used as the sole basis for investigative or legal decisions.
+</p>
+
+</main>
+
+<!-- Lightbox -->
+<div id="lightbox" onclick="closeLightbox()">
+  <button id="lightbox-close" onclick="closeLightbox()">&times;</button>
+  <img id="lightbox-img" src="" alt="figure" />
+</div>
+
+<script>
+const API = "http://localhost:8000";
+let candidateFiles = [];
+
+// ===== Tab switching =====
+function switchMode(m) {
+  document.querySelectorAll('.mode-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-pill button').forEach(b => b.classList.remove('active'));
+  document.getElementById('section-' + m).classList.add('active');
+  document.getElementById('tab-' + m).classList.add('active');
+}
+
+// ===== Drop zone helpers =====
+function dzDrag(e, el) { e.preventDefault(); el.classList.add('drag-over'); }
+function dzLeave(el) { el.classList.remove('drag-over'); }
+function dzDrop(e, id) {
+  e.preventDefault();
+  const dz = document.getElementById(id + '-dz') || e.currentTarget;
+  dz.classList.remove('drag-over');
+  const files = e.dataTransfer.files;
+  if (files.length) {
+    const input = document.getElementById(id);
+    if (input) {
+      // Simulate file assignment
+      const dt = new DataTransfer();
+      dt.items.add(files[0]);
+      input.files = dt.files;
+      input.dispatchEvent(new Event('change'));
+    }
+  }
+}
+function dzPick(input, dzId, nameId) {
+  const f = input.files[0];
+  const nameEl = document.getElementById(nameId);
+  const dz = document.getElementById(dzId);
+  if (!f) return;
+  nameEl.textContent = f.name;
+  nameEl.style.display = 'block';
+  // Show image preview in dropzone background
+  const reader = new FileReader();
+  reader.onload = e => {
+    let prev = dz.querySelector('.dropzone-preview');
+    if (!prev) {
+      prev = document.createElement('img');
+      prev.className = 'dropzone-preview';
+      dz.insertBefore(prev, dz.firstChild);
+    }
+    prev.src = e.target.result;
+  };
+  reader.readAsDataURL(f);
+}
+
+// ===== Candidate list management =====
+function addCandidates(input) {
+  for (const f of Array.from(input.files)) {
+    if (!candidateFiles.find(x => x.name === f.name && x.size === f.size)) {
+      candidateFiles.push(f);
+    }
+  }
+  renderCandidateList();
+}
+function removeCandidate(idx) {
+  candidateFiles.splice(idx, 1);
+  renderCandidateList();
+}
+function renderCandidateList() {
+  const list = document.getElementById('cand-list');
+  const count = document.getElementById('cand-count');
+  list.innerHTML = '';
+  candidateFiles.forEach((f, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'cand-chip';
+    chip.innerHTML = `<span>${f.name}</span><span style="color:var(--text-muted);font-size:11px">${(f.size/1024).toFixed(0)} KB</span><button onclick="removeCandidate(${i})">✕</button>`;
+    list.appendChild(chip);
+  });
+  count.textContent = `${candidateFiles.length} image${candidateFiles.length !== 1 ? 's' : ''} loaded`;
+}
+
+// ===== Progress helpers =====
+const STAGE_IDS = ['st-detect', 'st-quality', 'st-measure', 'st-embed', 'st-sim', 'st-report'];
+function setStage(idx) {
+  STAGE_IDS.forEach((id, i) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.className = 'stage-step' + (i < idx ? ' done' : i === idx ? ' active' : '');
+  });
+  document.getElementById('pbar11').style.width = ((idx / STAGE_IDS.length) * 100) + '%';
+}
+function animateProgress11() {
+  let i = 0;
+  const delays = [400, 800, 1400, 2200, 3200, 4000];
+  delays.forEach((d, idx) => setTimeout(() => setStage(idx), d));
+}
+
+// ===== 1:1 Comparison =====
+async function runCompare() {
+  const probe = document.getElementById('probe').files[0];
+  const cand  = document.getElementById('candidate').files[0];
+  const status = document.getElementById('status11');
+  if (!probe || !cand) { status.textContent = 'Please select both a probe and candidate image.'; return; }
+
+  document.getElementById('runBtn').disabled = true;
+  document.getElementById('spinner11').classList.add('visible');
+  document.getElementById('progress11').style.display = 'block';
+  document.getElementById('results11').style.display = 'none';
+  status.textContent = 'Uploading and running pipeline…';
+  animateProgress11();
+
+  const fd = new FormData();
+  fd.append('probe', probe);
+  fd.append('candidate', cand);
+  fd.append('case_id', document.getElementById('caseId').value);
+  fd.append('requesting_agency', document.getElementById('agency').value);
+
+  try {
+    const res = await fetch(`${API}/compare`, { method: 'POST', body: fd });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+
+    setStage(STAGE_IDS.length); // all done
+    status.textContent = `✓ Done — Report ID: ${data.report_id}`;
+
+    renderMetrics(data.similarity);
+    renderFigures(data.run_id, data.figures);
+    document.getElementById('pdfLink').href = `${API}${data.pdf_url || '/report/' + data.run_id + '/pdf'}`;
+    document.getElementById('jsonLink').href = `${API}${data.json_url}`;
+    document.getElementById('results11').style.display = 'block';
+    document.getElementById('results11').scrollIntoView({ behavior: 'smooth' });
+  } catch (e) {
+    status.textContent = '✗ Error: ' + e.message;
+    setStage(0);
+  } finally {
+    document.getElementById('runBtn').disabled = false;
+    document.getElementById('spinner11').classList.remove('visible');
+  }
+}
+
+function renderMetrics(sim) {
+  const grid = document.getElementById('metrics11');
+  grid.innerHTML = '';
+
+  // Decision block
+  const cat = (sim.decision_category || '').toLowerCase();
+  let color = 'var(--text-muted)', icon = '⚖️', badgeCls = 'badge-gray';
+  if (cat.includes('high')) { color = 'var(--success)'; icon = '✅'; badgeCls = 'badge-green'; }
+  else if (cat.includes('low') || cat.includes('unlikely')) { color = 'var(--danger)'; icon = '❌'; badgeCls = 'badge-red'; }
+  else if (cat.includes('moderate') || cat.includes('possible')) { color = 'var(--warning)'; icon = '⚠️'; badgeCls = 'badge-yellow'; }
+
+  const decision = document.getElementById('decision11');
+  decision.innerHTML = `
+    <div class="decision-block" style="border-color:${color}33">
+      <div class="decision-icon" style="background:${color}18;">${icon}</div>
+      <div class="decision-text">
+        <h4>${sim.decision_category || 'Unknown'}</h4>
+        <p>Algorithmic similarity assessment — <strong>not a determination of identity.</strong> A qualified examiner must review all findings.</p>
+      </div>
+    </div>`;
+
+  const metrics = [
+    { label: 'Cosine Similarity', value: typeof sim.cosine_similarity === 'number' ? sim.cosine_similarity.toFixed(4) : '—', sub: 'primary score' },
+    { label: 'Threshold', value: sim.threshold_used ?? '—', sub: 'configured cutoff' },
+    { label: 'Euclidean Dist.', value: sim.euclidean_distance != null ? sim.euclidean_distance.toFixed(4) : '—', sub: 'geometric distance' },
+    { label: 'Angular Dist.', value: sim.angular_distance != null ? sim.angular_distance.toFixed(2) + '°' : '—', sub: 'degrees' },
+  ];
+
+  if (sim.soft_feature_similarity) {
+    const s = sim.soft_feature_similarity;
+    if (s.euclidean != null) metrics.push({ label: 'Soft Euclidean', value: s.euclidean.toFixed(4), sub: 'anthropometric' });
+    if (s.mahalanobis != null) metrics.push({ label: 'Mahalanobis', value: s.mahalanobis.toFixed(4), sub: 'weighted distance' });
+    if (s.hamming != null) metrics.push({ label: 'Hamming', value: s.hamming.toFixed(4), sub: 'categorical mismatch' });
+  }
+
+  metrics.forEach(m => {
+    const card = document.createElement('div');
+    card.className = 'metric-card';
+    card.innerHTML = `<div class="label">${m.label}</div><div class="value mono">${m.value}</div><div class="sub">${m.sub}</div>`;
+    grid.appendChild(card);
+  });
+}
+
+function renderFigures(runId, figs) {
+  const grid = document.getElementById('figGrid11');
+  grid.innerHTML = '';
+  for (const name of figs) {
+    const wrap = document.createElement('div');
+    wrap.className = 'fig-thumb';
+    const src = `${API}/report/${runId}/figures/${name}`;
+    wrap.innerHTML = `<img src="${src}" alt="${name}" loading="lazy" /><div class="fig-cap">${name.replace(/_/g,' ')}</div>`;
+    wrap.querySelector('img').onclick = () => openLightbox(src);
+    grid.appendChild(wrap);
+  }
+}
+
+// ===== 1:N Ranking =====
+async function runRanking() {
+  const probe = document.getElementById('rankprobe').files[0];
+  const status = document.getElementById('status1n');
+  if (!probe) { status.textContent = 'Please select a probe image.'; return; }
+  if (candidateFiles.length < 1) { status.textContent = 'Please add at least one candidate image.'; return; }
+
+  document.getElementById('rankBtn').disabled = true;
+  document.getElementById('spinner1n').classList.add('visible');
+  document.getElementById('progress1n').style.display = 'block';
+  document.getElementById('results1n').style.display = 'none';
+  status.textContent = `Ranking probe against ${candidateFiles.length} candidates…`;
+
+  const fd = new FormData();
+  fd.append('probe', probe);
+  candidateFiles.forEach(f => fd.append('candidates', f));
+  fd.append('case_id', document.getElementById('rankCaseId').value);
+  fd.append('top_k', document.getElementById('topK').value || '20');
+
+  let prog = 0;
+  const pbar = document.getElementById('pbar1n');
+  const progInt = setInterval(() => {
+    prog = Math.min(prog + 3, 90);
+    pbar.style.width = prog + '%';
+  }, 300);
+
+  try {
+    const res = await fetch(`${API}/compare_ranking`, { method: 'POST', body: fd });
+    clearInterval(progInt);
+    pbar.style.width = '100%';
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    status.textContent = `✓ Done — ${data.total_candidates} candidate(s) compared.`;
+
+    document.getElementById('rankSummary').innerHTML =
+      `Probe: <span class="mono">${data.probe_id}</span> &nbsp;|&nbsp; Case: ${data.case_id || '—'} &nbsp;|&nbsp; Compared ${data.total_candidates} candidate(s)`;
+
+    renderRanking(data.rankings);
+    document.getElementById('rankJsonLink').href = `${API}${data.json_url}`;
+    document.getElementById('results1n').style.display = 'block';
+    document.getElementById('results1n').scrollIntoView({ behavior: 'smooth' });
+  } catch (e) {
+    clearInterval(progInt);
+    status.textContent = '✗ Error: ' + e.message;
+  } finally {
+    document.getElementById('rankBtn').disabled = false;
+    document.getElementById('spinner1n').classList.remove('visible');
+  }
+}
+
+function renderRanking(rankings) {
+  const list = document.getElementById('rankList');
+  list.innerHTML = '';
+  rankings.forEach((r, i) => {
+    const score = r.score != null ? r.score : null;
+    const pct = score != null ? Math.round(score * 100) : 0;
+    const numCls = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : 'other';
+    let badgeCls = 'badge-gray'; const cat = (r.decision_category || '').toLowerCase();
+    if (cat.includes('high')) badgeCls = 'badge-green';
+    else if (cat.includes('low') || cat.includes('unlikely')) badgeCls = 'badge-red';
+    else if (cat.includes('moderate') || cat.includes('possible')) badgeCls = 'badge-yellow';
+    const item = document.createElement('div');
+    item.className = 'rank-item';
+    item.style.animationDelay = (i * 40) + 'ms';
+    item.innerHTML = `
+      <div class="rank-num ${numCls}">${r.rank ?? i+1}</div>
+      <div class="rank-name" title="${r.candidate_id}">${r.candidate_id}</div>
+      <div class="rank-score-bar-wrap"><div class="rank-score-bar" style="width:${pct}%"></div></div>
+      <div class="rank-score-val mono">${score != null ? score.toFixed(4) : '—'}</div>
+      <span class="badge ${badgeCls}">${r.decision_category || '—'}</span>
+    `;
+    list.appendChild(item);
+  });
+}
+
+// ===== Lightbox =====
+function openLightbox(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+</script>
+</body>
+</html>
