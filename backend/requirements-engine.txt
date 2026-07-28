@@ -1,0 +1,22 @@
+# NexGen iMATCH - real recognition engine dependencies.
+#
+# Install these on top of requirements.txt to enable genuine face recognition.
+# Without them the engine starts in DETERMINISTIC FALLBACK mode, which produces
+# stable but MEANINGLESS embeddings: it cannot recognize anyone. The API reports
+# this via GET /api/imatch/engine/status -> recognition_capable: false.
+#
+#   pip install -r requirements.txt -r requirements-engine.txt
+#
+# First run downloads the InsightFace buffalo_l model pack (~350 MB) into
+# ~/.insightface/models/. Set NEXGEN_MODEL_ROOT to relocate it.
+
+-r requirements.txt
+
+# RetinaFace detection + ArcFace r100 recognition (ONNX)
+insightface>=0.7.3,<0.8
+onnxruntime>=1.20.0,<2.0
+# Swap the line above for onnxruntime-gpu on a CUDA host:
+# onnxruntime-gpu>=1.20.0,<2.0
+
+opencv-python-headless>=4.10.0,<5.0
+scikit-image>=0.24.0,<1.0
