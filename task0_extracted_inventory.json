@@ -1,0 +1,98 @@
+{
+  "AgeDB": {
+    "file_count": 16488,
+    "extensions": [
+      ".jpg"
+    ],
+    "path": "c:\\Users\\hello\\Desktop\\nexgenforensics\\src_extracted\\AgeDB"
+  },
+  "archive": {
+    "file_count": 25623,
+    "extensions": [
+      ".bmp",
+      ".txt"
+    ],
+    "path": "c:\\Users\\hello\\Desktop\\nexgenforensics\\src_extracted\\archive"
+  },
+  "archive (1)": {
+    "file_count": 13243,
+    "extensions": [
+      ".jpg",
+      ".csv"
+    ],
+    "path": "c:\\Users\\hello\\Desktop\\nexgenforensics\\src_extracted\\archive (1)"
+  },
+  "archive (2)": {
+    "file_count": 13243,
+    "extensions": [
+      ".jpg",
+      ".csv"
+    ],
+    "path": "c:\\Users\\hello\\Desktop\\nexgenforensics\\src_extracted\\archive (2)"
+  },
+  "archive (3)": {
+    "file_count": 34957,
+    "extensions": [
+      ".txt",
+      ".jpg"
+    ],
+    "path": "c:\\Users\\hello\\Desktop\\nexgenforensics\\src_extracted\\archive (3)"
+  },
+  "archive (4)": {
+    "file_count": 14044,
+    "extensions": [
+      ".txt",
+      ".jpg"
+    ],
+    "path": "c:\\Users\\hello\\Desktop\\nexgenforensics\\src_extracted\\archive (4)"
+  },
+  "assets": {
+    "file_count": 2,
+    "extensions": [
+      ".jpg"
+    ],
+    "path": "c:\\Users\\hello\\Desktop\\nexgenforensics\\src_extracted\\assets"
+  },
+  "faces_megafacetrain_112x112": {
+    "file_count": 8,
+    "extensions": [
+      "",
+      ".idx",
+      ".lst",
+      ".bin",
+      ".rec"
+    ],
+    "path": "c:\\Users\\hello\\Desktop\\nexgenforensics\\src_extracted\\faces_megafacetrain_112x112"
+  },
+  "faces_umd": {
+    "file_count": 6,
+    "extensions": [
+      "",
+      ".bin",
+      ".idx",
+      ".rec"
+    ],
+    "path": "c:\\Users\\hello\\Desktop\\nexgenforensics\\src_extracted\\faces_umd"
+  },
+  "faces_webface_112x112": {
+    "file_count": 10,
+    "extensions": [
+      "",
+      ".idx",
+      ".lst",
+      ".bin",
+      ".rec"
+    ],
+    "path": "c:\\Users\\hello\\Desktop\\nexgenforensics\\src_extracted\\faces_webface_112x112"
+  },
+  "tinyface": {
+    "file_count": 169410,
+    "extensions": [
+      ".m",
+      ".txt",
+      ".jpg",
+      ".mat"
+    ],
+    "path": "c:\\Users\\hello\\Desktop\\nexgenforensics\\src_extracted\\tinyface"
+  }
+}

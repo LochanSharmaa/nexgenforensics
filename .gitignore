@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Python
 __pycache__/
 *.py[cod]
@@ -8,9 +7,14 @@ venv/
 ENV/
 env/
 .env
+.env.*
+!.env.template
+!.env.example
+!.env.example.txt
 .pytest_cache/
 .coverage
 htmlcov/
+runtime/
 
 # Node/Next.js
 node_modules/
@@ -18,48 +22,31 @@ node_modules/
 out/
 build/
 dist/
-.npm
+dist-ssr/
+.vite/
+.npm/
 .yarn-integrity
-*.log
-
-# Databases
-*.db
-*.sqlite
-*.sqlite3
-
-# IDEs & System
-.idea/
-.vscode/
-=======
-# Logs
-logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-
-node_modules
-dist
-dist-ssr
-.vite
 .uv-cache
 .npm-cache
 .vercel-home
 .vercel-local
 .vercel-data
 .vercel
-.env
-.env.*
-!.env.template
-!.env.example.txt
-*.local
-__pycache__/
-*.py[cod]
-runtime/
 
-# Secrets and production-only credentials
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.sql
+
+# Secrets and credentials
 *.pem
 *.key
 *.p12
@@ -73,27 +60,28 @@ id_ed25519*
 secrets.*
 *.secret
 
-# Local databases and dumps
-*.sqlite
-*.sqlite3
-*.db
-*.dump
-*.sql
-
-# Editor directories and files
+# IDEs & System
+.idea/
 .vscode/*
 !.vscode/extensions.json
-.idea
 .DS_Store
->>>>>>> 4be368fcc5342fef2e8a88b1f5104b94ffb43690
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
-<<<<<<< HEAD
 *.swp
-.DS_Store
-Thumbs.db
-=======
 *.sw?
->>>>>>> 4be368fcc5342fef2e8a88b1f5104b94ffb43690
+
+# Datasets, zip archives, installers and extracted binaries
+*.zip
+*.crdownload
+*.exe
+src_extracted/
+src/*.zip
+src/*.crdownload
+src/ms1m-retinaface-t1/
+src/AgeDB/
+src/archive*/
+src/faces_*/
+src/tinyface/
