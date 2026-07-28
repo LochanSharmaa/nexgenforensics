@@ -24,7 +24,7 @@ def export_trt_manifest(output_dir: str | Path, config: EngineConfig | None = No
         format="tensorrt",
         precision=precision,
         int8_calibrated=precision.lower() == "int8",
-        embedding_dim=cfg.final_embedding_dim,
+        embedding_dim=cfg.embedding_dim,
         output_path=str(target_dir / "nexgen_facial_engine.plan"),
     )
     (target_dir / "tensorrt_manifest.json").write_text(json.dumps(asdict(manifest), indent=2) + "\n", encoding="utf-8")

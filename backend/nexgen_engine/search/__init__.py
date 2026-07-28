@@ -1,4 +1,3 @@
-from .faiss_backend import OptionalFaissIndex
-from .faiss_index import MatchResult, VectorSearchIndex
+from .gallery_index import GalleryIndex, MatchResult, SearchOutcome, faiss_available
 
-__all__ = ["MatchResult", "OptionalFaissIndex", "VectorSearchIndex"]
+__all__ = ["GalleryIndex", "MatchResult", "SearchOutcome", "faiss_available"]

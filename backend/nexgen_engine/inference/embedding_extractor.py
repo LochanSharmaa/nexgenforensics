@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from io import BytesIO
-
 import numpy as np
 from PIL import Image
 
-from .pipeline import FacialRecognitionPipeline
+from .pipeline import FacialRecognitionPipeline, RecognitionResult
 
 
 class EmbeddingExtractor:
+    """Thin convenience wrapper for callers that only want the template."""
+
     def __init__(self, pipeline: FacialRecognitionPipeline | None = None) -> None:
         self.pipeline = pipeline or FacialRecognitionPipeline()
 
@@ -16,6 +16,12 @@ class EmbeddingExtractor:
         return self.pipeline.encode_bytes(image_bytes).embedding
 
     def from_image(self, image: Image.Image) -> np.ndarray:
-        buffer = BytesIO()
-        image.convert("RGB").save(buffer, format="PNG")
-        return self.from_bytes(buffer.getvalue())
+        # Encode the decoded image directly. Re-serializing to PNG just to parse
+        # it back, as an earlier version did, cost a full encode/decode per call.
+        return self.pipeline.encode_image(image).embedding
+
+    def describe(self, image_bytes: bytes) -> RecognitionResult:
+        return self.pipeline.encode_bytes(image_bytes)
+
+
+__all__ = ["EmbeddingExtractor"]

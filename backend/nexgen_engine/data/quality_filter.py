@@ -4,74 +4,200 @@ from dataclasses import dataclass
 from io import BytesIO
 
 import numpy as np
-from PIL import Image, ImageFilter, ImageStat
+from PIL import Image
 
 from ..config import QualityConfig
+from ..detection.types import DetectedFace
 from ..utils import clamp
+
+# 3x3 discrete Laplacian. Variance of the response is the standard blur proxy:
+# a sharp image has strong second derivatives, a blurred one has almost none.
+_LAPLACIAN_KERNEL = np.array(
+    [
+        [0.0, 1.0, 0.0],
+        [1.0, -4.0, 1.0],
+        [0.0, 1.0, 0.0],
+    ],
+    dtype=np.float64,
+)
+
+
+# Conditions that make an image unusable, as opposed to merely imperfect.
+# Only these veto an enrolment or a search.
+BLOCKING_REASONS = frozenset(
+    {
+        "face_too_small",
+        "brightness_out_of_range",
+        "detection_confidence_below_minimum",
+        "severe_blur",
+    }
+)
 
 
 @dataclass(frozen=True)
 class QualityReport:
+    """Measured properties of the face region, not of the whole photograph.
+
+    Scores are 0-1 where higher is better. ``score`` is the weighted aggregate;
+    the components are exposed so an analyst can see *why* an image was refused
+    rather than being handed one opaque number.
+
+    Reasons are split deliberately. Blocking reasons mean the image cannot
+    support a reliable comparison at all. Advisory reasons -- pose, moderate
+    blur, low contrast -- mean the result deserves closer examiner attention but
+    are not grounds for refusing the image: treating every flag as fatal caused
+    perfectly usable enrolment photographs to be rejected on a single soft
+    signal, and the pose estimate in particular is an approximation.
+    """
+
     score: float
     resolution_score: float
     brightness_score: float
     contrast_score: float
     sharpness_score: float
+    pose_score: float
+    detection_confidence: float
+    face_pixels: int
+    laplacian_variance: float
     accepted: bool
     reasons: tuple[str, ...]
 
+    @property
+    def blocking_reasons(self) -> tuple[str, ...]:
+        return tuple(reason for reason in self.reasons if reason in BLOCKING_REASONS)
+
+    @property
+    def advisory_reasons(self) -> tuple[str, ...]:
+        return tuple(reason for reason in self.reasons if reason not in BLOCKING_REASONS)
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "score": self.score,
+            "resolution": self.resolution_score,
+            "brightness": self.brightness_score,
+            "contrast": self.contrast_score,
+            "sharpness": self.sharpness_score,
+            "pose": self.pose_score,
+            "detection_confidence": self.detection_confidence,
+            "face_pixels": self.face_pixels,
+            "laplacian_variance": self.laplacian_variance,
+            "accepted": self.accepted,
+            "reasons": list(self.reasons),
+            "blocking_reasons": list(self.blocking_reasons),
+            "advisory_reasons": list(self.advisory_reasons),
+        }
+
+
+def laplacian_variance(gray: np.ndarray) -> float:
+    """Variance of the Laplacian response, computed without OpenCV."""
+    if gray.ndim != 2 or min(gray.shape) < 3:
+        return 0.0
+    windows = np.lib.stride_tricks.sliding_window_view(gray, (3, 3))
+    response = np.einsum("ijkl,kl->ij", windows, _LAPLACIAN_KERNEL)
+    return float(response.var())
+
 
 class ImageQualityFilter:
+    """Scores whether a face region is good enough to search on."""
+
     def __init__(self, config: QualityConfig | None = None) -> None:
         self.config = config or QualityConfig()
 
-    def evaluate_bytes(self, image_bytes: bytes) -> QualityReport:
+    def evaluate_bytes(self, image_bytes: bytes, face: DetectedFace | None = None) -> QualityReport:
         with Image.open(BytesIO(image_bytes)) as image:
-            return self.evaluate_image(image)
+            return self.evaluate(image, face)
 
-    def evaluate_image(self, image: Image.Image) -> QualityReport:
-        gray = image.convert("L")
-        width, height = gray.size
-        stat = ImageStat.Stat(gray)
-        brightness = stat.mean[0]
-        contrast = stat.stddev[0]
-        edges = gray.filter(ImageFilter.FIND_EDGES)
-        edge_mean = ImageStat.Stat(edges).mean[0]
+    def evaluate(self, image: Image.Image, face: DetectedFace | None = None) -> QualityReport:
+        """Measure the face region if one was detected, else the whole frame."""
+        region = image
+        face_pixels = min(image.size)
+        detection_confidence = 0.0
+        pose_score = 1.0
+        reasons: list[str] = []
 
-        resolution_score = clamp((min(width, height) - self.config.min_resolution) / 432)
+        if face is not None:
+            box = face.box.clipped(*image.size)
+            if box.width >= 2 and box.height >= 2:
+                region = image.crop((box.left, box.top, box.right, box.bottom))
+                face_pixels = min(box.width, box.height)
+            detection_confidence = float(face.confidence)
+            pose_score = self._pose_score(face)
+
+            if detection_confidence < self.config.min_detection_confidence:
+                reasons.append("detection_confidence_below_minimum")
+            if abs(face.pose.yaw) > self.config.max_yaw:
+                reasons.append("yaw_out_of_range")
+            if abs(face.pose.pitch) > self.config.max_pitch:
+                reasons.append("pitch_out_of_range")
+            if abs(face.pose.roll) > self.config.max_roll:
+                reasons.append("roll_out_of_range")
+
+        gray = np.asarray(region.convert("L"), dtype=np.float64)
+        brightness = float(gray.mean()) if gray.size else 0.0
+        contrast = float(gray.std()) if gray.size else 0.0
+        blur = laplacian_variance(gray)
+
+        # Face height in pixels drives how much identity signal survives; below
+        # ~60px ArcFace accuracy degrades sharply, and 220px is where it plateaus.
+        resolution_score = clamp((face_pixels - self.config.min_face_pixels) / 160.0)
         brightness_score = 1.0 - clamp(abs(brightness - 128.0) / 128.0)
-        contrast_score = clamp(contrast / 72.0)
-        sharpness_score = clamp(edge_mean / 28.0)
+        contrast_score = clamp(contrast / 64.0)
+        sharpness_score = clamp(blur / 220.0)
+
         score = (
-            resolution_score * 0.30
-            + brightness_score * 0.22
-            + contrast_score * 0.22
-            + sharpness_score * 0.26
+            resolution_score * 0.24
+            + brightness_score * 0.16
+            + contrast_score * 0.16
+            + sharpness_score * 0.24
+            + pose_score * 0.20
         )
 
-        reasons: list[str] = []
-        if min(width, height) < self.config.min_resolution:
-            reasons.append("resolution_below_minimum")
+        if face_pixels < self.config.min_face_pixels:
+            reasons.append("face_too_small")
         if not (self.config.min_brightness <= brightness <= self.config.max_brightness):
             reasons.append("brightness_out_of_range")
-        if contrast_score < 0.35:
+        if contrast_score < self.config.min_contrast_score:
             reasons.append("low_contrast")
-        if sharpness_score < 0.35:
-            reasons.append("blur_risk")
+        if sharpness_score < self.config.min_sharpness_score:
+            # Mild softness is advisory; a near-total absence of high-frequency
+            # detail means there is no identity information left to compare.
+            reasons.append("severe_blur" if sharpness_score < 0.10 else "blur_risk")
+
+        accepted = score >= self.config.min_quality_score and not (
+            set(reasons) & BLOCKING_REASONS
+        )
 
         return QualityReport(
             score=round(float(score), 4),
-            resolution_score=round(float(resolution_score), 4),
-            brightness_score=round(float(brightness_score), 4),
-            contrast_score=round(float(contrast_score), 4),
-            sharpness_score=round(float(sharpness_score), 4),
-            accepted=score >= self.config.min_faceqnet_score and not reasons,
-            reasons=tuple(reasons),
+            resolution_score=round(resolution_score, 4),
+            brightness_score=round(brightness_score, 4),
+            contrast_score=round(contrast_score, 4),
+            sharpness_score=round(sharpness_score, 4),
+            pose_score=round(pose_score, 4),
+            detection_confidence=round(detection_confidence, 4),
+            face_pixels=int(face_pixels),
+            laplacian_variance=round(blur, 2),
+            accepted=bool(accepted),
+            reasons=tuple(dict.fromkeys(reasons)),
         )
 
     def keep_top(self, reports: list[QualityReport]) -> list[int]:
+        """Indices of the best ``keep_top_fraction`` reports, best first."""
         if not reports:
             return []
         keep_count = max(1, int(np.ceil(len(reports) * self.config.keep_top_fraction)))
         ranked = sorted(enumerate(reports), key=lambda item: item[1].score, reverse=True)
         return [index for index, _ in ranked[:keep_count]]
+
+    def _pose_score(self, face: DetectedFace) -> float:
+        if not face.has_landmarks:
+            # No landmarks means pose is unknown, not good. Score it neutrally so
+            # it neither rewards nor punishes the aggregate.
+            return 0.5
+        yaw = clamp(1.0 - abs(face.pose.yaw) / max(self.config.max_yaw, 1e-6))
+        pitch = clamp(1.0 - abs(face.pose.pitch) / max(self.config.max_pitch, 1e-6))
+        roll = clamp(1.0 - abs(face.pose.roll) / max(self.config.max_roll, 1e-6))
+        return float((yaw + pitch + roll) / 3.0)
+
+
+__all__ = ["BLOCKING_REASONS", "ImageQualityFilter", "QualityReport", "laplacian_variance"]

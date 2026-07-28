@@ -12,7 +12,8 @@ class OnnxExportManifest:
     format: str
     opset: int
     embedding_dim: int
-    backbones: list[str]
+    model_pack: str
+    input_shape: list[int]
     output_path: str
 
 
@@ -23,8 +24,9 @@ def export_onnx_manifest(output_dir: str | Path, config: EngineConfig | None = N
     manifest = OnnxExportManifest(
         format="onnx",
         opset=opset,
-        embedding_dim=cfg.final_embedding_dim,
-        backbones=[backbone.name for backbone in cfg.backbones],
+        embedding_dim=cfg.embedding_dim,
+        model_pack=cfg.model_pack,
+        input_shape=[1, 3, 112, 112],
         output_path=str(target_dir / "nexgen_facial_engine.onnx"),
     )
     (target_dir / "onnx_manifest.json").write_text(json.dumps(asdict(manifest), indent=2) + "\n", encoding="utf-8")
