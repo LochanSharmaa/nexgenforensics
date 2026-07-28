@@ -95,9 +95,12 @@ class AuditService:
         # previous hash would otherwise fork the chain and both appear valid
         # individually while the sequence is wrong.
         with self._lock:
-            previous_hash = self._latest_hash(session, tenant_id)
+            latest = self._latest(session, tenant_id)
+            previous_hash = latest.entry_hash if latest else ""
+            sequence = (latest.sequence + 1) if latest else 1
             timestamp = utcnow()
             body = {
+                "sequence": sequence,
                 "tenant_id": tenant_id,
                 "actor_id": actor_id,
                 "actor_label": actor_label,
@@ -116,6 +119,7 @@ class AuditService:
 
             record = AuditRecord(
                 tenant_id=tenant_id,
+                sequence=sequence,
                 actor_id=actor_id,
                 actor_label=actor_label,
                 action=action,
@@ -137,14 +141,25 @@ class AuditService:
         return record
 
     def verify_chain(self, session: Session, tenant_id: str) -> ChainVerification:
+        # Ordered by chain position, never by timestamp. See AuditRecord.sequence.
         records = session.exec(
             select(AuditRecord)
             .where(AuditRecord.tenant_id == tenant_id)
-            .order_by(AuditRecord.created_at, AuditRecord.id)
+            .order_by(AuditRecord.sequence)
         ).all()
 
         previous_hash = ""
         for index, record in enumerate(records):
+            if record.sequence != index + 1:
+                return ChainVerification(
+                    valid=False,
+                    checked=index,
+                    broken_at=record.id,
+                    reason=(
+                        f"Chain position {record.sequence} breaks the sequence; a record "
+                        "before it was removed."
+                    ),
+                )
             if record.previous_hash != previous_hash:
                 return ChainVerification(
                     valid=False,
@@ -154,6 +169,7 @@ class AuditService:
                 )
             expected = _digest(
                 {
+                    "sequence": record.sequence,
                     "tenant_id": record.tenant_id,
                     "actor_id": record.actor_id,
                     "actor_label": record.actor_label,
@@ -180,14 +196,14 @@ class AuditService:
 
         return ChainVerification(valid=True, checked=len(records))
 
-    def _latest_hash(self, session: Session, tenant_id: str) -> str:
-        latest = session.exec(
+    def _latest(self, session: Session, tenant_id: str) -> AuditRecord | None:
+        """Tail of this tenant's chain, by explicit position rather than time."""
+        return session.exec(
             select(AuditRecord)
             .where(AuditRecord.tenant_id == tenant_id)
-            .order_by(AuditRecord.created_at.desc(), AuditRecord.id.desc())
+            .order_by(AuditRecord.sequence.desc())
             .limit(1)
         ).first()
-        return latest.entry_hash if latest else ""
 
     def _mirror(self, payload: dict[str, Any]) -> None:
         if not self.log_path:

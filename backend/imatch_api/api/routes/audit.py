@@ -39,7 +39,7 @@ def list_audit_records(
     if since:
         statement = statement.where(AuditRecord.created_at >= since)
 
-    records = session.exec(statement.order_by(AuditRecord.created_at.desc()).limit(limit)).all()
+    records = session.exec(statement.order_by(AuditRecord.sequence.desc()).limit(limit)).all()
     return [AuditRecordResponse.model_validate(record) for record in records]
 
 

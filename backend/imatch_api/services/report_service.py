@@ -45,7 +45,7 @@ class ReportService:
         audit_records = session.exec(
             select(AuditRecord)
             .where(AuditRecord.tenant_id == tenant_id, AuditRecord.resource_id == case_id)
-            .order_by(AuditRecord.created_at)
+            .order_by(AuditRecord.sequence)
         ).all()
 
         confirmed = sum(

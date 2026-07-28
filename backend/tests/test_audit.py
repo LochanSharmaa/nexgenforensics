@@ -66,6 +66,36 @@ class TestChainIntegrity:
 
             assert audit.verify_chain(session, tenant.id).valid is False
 
+    def test_records_carry_increasing_chain_positions(self, audit, tenant_factory):
+        """Chain order comes from an explicit position, never from timestamps.
+
+        created_at has millisecond resolution at best, so a burst of records
+        shares a tick; ordering by time with a random-UUID tiebreaker made
+        verification non-deterministic and could report tampering on an
+        untouched log.
+        """
+        tenant = tenant_factory()
+        with Session(get_engine()) as session:
+            positions = [
+                audit.record(session, tenant_id=tenant.id, action=f"a.{i}").sequence
+                for i in range(12)
+            ]
+            session.commit()
+
+        assert positions == list(range(1, 13))
+
+    def test_a_burst_of_records_still_verifies(self, audit, tenant_factory):
+        """Regression: 12 records written inside one clock tick must verify."""
+        tenant = tenant_factory()
+        with Session(get_engine()) as session:
+            for i in range(12):
+                audit.record(session, tenant_id=tenant.id, action=f"burst.{i}")
+            session.commit()
+
+            verification = audit.verify_chain(session, tenant.id)
+            assert verification.valid is True, verification.reason
+            assert verification.checked == 12
+
     def test_chains_are_independent_per_tenant(self, audit, tenant_factory):
         first = tenant_factory("tenant-one")
         second = tenant_factory("tenant-two")

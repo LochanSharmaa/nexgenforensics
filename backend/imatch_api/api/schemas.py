@@ -288,6 +288,9 @@ class AuditRecordResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
+    # Chain position within the tenant, starting at 1. A gap means a record was
+    # removed.
+    sequence: int
     actor_id: str
     actor_label: str
     action: str

@@ -235,10 +235,24 @@ class AuditRecord(SQLModel, table=True):
     """
 
     __tablename__ = "audit_records"
-    __table_args__ = (Index("ix_audit_tenant_created", "tenant_id", "created_at"),)
+    __table_args__ = (
+        Index("ix_audit_tenant_created", "tenant_id", "created_at"),
+        # Chain position must be unique per tenant. If two processes ever append
+        # concurrently they would compute the same previous_hash and silently
+        # fork the chain; this constraint turns that into a loud insert failure.
+        Index("ix_audit_tenant_sequence", "tenant_id", "sequence", unique=True),
+    )
 
     id: str = Field(default_factory=_uuid, primary_key=True)
     tenant_id: str = Field(foreign_key="tenants.id", index=True)
+    # Explicit chain position, starting at 1 per tenant.
+    #
+    # Ordering by timestamp is not safe here: created_at has millisecond
+    # resolution at best, several records routinely land in the same tick, and
+    # the previous tiebreaker was a random UUID. That made chain order
+    # non-deterministic, so verification could report tampering on an untouched
+    # log -- the single most damaging false alarm this system can raise.
+    sequence: int = Field(default=0, index=True)
     actor_id: str = Field(default="", index=True)
     actor_label: str = ""
     action: str = Field(index=True)
