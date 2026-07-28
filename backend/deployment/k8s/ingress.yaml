@@ -1,16 +1,16 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: nexgen-identity-api
+  name: nexgen-imatch-api
 spec:
   rules:
-    - host: api.nexgen-identity.local
+    - host: api.nexgenforensics.ai
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: nexgen-identity-api
+                name: nexgen-imatch-api
                 port:
                   number: 8443

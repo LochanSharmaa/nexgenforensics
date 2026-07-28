@@ -1,26 +1,114 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nexgen-identity-api
+  name: nexgen-imatch-api
+  labels:
+    app: nexgen-imatch-api
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: nexgen-identity-api
+      app: nexgen-imatch-api
   template:
     metadata:
       labels:
-        app: nexgen-identity-api
+        app: nexgen-imatch-api
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: api
-          image: nexgen-identity-api:0.1.0
+          image: nexgen-imatch-api:1.0.0
+          imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 8443
+            - name: https
+              containerPort: 8443
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: NEXGEN_ENV
+              value: production
+            # real, not auto: in production a missing model must stop the rollout.
+            # Under auto the pod would come up healthy and serve meaningless
+            # scores that look exactly like real ones.
+            - name: NEXGEN_ENGINE_MODE
+              value: "real"
+            - name: NEXGEN_MODEL_ROOT
+              value: /models
+            - name: NEXGEN_STORAGE_ROOT
+              value: /data/storage
+            - name: NEXGEN_AUDIT_LOG_PATH
+              value: /data/audit.jsonl
+            - name: NEXGEN_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: nexgen-imatch-secrets
+                  key: jwt-secret
+            # Rotating this key makes every previously enrolled template
+            # permanently unreadable. Back it up before any key change.
+            - name: NEXGEN_TEMPLATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: nexgen-imatch-secrets
+                  key: template-key
+            - name: NEXGEN_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: nexgen-imatch-secrets
+                  key: database-url
+            - name: NEXGEN_CORS_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: nexgen-imatch-config
+                  key: cors-origins
           resources:
             requests:
-              cpu: "500m"
-              memory: "1Gi"
+              cpu: "1"
+              memory: "2Gi"
             limits:
-              cpu: "2"
-              memory: "4Gi"
+              cpu: "4"
+              memory: "6Gi"
+          # Model loading takes tens of seconds. A startup probe gives it room
+          # without slackening the liveness probe once running.
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: https
+            failureThreshold: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: https
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: https
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            - name: models
+              mountPath: /models
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: nexgen-imatch-models
+        - name: data
+          persistentVolumeClaim:
+            claimName: nexgen-imatch-data
+        - name: tmp
+          emptyDir: {}

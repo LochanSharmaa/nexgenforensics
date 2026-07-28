@@ -1,23 +1,48 @@
+# Default-deny for the iMATCH API pods.
+#
+# Egress is deliberately narrow. This service holds biometric templates, so the
+# blast radius of a compromised dependency is the point: it must not be able to
+# open arbitrary outbound connections and exfiltrate a gallery.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: nexgen-identity-api-default-deny
+  name: nexgen-imatch-api-default-deny
 spec:
   podSelector:
     matchLabels:
-      app: nexgen-identity-api
+      app: nexgen-imatch-api
   policyTypes:
     - Ingress
     - Egress
   ingress:
+    # Only the ingress controller may reach the API. A bare `namespaceSelector: {}`
+    # would admit every pod in the cluster.
     - from:
-        - namespaceSelector: {}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
       ports:
         - protocol: TCP
           port: 8443
   egress:
+    # DNS.
     - to:
-        - namespaceSelector: {}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # PostgreSQL.
+    - to:
+        - podSelector:
+            matchLabels:
+              app: nexgen-imatch-postgres
       ports:
         - protocol: TCP
-          port: 443
+          port: 5432
+    # No general HTTPS egress. Pre-provision the model pack into the /models
+    # volume rather than downloading at runtime; if runtime download is
+    # unavoidable, open 443 to a specific mirror, not to the internet.

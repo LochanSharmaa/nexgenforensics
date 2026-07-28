@@ -1,52 +1,8 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-.venv/
-venv/
-ENV/
-env/
+# ---------------------------------------------------------------- secrets ---
+# Real configuration never enters the repository. Only the example does.
 .env
 .env.*
-!.env.template
 !.env.example
-!.env.example.txt
-.pytest_cache/
-.coverage
-htmlcov/
-runtime/
-
-# Node/Next.js
-node_modules/
-.next/
-out/
-build/
-dist/
-dist-ssr/
-.vite/
-.npm/
-.yarn-integrity
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-.uv-cache
-.npm-cache
-.vercel-home
-.vercel-local
-.vercel-data
-.vercel
-
-# Databases
-*.db
-*.sqlite
-*.sqlite3
-*.dump
-*.sql
-
-# Secrets and credentials
 *.pem
 *.key
 *.p12
@@ -60,7 +16,101 @@ id_ed25519*
 secrets.*
 *.secret
 
-# IDEs & System
+# ------------------------------------------------- biometric & case data ----
+# Templates, probe images, enrolment images, audit logs, and case databases.
+# This is the most sensitive category in the project: an ArcFace template can
+# be inverted into a recognizable approximation of the face it came from, so it
+# is treated as equivalent to the photograph itself. None of it belongs in
+# version control.
+#
+# Note the leading slashes. A bare `storage/` matches a directory of that name
+# at ANY depth, which is how an earlier revision of this file silently excluded
+# source directories that happened to share a name with a runtime path.
+/runtime/
+/backend/runtime/
+/backend/storage/
+/storage/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.dump
+*.sql
+audit.jsonl
+*.audit.jsonl
+
+# ------------------------------------------------------- model artefacts ----
+# Model packs are downloaded on first run into ~/.insightface/models and are
+# hundreds of megabytes. Never commit weights.
+#
+# Root-anchored: a bare `models/` would also match the source package
+# backend/nexgen_engine/models/, which holds the recognizer implementation.
+.insightface/
+/models/
+*.onnx
+*.plan
+*.engine
+*.pt
+*.pth
+*.trt
+
+# ----------------------------------------------------------------- python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.egg-info/
+.eggs/
+
+# ------------------------------------------------------------------- node ---
+node_modules/
+dist/
+dist-ssr/
+build/
+out/
+.vite/
+.npm/
+.npm-cache
+.uv-cache
+.yarn-integrity
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.vercel
+.vercel-home
+.vercel-local
+.vercel-data
+
+# ----------------------------------------------------- datasets & binaries --
+# Training/evaluation datasets are large and frequently licence-restricted;
+# fetch them per the dataset guide instead of committing them.
+# Root-anchored: a bare `src/` also matches frontend/src/, which is the entire
+# frontend source tree.
+/src/
+/src_extracted/
+*.zip
+*.tar
+*.tar.gz
+*.rec
+*.idx
+*.crdownload
+*.exe
+*.msi
+
+# ------------------------------------------------------------ IDE & system --
 .idea/
 .vscode/*
 !.vscode/extensions.json
@@ -72,16 +122,3 @@ Thumbs.db
 *.sln
 *.swp
 *.sw?
-
-# Datasets, zip archives, installers and extracted binaries
-*.zip
-*.crdownload
-*.exe
-src_extracted/
-src/*.zip
-src/*.crdownload
-src/ms1m-retinaface-t1/
-src/AgeDB/
-src/archive*/
-src/faces_*/
-src/tinyface/
