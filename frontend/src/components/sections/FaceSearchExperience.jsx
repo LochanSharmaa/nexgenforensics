@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import "./FaceSearchExperience.css";
 import faceSearchVideo from "../../assets/facesearch.mp4";
-import { imatchApiUrl, runImatchSearch } from "../../services/imatchApi";
 
 const trustItems = [
   "Commercial Face Matching",
@@ -263,6 +263,17 @@ export function FaceSearchExperience() {
   );
 }
 
+/**
+ * Illustrative console on the public product page.
+ *
+ * This does NOT run a search. Biometric search requires an authenticated
+ * operator, a stated lawful basis, and a tenant gallery, and every run is
+ * written to an audit chain — none of which can be satisfied by an anonymous
+ * visitor. Wiring a live search in here would mean either exposing an
+ * unauthenticated biometric endpoint or faking a result and presenting it as
+ * real. The numbers below are labelled sample values, and the button sends the
+ * visitor to the real workspace.
+ */
 function ImatchUploadConsole({ step, hero = false }) {
   const [activeMode, setActiveMode] = useState(searchModes[0].id);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -274,20 +285,11 @@ function ImatchUploadConsole({ step, hero = false }) {
     "Quality Assessment": true,
     "Auto-enhance": true,
   });
-  const [runState, setRunState] = useState("idle");
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState("");
   const options = ["Liveness Check", "Deepfake Check", "Quality Assessment", "Auto-enhance"];
   const mode = searchModes.find((item) => item.id === activeMode) ?? searchModes[0];
-  const scorePercent = result ? `${Math.round(result.matchScore * 100)}%` : step.score;
-  const panelLabel = result ? result.decision.replaceAll("_", " ") : step.label;
-  const panelResults = result
-    ? [
-        `Quality ${Math.round(result.quality * 100)}%`,
-        `Liveness ${Math.round(result.liveness * 100)}%`,
-        result.reviewRequired ? "Human review required" : "Decision ready",
-      ]
-    : step.results;
+  const scorePercent = step.score;
+  const panelLabel = step.label;
+  const panelResults = step.results;
 
   useEffect(() => {
     if (!selectedFile) {
@@ -301,10 +303,7 @@ function ImatchUploadConsole({ step, hero = false }) {
   }, [selectedFile]);
 
   const handleFileChange = (event) => {
-    const file = event.target.files?.[0];
-    setError("");
-    setResult(null);
-    setSelectedFile(file || null);
+    setSelectedFile(event.target.files?.[0] || null);
   };
 
   const handleCheckChange = (option) => {
@@ -314,31 +313,9 @@ function ImatchUploadConsole({ step, hero = false }) {
     }));
   };
 
-  const handleLaunch = async () => {
-    setError("");
-    setResult(null);
-    setRunState("running");
-
-    try {
-      const response = await runImatchSearch({
-        file: selectedFile,
-        mode: activeMode,
-        sourceUrl,
-        checks: Object.entries(selectedChecks)
-          .filter(([, enabled]) => enabled)
-          .map(([label]) => label),
-      });
-      setResult(response);
-      setRunState("complete");
-    } catch (launchError) {
-      setError(launchError.message);
-      setRunState("error");
-    }
-  };
-
   return (
     <form
-      className={`im-upload-console ${result ? "complete" : step.mode}${hero ? " hero" : ""}`}
+      className={`im-upload-console ${step.mode}${hero ? " hero" : ""}`}
       aria-label="iMatch Face Search"
       onSubmit={(event) => event.preventDefault()}
     >
@@ -421,11 +398,11 @@ function ImatchUploadConsole({ step, hero = false }) {
 
       <div className="im-state-panel">
         <div>
-          <span>{runState === "running" ? "AI model analyzing" : panelLabel}</span>
-          <strong>{runState === "running" ? "..." : scorePercent}</strong>
+          <span>{panelLabel}</span>
+          <strong>{scorePercent}</strong>
         </div>
         <div className="im-progress">
-          <i style={{ width: runState === "running" ? "72%" : scorePercent }} />
+          <i style={{ width: scorePercent }} />
         </div>
         <ul>
           {panelResults.map((item) => (
@@ -434,44 +411,16 @@ function ImatchUploadConsole({ step, hero = false }) {
         </ul>
       </div>
 
-      {result && (
-        <div className="im-ai-results" aria-live="polite">
-          <span>AI results</span>
-          <div>
-            <b>Match</b>
-            <strong>{Math.round(result.matchScore * 100)}%</strong>
-          </div>
-          <div>
-            <b>Quality</b>
-            <strong>{Math.round(result.quality * 100)}%</strong>
-          </div>
-          <div>
-            <b>Liveness</b>
-            <strong>{Math.round(result.liveness * 100)}%</strong>
-          </div>
-          {result.matches.length > 0 && (
-            <ol>
-              {result.matches.map((match) => (
-                <li key={match.id}>
-                  <span>{match.id}</span>
-                  <b>{Math.round(match.score * 100)}%</b>
-                </li>
-              ))}
-            </ol>
-          )}
-        </div>
-      )}
+      <p className="im-sample-note">
+        Sample values illustrating the workflow. No search runs on this page: biometric search
+        requires an authenticated operator, a stated lawful basis, and your organisation&rsquo;s
+        gallery, and every run is written to an audit record.
+      </p>
 
-      {error && (
-        <p className="im-error" role="alert">
-          {error}
-        </p>
-      )}
-
-      <button type="button" className="im-launch" onClick={handleLaunch} disabled={runState === "running"}>
-        {runState === "running" ? "Analyzing Photo" : result ? "Run Again" : "Launch Face Search"}
-      </button>
-      <p className="im-secure-line">Secure - Encrypted - Tenant isolated - AI endpoint: {imatchApiUrl}</p>
+      <Link to="/workspace/search" className="im-launch">
+        Open the investigator workspace
+      </Link>
+      <p className="im-secure-line">Encrypted templates - Tenant isolated - Every search audited</p>
     </form>
   );
 }

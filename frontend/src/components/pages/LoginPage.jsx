@@ -1,32 +1,61 @@
+import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import "./LoginPage.css";
 
 const accessItems = [
-  "Evidence review workspace",
-  "iMatch biometric demo",
-  "Case intelligence dashboard",
+  "Case management and search history",
+  "iMATCH biometric search and 1:1 comparison",
+  "Hash-chained audit trail",
 ];
 
-const trustItems = ["Encrypted session", "Role-based access", "Audit-ready activity"];
+const trustItems = ["Encrypted templates", "Role-based access", "Every search audited"];
 
 export function LoginPage() {
+  const { signIn } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [tenant, setTenant] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const destination = location.state?.from?.pathname || "/workspace";
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await signIn({ email, password, tenant });
+      navigate(destination, { replace: true });
+    } catch (signInError) {
+      setError(signInError.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <section className="nx-login-page" id="top">
       <div className="nx-login-copy">
         <p className="nx-kicker">Secure Access</p>
-        <h1>NexGen Forensics Login</h1>
+        <h1>NexGen iMATCH Login</h1>
         <p>
-          Enter your authorized workspace credentials to continue into NexGen forensic tools,
-          evidence workflows, and demo environments.
+          Sign in with your workspace credentials. Access is scoped to your organisation, and
+          every biometric operation you perform is recorded against your account.
         </p>
 
-        <div className="nx-login-access-list" aria-label="Available NexGen workspaces">
+        <div className="nx-login-access-list" aria-label="Available workspaces">
           {accessItems.map((item) => (
             <span key={item}>{item}</span>
           ))}
         </div>
       </div>
 
-      <div className="nx-login-panel" aria-label="NexGen Forensics login form">
+      <div className="nx-login-panel" aria-label="iMATCH login form">
         <div className="nx-login-panel-header">
           <span>NGF</span>
           <div>
@@ -35,26 +64,58 @@ export function LoginPage() {
           </div>
         </div>
 
-        <form className="nx-login-form">
+        <form className="nx-login-form" onSubmit={handleSubmit}>
+          {error && (
+            <p className="nx-login-error" role="alert">
+              {error}
+            </p>
+          )}
+
           <label>
             <span>Email Address</span>
-            <input type="email" name="email" placeholder="analyst@agency.gov" autoComplete="email" />
+            <input
+              type="email"
+              name="email"
+              required
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="analyst@agency.gov"
+              autoComplete="email"
+            />
           </label>
 
           <label>
             <span>Password</span>
-            <input type="password" name="password" placeholder="Enter password" autoComplete="current-password" />
+            <input
+              type="password"
+              name="password"
+              required
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Enter password"
+              autoComplete="current-password"
+            />
+          </label>
+
+          <label>
+            <span>Organisation (only if prompted)</span>
+            <input
+              type="text"
+              name="tenant"
+              value={tenant}
+              onChange={(event) => setTenant(event.target.value)}
+              placeholder="tenant-slug"
+              autoComplete="organization"
+            />
           </label>
 
           <div className="nx-login-options">
-            <label>
-              <input type="checkbox" name="remember" />
-              <span>Remember device</span>
-            </label>
             <a href="/contact">Need access?</a>
           </div>
 
-          <button type="button">Login</button>
+          <button type="submit" disabled={busy}>
+            {busy ? "Signing in…" : "Sign in"}
+          </button>
         </form>
 
         <div className="nx-login-trust-row" aria-label="Security features">

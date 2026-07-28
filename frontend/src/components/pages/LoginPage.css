@@ -222,3 +222,20 @@
     flex-direction: column;
   }
 }
+
+/* Error surfaced by the live login form. */
+.nx-login-error {
+  margin: 0 0 4px;
+  padding: 11px 14px;
+  border-radius: 9px;
+  background: #fdf0ee;
+  border: 1px solid rgba(110, 44, 44, 0.32);
+  color: #58201f;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.nx-login-form button[type="submit"]:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
