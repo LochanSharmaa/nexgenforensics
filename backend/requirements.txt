@@ -1,29 +1,29 @@
-<<<<<<< HEAD
-fastapi>=0.115.0
-uvicorn[standard]>=0.30.1
-sqlmodel>=0.0.21
-alembic>=1.13.1
-pydantic>=2.9.0
-pydantic-settings>=2.5.0
-python-dotenv>=1.0.1
-redis>=5.0.7
-rq>=1.16.2
-httpx>=0.27.0
-pyjwt>=2.8.0
-bcrypt>=4.2.0
-google-generativeai>=0.8.0
-openai>=1.35.10
-stripe>=9.0.0
-celery>=5.4.0
-pgvector>=0.2.5
-python-jose[cryptography]>=3.3.0
-sentry-sdk[fastapi]>=2.0.0
-=======
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
-python-multipart==0.0.20
-pillow==11.1.0
-pydantic==2.10.5
-numpy==2.2.1
-cryptography==44.0.0
->>>>>>> 4be368fcc5342fef2e8a88b1f5104b94ffb43690
+# NexGen iMATCH - core service dependencies.
+# These are sufficient to run the API, persistence, auth, and audit layers.
+# Real face recognition additionally requires requirements-engine.txt.
+
+fastapi>=0.115.6,<1.0
+uvicorn[standard]>=0.34.0,<1.0
+python-multipart>=0.0.20,<0.1
+pydantic>=2.10.5,<3.0
+# EmailStr in the auth schemas needs this; pydantic raises ImportError at
+# schema-build time without it, which fails at import rather than at runtime.
+email-validator>=2.2.0,<3.0
+pydantic-settings>=2.7.0,<3.0
+python-dotenv>=1.0.1,<2.0
+
+# Persistence
+sqlmodel>=0.0.22,<0.1
+SQLAlchemy>=2.0.36,<3.0
+
+# Imaging / numerics
+pillow>=11.1.0,<12.0
+numpy>=2.2.1,<3.0
+
+# Security: template encryption, password hashing, tokens
+cryptography>=44.0.0,<45.0
+argon2-cffi>=23.1.0,<25.0
+PyJWT>=2.10.1,<3.0
+
+# Client used by tests and the URL-import ingest path
+httpx>=0.28.1,<1.0
