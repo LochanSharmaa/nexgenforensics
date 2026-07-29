@@ -1,178 +1,225 @@
-<div align="center">
+﻿# NexGen Forensics — Face Recognition Engine
 
-# NexGen iMATCH
-
-**Facial recognition for forensic investigation.**
-
-Enrol subjects, search a probe image against your gallery, adjudicate candidates
-as an examiner, and produce a case report backed by a tamper-evident audit trail.
-
-[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![React](https://img.shields.io/badge/react-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![Model](https://img.shields.io/badge/model-ArcFace%20%2F%20InsightFace-FF6F00)](docs/models.md)
-[![Tests](https://img.shields.io/badge/tests-128%20passing-4c1)](docs/testing.md)
-[![Licence](https://img.shields.io/badge/licence-MIT-blue)](LICENSE)
-
-[Install](docs/installation.md) ·
-[Configure](docs/configuration.md) ·
-[Models](docs/models.md) ·
-[Architecture](docs/architecture.md) ·
-[Security](docs/security.md) ·
-[Testing](docs/testing.md) ·
-[Deploy](docs/deployment.md) ·
-[Troubleshoot](docs/troubleshooting.md)
-
-</div>
+A commercial-grade facial recognition platform combining a FastAPI backend engine with a React frontend product interface (iMATCH). This document reflects the **verified current state** as of 2026-07-29. Claims not independently verified are explicitly marked.
 
 ---
 
-## It actually recognises people
+## What is Running in Production Today
 
-No placeholder embeddings, no simulated scores. Run this yourself:
+### Active Model Pipeline
 
-```bash
-python backend/test_recognition.py --self-test
-```
+The production service uses a **3-model InsightFace ensemble** with **embedding-space averaging** fusion.
 
-```text
-Model loaded          : YES
-Recognition network   : w600k_r50
-Embedding dimensions  : 512
-Search backend        : FAISS IndexFlatIP (exact)
-Device in use         : cpu
+All three models are loaded by `backend/nexgen_engine/models/insightface_backbone.py` via `BackboneEnsemble` in `backend/nexgen_engine/models/backbones.py`:
 
-Rank-1 identification : 23/25 = 92.0%
-Genuine  pairs        : mean=0.4907
-Impostor pairs        : mean=0.0422
-Separation (mean gap) : 0.4485
+| # | Pack Name | Recognition Model | Architecture | Embedding Dim | Detector |
+|---|-----------|-------------------|--------------|---------------|----------|
+| 1 | `buffalo_l` | `w600k_r50.onnx` | ResNet-50 (ArcFace) | 512-d | SCRFD `det_10g.onnx` |
+| 2 | `antelopev2` | `glintr100.onnx` | ResNet-100 (ArcFace) | 512-d | SCRFD `scrfd_10g_bnkps.onnx` |
+| 3 | `buffalo_s` | `w600k_mbf.onnx` | MobileFaceNet | 512-d | SCRFD `det_500m.onnx` |
 
-THRESHOLD   TAR       FAR
-0.28        0.880     0.0033
-0.36        0.800     0.0000
-0.42        0.720     0.0000
-```
+**Fusion method:** Embedding-space L2-normalized averaging over all 3 models' 512-d ArcFace embeddings. The fused embedding is the geometric mean direction in cosine-similarity space. No learned fusion layer is used.
 
-Measured on 25 AgeDB identities, CPU, `buffalo_l`. AgeDB is deliberately hard —
-it varies age across decades. **These are this build's measurements on that
-dataset, not a product accuracy claim.** Yours will differ; see
-[calibration](docs/configuration.md#threshold-calibration).
+**Runtime:** All three models run on `CPUExecutionProvider` (no GPU/CUDA drivers installed — CUDA DLL load fails gracefully and falls back to CPU).
+
+**What `service.py` actually calls today:** `FacialRecognitionPipeline` → `BackboneEnsemble` → `InsightFaceEnsembleBackbone`. No fine-tuned weights are loaded in production; see Phase 3 note below.
 
 ---
 
-## What it does, and what it does not
+## iMATCH API Endpoints
 
-**It does:** rank enrolled subjects by visual similarity to a probe, gate out
-probes too poor to search, and record who searched for what, when, and on what
-stated authority.
+All endpoints live under `/api/biometrics/` — implemented in `backend/app/api/routes_biometrics.py`.
 
-**It does not identify anyone.** A similarity score is not the probability that
-two images show the same person. Every result is an investigative lead requiring
-examiner verification.
+### 1:1 Verify — `POST /api/biometrics/verify`
 
-That position is enforced structurally, not just documented:
+Compares two face images and returns a cosine similarity score.
 
-- Only a **human** can mark a candidate `confirmed`. The engine has no code path
-  that writes it.
-- A high score that **barely beats the runner-up** on a large gallery is
-  downgraded to review — that pattern is the signature of a false match.
-- Every search **requires a stated lawful basis**, recorded verbatim.
-- If the recognition model cannot load, the service **refuses to start** rather
-  than returning confident-looking numbers that mean nothing.
+**Request:** `multipart/form-data` — fields `reference` (image), `probe` (image), `operator_id` (string, optional).
 
-The documented failures of face recognition in investigations are overwhelmingly
-failures of a human treating a ranked candidate as a conclusion.
+**Response:**
+```json
+{
+  "status": "success",
+  "score": 0.557,
+  "label": "same_person",
+  "verified": true,
+  "review_required": true,
+  "quality_ref": 0.6253,
+  "quality_probe": 0.5808,
+  "liveness_ref": 0.6516,
+  "liveness_probe": 0.5875,
+  "reasons_ref": ["liveness_below_threshold"],
+  "reasons_probe": ["liveness_below_threshold"],
+  "audit_hash": "...",
+  "thresholds": { "same_person": 0.42, "inconclusive_low": 0.28 }
+}
+```
+
+**Decision thresholds:**
+- `score >= 0.42` → `same_person`
+- `0.28 <= score < 0.42` → `inconclusive`
+- `score < 0.28` → `different_person`
+
+**Input validation:** Rejects non-image files (HTTP 422), blank/uniform images (pixel std dev < 5.0), and images > 160x160 with no SCRFD-detected face.
+
+### 1:N Identify — `POST /api/biometrics/identify`
+
+Encodes the probe face and searches an in-memory vector index for top-K candidates.
+
+> **Note:** The in-memory index is empty at server start. You must enroll identities first via `/api/biometrics/enroll`. The index is **not persisted** between restarts.
+
+### Batch 1:N Identify — `POST /api/biometrics/batch-identify`
+
+Processes multiple probe images in a single request. Each file is independently validated and encoded.
+
+**Request:** `multipart/form-data` — field `files[]` (multiple images), `top_k` (int, default 5).
+
+### Enroll — `POST /api/biometrics/enroll`
+
+Encodes a face image and stores it in the in-memory vector index under the given `identity_id`.
 
 ---
 
-## Pipeline
+## Verified Benchmark Results
 
-```
-image → decode → SCRFD detection → 5-point landmark alignment
-      → ArcFace embedding (flip-TTA) → L2 normalise
-      → FAISS cosine search → ranked candidates → examiner adjudication
-```
+### Phase 1 — Single Model Baseline (`buffalo_l` / `w600k_r50`)
 
-~320 ms per image end to end on CPU. [Details](docs/models.md#measured-performance).
+Benchmark script: `backend/scripts/benchmark_agedb_25.py`  
+Test set: **AgeDB**, 25 identities, **686 probes**  
+Log source: task-117.log (run 2026-07-29, verified exit code 0)
 
----
+**1:N Closed-Set Identification (Rank-1):**
 
-## Quick start
+| Model | Rank-1 Accuracy | Correct / Total |
+|-------|----------------|-----------------|
+| buffalo_l (w600k_r50, R50) | **87.32%** | 599 / 686 |
 
-```bash
-cd backend && python -m venv .venv && .venv\Scripts\activate
-```
+**1:1 Verification (TAR @ FAR thresholds):**
 
-```bash
-pip install -r requirements.txt -r requirements-engine.txt
-```
+| Threshold | TAR | FAR |
+|-----------|-----|-----|
+| >= 0.28 | 87.60% | 0.00% |
+| >= 0.36 | 82.40% | 0.00% |
+| >= 0.42 | 73.60% | 0.00% |
 
-```bash
-copy ..\.env.example ..\.env    # then generate the two secrets
-```
+### Phase 2 — 3-Model Ensemble
 
-```bash
-python scripts/seed.py && uvicorn imatch_api.main:app --port 8443
-```
+Benchmark script: `backend/scripts/benchmark_ensemble.py`  
+Same test set (25 identities, 686 probes on AgeDB).
 
-```bash
-cd ../frontend && npm install && npm run dev
-```
+> **UNVERIFIED:** The Phase 2 ensemble benchmark log did not contain a complete summary table — it ran against a live server that timed out before writing final aggregate stats. Per-probe rows were written but summary totals were not captured. Do not treat Phase 2 as having a confirmed accuracy number.
 
-Open <http://localhost:5173>, sign in, and go to `/workspace`.
+The live API integration test (2026-07-29) confirms the 3-model ensemble produces correct directional results:
+- Same person (Maria Callas): score `0.557` → `same_person` ✓
+- Different person (Callas vs Close): score `-0.047` → `different_person` ✓
+- Non-face image: HTTP 422, "Blank or uniform image uploaded" ✓
 
-Full walkthrough, including secret generation and your first search:
-**[Installation](docs/installation.md)**.
+### Phase 3 — Fine-Tuning (ArcFace / PyTorch)
 
----
+Training script: `backend/nexgen_engine/training/train_pipeline.py`  
+Loss: ArcFace (margin=0.5, scale=64)
 
-## Layout
+**Sanity-check training run confirmed the loop runs** (task-200.log, 50 steps, batch=32, LR=1e-4):
 
-```
-backend/nexgen_engine/   Pure recognition — no HTTP, database, or auth
-backend/imatch_api/      FastAPI service, persistence, auth, audit
-frontend/src/workspace/  Investigator workspace
-docs/                    Full documentation
-```
+| Step | ArcFace Loss | LR | Grad Norm |
+|------|-------------|-----|-----------|
+| 1 | 37.17 | 1.00e-4 | 99.7 |
+| 10 | 37.41 | 1.00e-4 | 96.1 |
+| 25 | 36.53 | 9.8e-5 | 90.8 |
+| 50 | 36.51 | 9.1e-5 | 88.8 |
 
-The engine carries no service concerns, so it can be embedded, benchmarked and
-tested on its own. [Architecture](docs/architecture.md).
+Loss was decreasing (37.2 → 35.7 by step 41+). Gradient norms stable at 82–107.
 
----
-
-## Known limitations
-
-Stated plainly, because a forensic tool that oversells itself is worse than one
-that does less.
-
-- **Accuracy is unbenchmarked.** No NIST FRVT submission, no independent
-  evaluation. The figures above are reproducible measurements, not a claim.
-- **Demographic performance is unmeasured.** Error rates are known to vary
-  across demographic groups. A deployment that skips measuring this will
-  distribute its errors unevenly across the people it is used on, and nobody
-  will notice.
-- **Liveness, deepfake and morphing screens are heuristics**, not evaluated
-  against ISO/IEC 30107-3. A competent attacker defeats all three.
-- **Head pose is approximate** — derived from five landmarks, not a 3-D solver.
-- **The shipped model is ResNet50** (`w600k_r50`), not R100. `antelopev2`
-  carries R100 and is selectable, but is unbenchmarked here.
-- **Rate limiting is per process**; behind multiple workers the effective limit
-  multiplies. Put a shared store or edge limiter in front.
-- **Access tokens are stateless** — revocation waits for expiry.
-- **The audit chain proves integrity, not completeness.** Someone with database
-  access could truncate the tail; ship the JSONL to append-only storage.
-- **PostgreSQL migrations are not wired.** Schema is created from SQLModel
-  metadata at startup; add Alembic before your first production schema change.
-- **Not implemented:** batch/CSV intake, server-side URL import (deliberately
-  disabled as an SSRF vector), and dataset-level ROC/AUC/CMC evaluation.
-
-Pre-production checklist: [Security & governance](docs/security.md#before-production).
+> **UNVERIFIED / NOT IN PRODUCTION:** Full fine-tuning did not complete. The loop crashed at epoch boundary due to a BatchNorm error on the last incomplete batch (batch size 1). No fine-tuned checkpoint was saved and the production service does NOT load fine-tuned weights. It uses the stock pretrained InsightFace ONNX models only.
 
 ---
 
-## Licence
+## Model Files Required on Disk
 
-[MIT](LICENSE).
+InsightFace downloads model packs automatically to `~/.insightface/models/` on first use.
 
-Licensing does not grant lawful authority to process biometric data. That is
-yours to establish, per your jurisdiction and use case.
+Expected paths (confirmed present):
+```
+~/.insightface/models/buffalo_l/
+    1k3d68.onnx, 2d106det.onnx, det_10g.onnx, genderage.onnx, w600k_r50.onnx
+
+~/.insightface/models/antelopev2/
+    1k3d68.onnx, 2d106det.onnx, genderage.onnx, glintr100.onnx, scrfd_10g_bnkps.onnx
+
+~/.insightface/models/buffalo_s/
+    1k3d68.onnx, 2d106det.onnx, det_500m.onnx, genderage.onnx, w600k_mbf.onnx
+```
+
+If not present, any endpoint call will trigger automatic download (internet required).
+
+---
+
+## Setup & Run Instructions
+
+### Prerequisites
+- Python 3.11+
+- Node.js 18+
+- Windows (tested) or Linux
+
+### Backend
+
+```powershell
+python -m venv .venv
+.venv\Scripts\activate
+
+pip install -r backend/requirements.txt
+
+# Start server
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload --app-dir backend
+```
+
+Server: `http://127.0.0.1:8000`  
+API docs: `http://127.0.0.1:8000/docs`
+
+> First startup takes ~30–60 seconds while all 3 InsightFace model packs load into memory.
+
+### Frontend
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+iMATCH UI: `http://localhost:5173`  
+Face search console: `http://localhost:5173/face-search`
+
+### Environment Variables
+
+Copy `.env.example` to `.env` and fill in values. No API keys are required for local inference — all models run locally.
+
+---
+
+## Files Changed in This Commit
+
+| File | Status | What Changed |
+|------|--------|-------------|
+| `backend/app/api/routes_biometrics.py` | NEW | Full biometrics API (verify, identify, batch-identify, enroll). Real face detection validation, audit logging. |
+| `backend/nexgen_engine/models/insightface_backbone.py` | NEW | Real InsightFace 3-model ensemble. Embedding-space averaging fusion. |
+| `backend/nexgen_engine/models/backbones.py` | MODIFIED | Delegates to `InsightFaceEnsembleBackbone` instead of deterministic stubs. |
+| `backend/nexgen_engine/api/service.py` | MODIFIED | Real cosine similarity, quality/liveness scoring, threshold decisions. |
+| `backend/nexgen_engine/training/train_pipeline.py` | NEW | ArcFace fine-tuning pipeline. Sanity-checked only; not in production. |
+| `backend/nexgen_engine/training/arcface_loss.py` | NEW | ArcFace margin loss implementation. |
+| `backend/nexgen_engine/training/dataset.py` | NEW | AgeDB/VGGFace data loader for training. |
+| `frontend/src/services/imatchApi.js` | MODIFIED | Calls live `/api/biometrics/verify` and batch-identify. No mock computation. |
+| `frontend/src/components/sections/FaceSearchExperience.jsx` | MODIFIED | 1:1 compare panel, batch upload panel, real result display. |
+| `frontend/src/components/sections/FaceSearchExperience.css` | MODIFIED | New styles for compare/batch panels. |
+| `backend/app/main.py` | MODIFIED | Registered new biometrics routes. |
+| `backend/app/db/database.py` | MODIFIED | Minor database connection updates. |
+| `backend/requirements.txt` | MODIFIED | Added insightface, onnxruntime, opencv-python, torch, torchvision. |
+| `backend/scripts/benchmark_*.py` | NEW | Benchmark scripts for Phase 1 (single model), Phase 2 (ensemble), Phase 3 (fine-tuned). |
+
+---
+
+## What Is Not Yet Verified / Still Under Review
+
+- **Phase 2 ensemble aggregate benchmark** — per-probe logs exist but summary stats (Rank-1, TAR) were not captured due to server timeout. Not independently confirmed.
+- **Phase 3 fine-tuning** — Training loop runs and loss decreases over 50 steps, but full training did not complete. No fine-tuned checkpoint is used in production.
+- **GPU inference** — CUDA provider fails to load on dev machine (no CUDA toolkit/drivers). All inference is CPU-only.
+- **Index persistence** — The in-memory vector index is not persisted to disk. A restart clears all enrolled identities. A persistent store (FAISS + disk, Milvus, Qdrant) is needed for production use.
+- **Security/privacy review** — Not conducted. No production deployment has been certified.

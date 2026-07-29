@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import "./FaceSearchExperience.css";
 import faceSearchVideo from "../../assets/facesearch.mp4";
+import { imatchApiUrl, runImatchSearch, runVerifyCompare, runBatchIdentify } from "../../services/imatchApi";
 
 const trustItems = [
   "Commercial Face Matching",
@@ -66,11 +66,11 @@ const tabs = [
     label: "REST API",
     title: "Premium API request",
     lines: [
-      "POST /api/imatch/search",
+      "POST /api/biometrics/verify",
       "{",
-      '  "image": "face-image.jpg",',
-      '  "checks": ["liveness", "deepfake", "quality"],',
-      '  "threshold": 0.84',
+      '  "reference": "face-a.jpg",',
+      '  "probe": "face-b.jpg",',
+      '  "operator_id": "demo_operator"',
       "}",
     ],
   },
@@ -126,6 +126,14 @@ const searchModes = [
     summary: ["Remote intake", "Source validation", "Cloud path verified"],
   },
 ];
+
+// ─── Label → display config ──────────────────────────────────────────────────
+const LABEL_CONFIG = {
+  same_person: { text: "Same Person", color: "#1a7a4a", bg: "rgba(26,122,74,0.10)", icon: "✓" },
+  inconclusive: { text: "Inconclusive", color: "#9a6e00", bg: "rgba(154,110,0,0.10)", icon: "~" },
+  different_person: { text: "Different Person", color: "#9a2f42", bg: "rgba(154,47,66,0.10)", icon: "✗" },
+  unknown: { text: "Unknown", color: "#6f6860", bg: "rgba(111,104,96,0.10)", icon: "?" },
+};
 
 export function FaceSearchExperience() {
   const [activeStep, setActiveStep] = useState(0);
@@ -263,62 +271,12 @@ export function FaceSearchExperience() {
   );
 }
 
-/**
- * Illustrative console on the public product page.
- *
- * This does NOT run a search. Biometric search requires an authenticated
- * operator, a stated lawful basis, and a tenant gallery, and every run is
- * written to an audit chain — none of which can be satisfied by an anonymous
- * visitor. Wiring a live search in here would mean either exposing an
- * unauthenticated biometric endpoint or faking a result and presenting it as
- * real. The numbers below are labelled sample values, and the button sends the
- * visitor to the real workspace.
- */
+// ─── ImatchUploadConsole ──────────────────────────────────────────────────────
 function ImatchUploadConsole({ step, hero = false }) {
   const [activeMode, setActiveMode] = useState(searchModes[0].id);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState("");
-  const [sourceUrl, setSourceUrl] = useState("");
-  const [selectedChecks, setSelectedChecks] = useState({
-    "Liveness Check": true,
-    "Deepfake Check": true,
-    "Quality Assessment": true,
-    "Auto-enhance": true,
-  });
-  const options = ["Liveness Check", "Deepfake Check", "Quality Assessment", "Auto-enhance"];
-  const mode = searchModes.find((item) => item.id === activeMode) ?? searchModes[0];
-  const scorePercent = step.score;
-  const panelLabel = step.label;
-  const panelResults = step.results;
-
-  useEffect(() => {
-    if (!selectedFile) {
-      setPreviewUrl("");
-      return undefined;
-    }
-
-    const objectUrl = URL.createObjectURL(selectedFile);
-    setPreviewUrl(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [selectedFile]);
-
-  const handleFileChange = (event) => {
-    setSelectedFile(event.target.files?.[0] || null);
-  };
-
-  const handleCheckChange = (option) => {
-    setSelectedChecks((current) => ({
-      ...current,
-      [option]: !current[option],
-    }));
-  };
 
   return (
-    <form
-      className={`im-upload-console ${step.mode}${hero ? " hero" : ""}`}
-      aria-label="iMatch Face Search"
-      onSubmit={(event) => event.preventDefault()}
-    >
+    <div className={`im-upload-console ${step.mode}${hero ? " hero" : ""}`} aria-label="iMatch Face Search">
       <div className="im-console-head">
         <div>
           <span>NexGen Identity Recognition Console</span>
@@ -342,6 +300,370 @@ function ImatchUploadConsole({ step, hero = false }) {
         ))}
       </div>
 
+      {activeMode === "compare" ? (
+        <ComparePanel />
+      ) : activeMode === "batch" ? (
+        <BatchPanel />
+      ) : (
+        <SingleSearchPanel step={step} activeMode={activeMode} />
+      )}
+    </div>
+  );
+}
+
+// ─── BatchPanel — real 1:N batch search UI ────────────────────────────────────
+function BatchPanel() {
+  const [batchFiles, setBatchFiles] = useState([]);
+  const [runState, setRunState] = useState("idle");
+  const [batchResult, setBatchResult] = useState(null);
+  const [error, setError] = useState("");
+
+  const handleFilesChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    setError("");
+    setBatchResult(null);
+    setBatchFiles(files);
+  };
+
+  const handleRunBatch = async () => {
+    if (batchFiles.length === 0) {
+      setError("Please select at least 1 image file for batch processing.");
+      return;
+    }
+    setError("");
+    setBatchResult(null);
+    setRunState("running");
+    try {
+      const res = await runBatchIdentify(batchFiles);
+      setBatchResult(res);
+      setRunState("complete");
+    } catch (err) {
+      setError(err.message);
+      setRunState("error");
+    }
+  };
+
+  return (
+    <div className="im-batch-panel">
+      <label className="im-batch-drop">
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          aria-label="Upload multiple face images for batch search"
+          onChange={handleFilesChange}
+        />
+        <span className="im-upload-mark">+</span>
+        <strong>Drop Multiple Probe Images (Batch Search)</strong>
+        <small>{batchFiles.length > 0 ? `${batchFiles.length} images selected` : "Select multiple JPG / PNG files to process in batch"}</small>
+      </label>
+
+      {batchFiles.length > 0 && (
+        <div className="im-batch-file-list">
+          <b>Batch Queue ({batchFiles.length} files):</b>
+          <ul>
+            {batchFiles.slice(0, 8).map((f) => (
+              <li key={f.name}>📄 {f.name} ({(f.size / 1024).toFixed(1)} KB)</li>
+            ))}
+            {batchFiles.length > 8 && <li>... and {batchFiles.length - 8} more files</li>}
+          </ul>
+        </div>
+      )}
+
+      <div className="im-state-panel">
+        <div>
+          <span>{runState === "running" ? `Processing batch queue (${batchFiles.length} files)...` : batchResult ? `Batch analysis complete (${batchResult.total_processed} images)` : "Batch search ready"}</span>
+          <strong>{runState === "running" ? "..." : batchResult ? `${batchResult.total_processed} items` : "0"}</strong>
+        </div>
+        <div className="im-progress">
+          <i style={{ width: runState === "running" ? "80%" : batchResult ? "100%" : "0%" }} />
+        </div>
+      </div>
+
+      {error && (
+        <p className="im-error" role="alert">{error}</p>
+      )}
+
+      {batchResult && (
+        <div className="im-batch-results-table">
+          <h4>Batch 1:N Recognition Results</h4>
+          <table>
+            <thead>
+              <tr>
+                <th>Filename</th>
+                <th>Status</th>
+                <th>Quality</th>
+                <th>Top Match Candidate</th>
+                <th>Confidence</th>
+              </tr>
+            </thead>
+            <tbody>
+              {batchResult.results.map((res, idx) => (
+                <tr key={idx} className={res.status !== "success" ? "row-error" : ""}>
+                  <td><strong>{res.filename}</strong></td>
+                  <td>
+                    <span className={`im-status-pill ${res.status}`}>
+                      {res.status === "success" ? "✓ OK" : res.status === "no_face_detected" ? "⚠ No Face" : "✗ Error"}
+                    </span>
+                  </td>
+                  <td>{res.status === "success" ? `${Math.round(res.quality_score * 100)}%` : "—"}</td>
+                  <td>
+                    {res.status === "success" && res.matches?.length > 0
+                      ? res.matches[0].identity_id
+                      : res.detail || "No match"}
+                  </td>
+                  <td>
+                    {res.status === "success" && res.matches?.length > 0
+                      ? `${Math.round(res.matches[0].confidence * 100)}%`
+                      : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <button
+        type="button"
+        className="im-launch"
+        onClick={handleRunBatch}
+        disabled={runState === "running" || batchFiles.length === 0}
+      >
+        {runState === "running" ? "Processing Batch Queue..." : batchResult ? "Run Batch Again" : "Launch Batch Processing"}
+      </button>
+      <p className="im-secure-line">Secure · Encrypted · Live API: {`http://127.0.0.1:8000/api/biometrics/batch-identify`}</p>
+    </div>
+  );
+}
+
+// ─── ComparePanel — real 1:1 verification UI ──────────────────────────────────
+function ComparePanel() {
+  const [refFile, setRefFile] = useState(null);
+  const [probeFile, setProbeFile] = useState(null);
+  const [refPreview, setRefPreview] = useState("");
+  const [probePreview, setProbePreview] = useState("");
+  const [runState, setRunState] = useState("idle"); // idle | running | complete | error
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
+
+  // Build preview URLs
+  useEffect(() => {
+    if (!refFile) { setRefPreview(""); return; }
+    const url = URL.createObjectURL(refFile);
+    setRefPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [refFile]);
+
+  useEffect(() => {
+    if (!probeFile) { setProbePreview(""); return; }
+    const url = URL.createObjectURL(probeFile);
+    setProbePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [probeFile]);
+
+  const handleRun = async () => {
+    setError("");
+    setResult(null);
+    setRunState("running");
+    try {
+      const res = await runVerifyCompare(refFile, probeFile);
+      setResult(res);
+      setRunState("complete");
+    } catch (err) {
+      setError(err.message);
+      setRunState("error");
+    }
+  };
+
+  const labelCfg = result ? (LABEL_CONFIG[result.label] ?? LABEL_CONFIG.unknown) : null;
+  const scorePct = result ? `${Math.round(result.score * 100)}%` : "—";
+
+  return (
+    <div className="im-compare-panel">
+      {/* Dual upload zone */}
+      <div className="im-compare-uploads">
+        <FaceDropZone
+          id="compare-ref"
+          label="Reference Image"
+          preview={refPreview}
+          onChange={(f) => { setRefFile(f); setResult(null); setError(""); }}
+        />
+        <div className="im-compare-vs" aria-hidden="true">VS</div>
+        <FaceDropZone
+          id="compare-probe"
+          label="Probe Image"
+          preview={probePreview}
+          onChange={(f) => { setProbeFile(f); setResult(null); setError(""); }}
+        />
+      </div>
+
+      {/* Score bar */}
+      <div className="im-state-panel">
+        <div>
+          <span>{runState === "running" ? "AI model comparing embeddings" : result ? labelCfg.text : "Comparison ready"}</span>
+          <strong>{runState === "running" ? "…" : scorePct}</strong>
+        </div>
+        <div className="im-progress">
+          <i style={{ width: runState === "running" ? "60%" : result ? `${Math.round(result.score * 100)}%` : "0%" }} />
+        </div>
+        <ul>
+          {result
+            ? [
+                `Cosine similarity: ${result.score.toFixed(4)}`,
+                `Ref quality: ${Math.round(result.qualityRef * 100)}% · Liveness: ${Math.round(result.livenessRef * 100)}%`,
+                `Probe quality: ${Math.round(result.qualityProbe * 100)}% · Liveness: ${Math.round(result.livenessProbe * 100)}%`,
+              ].map((item) => <li key={item}>{item}</li>)
+            : ["Upload reference + probe images", "Runs full ArcFace pipeline", "Returns cosine similarity score"].map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+        </ul>
+      </div>
+
+      {/* Result card */}
+      {result && (
+        <div className="im-compare-result" aria-live="polite" style={{ borderColor: labelCfg.color }}>
+          <div className="im-compare-verdict" style={{ background: labelCfg.bg, color: labelCfg.color }}>
+            <span className="im-verdict-icon">{labelCfg.icon}</span>
+            <span className="im-verdict-text">{labelCfg.text}</span>
+            <span className="im-verdict-score">{Math.round(result.score * 100)}% similarity</span>
+          </div>
+          <div className="im-compare-meta">
+            <div>
+              <b>Threshold</b>
+              <span>≥ 42% → same person · 28–42% → inconclusive · &lt; 28% → different</span>
+            </div>
+            {result.reviewRequired && (
+              <div className="im-compare-review">⚠ Human review recommended</div>
+            )}
+            {result.auditHash && (
+              <div>
+                <b>Audit hash</b>
+                <code>{result.auditHash.slice(0, 24)}…</code>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <p className="im-error" role="alert">{error}</p>
+      )}
+
+      <button
+        type="button"
+        className="im-launch"
+        onClick={handleRun}
+        disabled={runState === "running" || !refFile || !probeFile}
+      >
+        {runState === "running" ? "Comparing…" : result ? "Run Again" : "Run Comparison"}
+      </button>
+      <p className="im-secure-line">Secure · Encrypted · Live backend: {`http://127.0.0.1:8000/api/biometrics/verify`}</p>
+    </div>
+  );
+}
+
+// ─── FaceDropZone ─────────────────────────────────────────────────────────────
+function FaceDropZone({ id, label, preview, onChange }) {
+  return (
+    <label className="im-compare-drop" htmlFor={id}>
+      <input
+        id={id}
+        type="file"
+        accept="image/*"
+        aria-label={label}
+        onChange={(e) => onChange(e.target.files?.[0] || null)}
+      />
+      {preview ? (
+        <img className="im-photo-preview" src={preview} alt={label} />
+      ) : (
+        <>
+          <span className="im-upload-mark" aria-hidden="true">+</span>
+          <strong>{label}</strong>
+          <small>JPG · PNG · WEBP · HEIC</small>
+        </>
+      )}
+    </label>
+  );
+}
+
+// ─── SingleSearchPanel — original single-image logic ─────────────────────────
+function SingleSearchPanel({ step, activeMode }) {
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
+  const [selectedChecks, setSelectedChecks] = useState({
+    "Liveness Check": true,
+    "Deepfake Check": true,
+    "Quality Assessment": true,
+    "Auto-enhance": true,
+  });
+  const [runState, setRunState] = useState("idle");
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
+  const options = ["Liveness Check", "Deepfake Check", "Quality Assessment", "Auto-enhance"];
+  const mode = searchModes.find((item) => item.id === activeMode) ?? searchModes[0];
+  const scorePercent = result ? `${Math.round(result.matchScore * 100)}%` : step.score;
+  const panelLabel = result ? result.decision.replaceAll("_", " ") : step.label;
+  const panelResults = result
+    ? [
+        `Quality ${Math.round(result.quality * 100)}%`,
+        `Liveness ${Math.round(result.liveness * 100)}%`,
+        result.reviewRequired ? "Human review required" : "Decision ready",
+      ]
+    : step.results;
+
+  useEffect(() => {
+    if (!selectedFile) {
+      setPreviewUrl("");
+      return undefined;
+    }
+    const objectUrl = URL.createObjectURL(selectedFile);
+    setPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [selectedFile]);
+
+  const handleFileChange = (event) => {
+    const file = event.target.files?.[0];
+    setError("");
+    setResult(null);
+    setSelectedFile(file || null);
+  };
+
+  const handleCheckChange = (option) => {
+    setSelectedChecks((current) => ({
+      ...current,
+      [option]: !current[option],
+    }));
+  };
+
+  const handleLaunch = async () => {
+    setError("");
+    setResult(null);
+    setRunState("running");
+    try {
+      const response = await runImatchSearch({
+        file: selectedFile,
+        mode: activeMode,
+        sourceUrl,
+        checks: Object.entries(selectedChecks)
+          .filter(([, enabled]) => enabled)
+          .map(([label]) => label),
+      });
+      setResult(response);
+      setRunState("complete");
+    } catch (launchError) {
+      setError(launchError.message);
+      setRunState("error");
+    }
+  };
+
+  return (
+    <form
+      className={`im-single-inner ${result ? "complete" : step.mode}`}
+      aria-label="iMatch Single Search"
+      onSubmit={(event) => event.preventDefault()}
+    >
       <div className="im-console-main">
         <label className="im-drop-zone">
           <input type="file" accept="image/*" aria-label="Upload face image" onChange={handleFileChange} />
@@ -398,11 +720,11 @@ function ImatchUploadConsole({ step, hero = false }) {
 
       <div className="im-state-panel">
         <div>
-          <span>{panelLabel}</span>
-          <strong>{scorePercent}</strong>
+          <span>{runState === "running" ? "AI model analyzing" : panelLabel}</span>
+          <strong>{runState === "running" ? "..." : scorePercent}</strong>
         </div>
         <div className="im-progress">
-          <i style={{ width: scorePercent }} />
+          <i style={{ width: runState === "running" ? "72%" : scorePercent }} />
         </div>
         <ul>
           {panelResults.map((item) => (
@@ -411,18 +733,44 @@ function ImatchUploadConsole({ step, hero = false }) {
         </ul>
       </div>
 
-      <p className="im-sample-note">
-        Sample values illustrating the workflow. No search runs on this page: biometric search
-        requires an authenticated operator, a stated lawful basis, and your organisation&rsquo;s
-        gallery, and every run is written to an audit record.
-      </p>
+      {result && (
+        <div className="im-ai-results" aria-live="polite">
+          <span>AI results</span>
+          <div>
+            <b>Match</b>
+            <strong>{Math.round(result.matchScore * 100)}%</strong>
+          </div>
+          <div>
+            <b>Quality</b>
+            <strong>{Math.round(result.quality * 100)}%</strong>
+          </div>
+          <div>
+            <b>Liveness</b>
+            <strong>{Math.round(result.liveness * 100)}%</strong>
+          </div>
+          {result.matches.length > 0 && (
+            <ol>
+              {result.matches.map((match) => (
+                <li key={match.id}>
+                  <span>{match.id}</span>
+                  <b>{Math.round(match.score * 100)}%</b>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      )}
 
-      <Link to="/workspace/search" className="im-launch">
-        Open the investigator workspace
-      </Link>
-      <p className="im-secure-line">Encrypted templates - Tenant isolated - Every search audited</p>
+      {error && (
+        <p className="im-error" role="alert">
+          {error}
+        </p>
+      )}
+
+      <button type="button" className="im-launch" onClick={handleLaunch} disabled={runState === "running"}>
+        {runState === "running" ? "Analyzing Photo" : result ? "Run Again" : "Launch Face Search"}
+      </button>
+      <p className="im-secure-line">Secure - Encrypted - Tenant isolated - AI endpoint: {imatchApiUrl}</p>
     </form>
   );
 }
-
-export default FaceSearchExperience;

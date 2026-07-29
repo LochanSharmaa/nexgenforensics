@@ -1,171 +1,181 @@
-import { fileToBase64, request, tokenStore } from "./apiClient";
+const LOCAL_BIOMETRICS_BASE = "http://127.0.0.1:8000/api/biometrics";
 
-export { ApiError, apiBase, fileToBase64, tokenStore } from "./apiClient";
+export const identifyApiUrl =
+  import.meta.env.VITE_IDENTIFY_API_URL?.trim() || `${LOCAL_BIOMETRICS_BASE}/identify`;
 
-// ------------------------------------------------------------------ auth ----
+export const verifyApiUrl =
+  import.meta.env.VITE_VERIFY_API_URL?.trim() || `${LOCAL_BIOMETRICS_BASE}/verify`;
 
-export async function login({ email, password, tenant }) {
-  const body = await request("/api/auth/login", {
-    method: "POST",
-    auth: false,
-    body: { email, password, tenant: tenant || "" },
-  });
-  tokenStore.set(body.access_token, body.refresh_token);
-  return body.user;
-}
+export const batchIdentifyApiUrl =
+  import.meta.env.VITE_BATCH_API_URL?.trim() || `${LOCAL_BIOMETRICS_BASE}/batch-identify`;
 
-export async function logout() {
+export const enrollApiUrl =
+  import.meta.env.VITE_ENROLL_API_URL?.trim() || `${LOCAL_BIOMETRICS_BASE}/enroll`;
+
+/**
+ * 1:N Single Face Search — calls real /api/biometrics/identify endpoint.
+ */
+export async function runImatchSearch({ file, mode, sourceUrl, checks }) {
+  if (!file && !sourceUrl?.trim()) {
+    throw new Error("Please select or upload a face image file first.");
+  }
+
+  const form = new FormData();
+  if (file) {
+    // Basic file type validation
+    if (!file.type.startsWith("image/")) {
+      throw new Error("Invalid file type: Selected file is not an image.");
+    }
+    form.append("file", file, file.name);
+  }
+  form.append("top_k", "5");
+  form.append("operator_id", "demo_operator");
+
+  let response;
   try {
-    await request("/api/auth/logout", { method: "POST" });
-  } finally {
-    // Clear locally even if the server call fails, so a network problem can
-    // never leave a credential sitting in the tab.
-    tokenStore.clear();
+    response = await fetch(identifyApiUrl, {
+      method: "POST",
+      body: form,
+    });
+  } catch (netErr) {
+    throw new Error(`Backend server unavailable at ${identifyApiUrl}. Please verify the FastAPI backend server is running on port 8000.`);
   }
-}
 
-export function fetchCurrentUser() {
-  return request("/api/auth/me");
-}
-
-// ----------------------------------------------------------------- cases ----
-
-export function listCases(status) {
-  const query = status ? `?status_filter=${encodeURIComponent(status)}` : "";
-  return request(`/api/cases${query}`);
-}
-
-export function getCase(caseId) {
-  return request(`/api/cases/${caseId}`);
-}
-
-export function createCase({ reference, title, description, lawfulBasis }) {
-  return request("/api/cases", {
-    method: "POST",
-    body: {
-      reference,
-      title,
-      description: description || "",
-      lawful_basis: lawfulBasis || "",
-    },
-  });
-}
-
-export function updateCase(caseId, changes) {
-  return request(`/api/cases/${caseId}`, { method: "PATCH", body: changes });
-}
-
-export function caseReportUrl(caseId, format = "json") {
-  return `/api/cases/${caseId}/report?fmt=${format}`;
-}
-
-export function fetchCaseReport(caseId, format = "json") {
-  return request(caseReportUrl(caseId, format));
-}
-
-// -------------------------------------------------------------- subjects ----
-
-export function listSubjects(caseId) {
-  const query = caseId ? `?case_id=${encodeURIComponent(caseId)}` : "";
-  return request(`/api/subjects${query}`);
-}
-
-export async function enrolSubject({ file, displayName, externalRef, notes, caseId, subjectId, lawfulBasis }) {
-  if (!file) throw new Error("Select an enrolment image first.");
-  return request("/api/subjects", {
-    method: "POST",
-    body: {
-      display_name: displayName || "",
-      external_ref: externalRef || "",
-      notes: notes || "",
-      case_id: caseId || null,
-      subject_id: subjectId || null,
-      image_base64: await fileToBase64(file),
-      lawful_basis: lawfulBasis || "",
-    },
-  });
-}
-
-export function deleteSubject(subjectId) {
-  return request(`/api/subjects/${subjectId}`, { method: "DELETE" });
-}
-
-export function listSubjectTemplates(subjectId) {
-  return request(`/api/subjects/${subjectId}/templates`);
-}
-
-// ---------------------------------------------------------------- search ----
-
-export async function runSearch({ file, caseId, lawfulBasis, purpose, topK = 10, mode = "single", checks = [] }) {
-  if (!file) throw new Error("Select a probe image first.");
-  return request("/api/imatch/search", {
-    method: "POST",
-    body: {
-      image_base64: await fileToBase64(file),
-      mode,
-      case_id: caseId || null,
-      top_k: topK,
-      lawful_basis: lawfulBasis || "",
-      purpose: purpose || "",
-      checks,
-    },
-  });
-}
-
-export async function runVerification({ referenceFile, probeFile, caseId, lawfulBasis }) {
-  if (!referenceFile || !probeFile) {
-    throw new Error("Both a reference and a probe image are required.");
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
   }
-  const [reference, probe] = await Promise.all([fileToBase64(referenceFile), fileToBase64(probeFile)]);
-  return request("/api/imatch/verify", {
-    method: "POST",
-    body: {
-      reference_image_base64: reference,
-      probe_image_base64: probe,
-      case_id: caseId || null,
-      lawful_basis: lawfulBasis || "",
-    },
-  });
+
+  if (!response.ok) {
+    throw new Error(payload?.detail || payload?.message || "Biometric identification request failed.");
+  }
+
+  return normalizeImatchResult(payload);
 }
 
-export function listSearches(caseId, limit = 50) {
-  const params = new URLSearchParams();
-  if (caseId) params.set("case_id", caseId);
-  params.set("limit", String(limit));
-  return request(`/api/imatch/searches?${params}`);
+/**
+ * 1:1 Face Comparison — calls real /api/biometrics/verify endpoint.
+ */
+export async function runVerifyCompare(referenceFile, probeFile) {
+  if (!referenceFile) throw new Error("Upload a reference (first) face image.");
+  if (!probeFile) throw new Error("Upload a probe (second) face image.");
+
+  if (!referenceFile.type.startsWith("image/")) {
+    throw new Error("Reference file is not a valid image format.");
+  }
+  if (!probeFile.type.startsWith("image/")) {
+    throw new Error("Probe file is not a valid image format.");
+  }
+
+  const form = new FormData();
+  form.append("reference", referenceFile, referenceFile.name);
+  form.append("probe", probeFile, probeFile.name);
+  form.append("operator_id", "demo_operator");
+
+  let response;
+  try {
+    response = await fetch(verifyApiUrl, {
+      method: "POST",
+      body: form,
+    });
+  } catch (netErr) {
+    throw new Error(`Backend server unavailable at ${verifyApiUrl}. Please verify the FastAPI backend server is running on port 8000.`);
+  }
+
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
+  }
+
+  if (!response.ok) {
+    throw new Error(payload?.detail || payload?.message || "Face comparison request failed.");
+  }
+
+  return {
+    score: Number(payload.score ?? 0),
+    label: payload.label ?? "unknown",
+    verified: Boolean(payload.verified),
+    reviewRequired: Boolean(payload.review_required),
+    qualityRef: Number(payload.quality_ref ?? 0),
+    qualityProbe: Number(payload.quality_probe ?? 0),
+    livenessRef: Number(payload.liveness_ref ?? 0),
+    livenessProbe: Number(payload.liveness_probe ?? 0),
+    reasonsRef: payload.reasons_ref ?? [],
+    reasonsProbe: payload.reasons_probe ?? [],
+    auditHash: payload.audit_hash ?? "",
+    thresholds: payload.thresholds ?? { same_person: 0.42, inconclusive_low: 0.28 },
+  };
 }
 
-export function listCandidates(searchId) {
-  return request(`/api/imatch/searches/${searchId}/candidates`);
+/**
+ * Batch 1:N Face Search — calls real /api/biometrics/batch-identify endpoint.
+ */
+export async function runBatchIdentify(files) {
+  if (!files || files.length === 0) {
+    throw new Error("Select at least one face image for batch processing.");
+  }
+
+  const form = new FormData();
+  for (const f of files) {
+    if (!f.type.startsWith("image/")) {
+      throw new Error(`Invalid file '${f.name}': Not a valid image file.`);
+    }
+    form.append("files", f, f.name);
+  }
+  form.append("top_k", "5");
+  form.append("operator_id", "demo_operator");
+
+  let response;
+  try {
+    response = await fetch(batchIdentifyApiUrl, {
+      method: "POST",
+      body: form,
+    });
+  } catch (netErr) {
+    throw new Error(`Backend server unavailable at ${batchIdentifyApiUrl}. Please verify the FastAPI backend server is running on port 8000.`);
+  }
+
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
+  }
+
+  if (!response.ok) {
+    throw new Error(payload?.detail || payload?.message || "Batch face search request failed.");
+  }
+
+  return payload;
 }
 
-export function adjudicateCandidate(candidateId, { adjudication, notes }) {
-  return request(`/api/imatch/candidates/${candidateId}/adjudicate`, {
-    method: "POST",
-    body: { adjudication, examiner_notes: notes || "" },
-  });
+function normalizeImatchResult(payload) {
+  const quality = Number(payload?.quality_score ?? payload?.quality?.score ?? 0);
+  const liveness = Number(payload?.liveness_score ?? payload?.liveness?.score ?? 0);
+  const matches = payload?.matches || [];
+  const topMatchScore = matches.length > 0 ? Number(matches[0].confidence ?? 0) : 0;
+
+  return {
+    decision: payload?.decision || "analysis_complete",
+    quality: clampScore(quality),
+    liveness: clampScore(liveness),
+    matchScore: clampScore(topMatchScore),
+    reviewRequired: Boolean(payload?.review_required),
+    matches: matches.slice(0, 5).map((match, index) => ({
+      id: match.identity_id || `Candidate ${index + 1}`,
+      score: clampScore(Number(match.confidence ?? match.score ?? 0)),
+      metadata: match.metadata || {},
+    })),
+    auditHash: payload?.audit_hash || "",
+  };
 }
 
-// ----------------------------------------------------------------- audit ----
-
-export function listAuditRecords({ action, resourceId, limit = 100 } = {}) {
-  const params = new URLSearchParams();
-  if (action) params.set("action", action);
-  if (resourceId) params.set("resource_id", resourceId);
-  params.set("limit", String(limit));
-  return request(`/api/audit?${params}`);
-}
-
-export function verifyAuditChain() {
-  return request("/api/audit/verify");
-}
-
-// ---------------------------------------------------------------- system ----
-
-export function fetchEngineStatus() {
-  return request("/api/imatch/engine/status");
-}
-
-export function fetchHealth() {
-  return request("/api/health", { auth: false });
+function clampScore(value) {
+  if (!Number.isFinite(value)) return 0;
+  if (value > 1) return Math.max(0, Math.min(1, value / 100));
+  return Math.max(0, Math.min(1, value));
 }
