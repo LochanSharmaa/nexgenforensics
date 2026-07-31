@@ -34,6 +34,9 @@ from ...services.storage_service import (
 )
 from ..schemas import (
     AdjudicateRequest,
+    BatchItemResult,
+    BatchRequest,
+    BatchResponse,
     CandidateResponse,
     ProbeAssessment,
     SearchRequest,
@@ -262,6 +265,180 @@ def verify(
         probe=_probe_assessment(probe),
         morphing=morphing,
         audit_hash=record.entry_hash,
+    )
+
+
+@router.post("/batch", response_model=BatchResponse)
+def batch(
+    payload: BatchRequest,
+    request: Request,
+    principal: Principal = Depends(enforce_search_rate_limit),
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+    engine: EngineService = Depends(get_engine_service),
+    audit: AuditService = Depends(get_audit_service),
+) -> BatchResponse:
+    """Batch 1:1 comparison (``pair``) or batch 1:N gallery search (``gallery``).
+
+    Design notes, because batch endpoints attract two common mistakes:
+
+    1. **One bad image does not fail the batch.** Each item is isolated; a
+       decode failure or a frame with no face is recorded as that item's error
+       and the rest continue. An operator processing 40 stills from a scene
+       should not lose 39 good results to one corrupt file.
+    2. **Every item is audited individually.** A batch is not one search, it is
+       N searches, and the audit trail has to be able to answer "why was this
+       specific person compared" for each one. The lawful basis is recorded
+       against every item, not once for the batch.
+
+    Processing is sequential. Concurrency here would need request batching at
+    the ONNX layer to be worth anything, which is not built; see BENCHMARKS.md
+    section 7b for the measured single-threaded cost (~15 ms per encode, so a
+    pair item costs ~30 ms).
+    """
+    ip_address, user_agent = client_context(request)
+
+    lawful_basis = payload.lawful_basis.strip()
+    if settings.require_lawful_basis and not lawful_basis:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "A lawful basis must be stated for every biometric comparison.",
+        )
+
+    if payload.mode == "pair":
+        missing = [i for i, item in enumerate(payload.items) if not item.reference_image_base64]
+        if missing:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                f"mode='pair' requires reference_image_base64 on every item; missing at index {missing}.",
+            )
+
+    capable = engine.recognition_capable
+    threshold = engine.config.thresholds.verify
+    results: list[BatchItemResult] = []
+
+    for index, item in enumerate(payload.items):
+        label = item.label or f"item-{index + 1}"
+        try:
+            probe_bytes = decode_base64_image(item.probe_image_base64, settings.max_upload_bytes)
+            probe = engine.encode(probe_bytes)
+        except (UnsupportedImageError, ImageTooLargeError, InvalidImageError) as exc:
+            results.append(BatchItemResult(index=index, label=label, status="error", error=str(exc)))
+            continue
+        except NoFaceDetectedError as exc:
+            results.append(BatchItemResult(index=index, label=label, status="error", error=str(exc)))
+            continue
+
+        common = {
+            "probe_quality": round(float(probe.quality.score), 4),
+            "probe_liveness": round(float(probe.liveness.score), 4),
+            "probe_deepfake_risk": round(float(probe.deepfake_risk), 4),
+        }
+
+        if payload.mode == "pair":
+            try:
+                ref_bytes = decode_base64_image(item.reference_image_base64, settings.max_upload_bytes)
+                reference = engine.encode(ref_bytes)
+            except (UnsupportedImageError, ImageTooLargeError, InvalidImageError, NoFaceDetectedError) as exc:
+                results.append(BatchItemResult(index=index, label=label, status="error", error=str(exc)))
+                continue
+
+            similarity = engine.compare(reference.embedding, probe.embedding)
+            verified = bool(capable and similarity >= threshold)
+            record = audit.record(
+                session,
+                tenant_id=principal.tenant_id,
+                action=ACTION_VERIFY,
+                actor_id=principal.id,
+                actor_label=principal.label,
+                resource_type="case" if payload.case_id else "",
+                resource_id=payload.case_id or "",
+                outcome="verified" if verified else "not_verified",
+                lawful_basis=lawful_basis,
+                detail={
+                    "batch_index": index,
+                    "batch_label": label,
+                    "similarity": round(similarity, 6),
+                    "threshold": threshold,
+                    "recognition_capable": capable,
+                },
+                ip_address=ip_address,
+                user_agent=user_agent,
+            )
+            results.append(
+                BatchItemResult(
+                    index=index,
+                    label=label,
+                    status="ok",
+                    similarity=round(similarity, 6),
+                    verified=verified,
+                    audit_hash=record.entry_hash,
+                    **common,
+                )
+            )
+        else:
+            outcome, decision, normalized = engine.search(
+                session, principal.tenant_id, probe, top_k=payload.top_k
+            )
+            candidates = [
+                {
+                    "rank": rank + 1,
+                    "subject_id": match.subject_id,
+                    "template_id": match.template_id,
+                    "score": round(float(match.score), 6),
+                    "normalized_score": round(float(normalized[rank]), 6)
+                    if rank < len(normalized)
+                    else 0.0,
+                }
+                for rank, match in enumerate(outcome.matches)
+            ]
+            record = audit.record(
+                session,
+                tenant_id=principal.tenant_id,
+                action=ACTION_SEARCH,
+                actor_id=principal.id,
+                actor_label=principal.label,
+                resource_type="case" if payload.case_id else "",
+                resource_id=payload.case_id or "",
+                # decision.label, not str(decision): Decision is a dataclass and
+                # str() writes its whole repr -- explanation text and all --
+                # into the audit outcome column, which is meant to hold a short
+                # comparable token.
+                outcome=getattr(decision, "label", str(decision)),
+                lawful_basis=lawful_basis,
+                detail={
+                    "batch_index": index,
+                    "batch_label": label,
+                    "gallery_size": outcome.gallery_size,
+                    "match_count": len(candidates),
+                    "recognition_capable": capable,
+                },
+                ip_address=ip_address,
+                user_agent=user_agent,
+            )
+            results.append(
+                BatchItemResult(
+                    index=index,
+                    label=label,
+                    status="ok",
+                    candidates=candidates,
+                    gallery_size=outcome.gallery_size,
+                    audit_hash=record.entry_hash,
+                    **common,
+                )
+            )
+
+    session.commit()
+
+    succeeded = sum(1 for r in results if r.status == "ok")
+    return BatchResponse(
+        mode=payload.mode,
+        threshold=threshold,
+        recognition_capable=capable,
+        submitted=len(payload.items),
+        succeeded=succeeded,
+        failed=len(results) - succeeded,
+        results=results,
     )
 
 

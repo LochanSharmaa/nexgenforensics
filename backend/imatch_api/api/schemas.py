@@ -248,6 +248,74 @@ class VerifyResponse(BaseModel):
     notice: str = INVESTIGATIVE_NOTICE
 
 
+class BatchItem(BaseModel):
+    """One unit of work in a batch.
+
+    ``probe_image_base64`` is always required. ``reference_image_base64`` is
+    required in pair mode and ignored in gallery mode.
+    """
+
+    label: str = Field(default="", max_length=200, description="Operator's name for this item, echoed back")
+    probe_image_base64: str = Field(min_length=1)
+    reference_image_base64: str | None = None
+
+
+class BatchRequest(BaseModel):
+    """Batch 1:1 comparison or batch 1:N gallery search.
+
+    Two modes, because they answer different questions and a single endpoint
+    that guessed between them would be worse than making the caller say:
+
+      pair    -- each item carries its own reference; every item is an
+                 independent 1:1 verification. Needs no enrolled gallery, so it
+                 works on a fresh install.
+      gallery -- each probe is searched against the caller's tenant gallery.
+                 Returns nothing useful until subjects are enrolled.
+
+    A batch is capped rather than unbounded: each item costs two full encodes
+    in pair mode, and an operator pasting a folder of 5,000 images should get a
+    clear rejection instead of a request that appears to hang.
+    """
+
+    mode: str = Field(default="pair", pattern="^(pair|gallery)$")
+    items: list[BatchItem] = Field(min_length=1, max_length=50)
+    case_id: str | None = None
+    top_k: int = Field(default=5, ge=1, le=50, description="gallery mode only")
+    lawful_basis: str = Field(default="", max_length=500)
+
+
+class BatchItemResult(BaseModel):
+    """Per-item outcome. ``error`` is set instead of results when that one item
+    failed; one unreadable image must not void the whole batch."""
+
+    index: int
+    label: str
+    status: str = Field(description="ok | error")
+    error: str = ""
+    # pair mode
+    similarity: float | None = None
+    verified: bool | None = None
+    # gallery mode
+    candidates: list[dict[str, Any]] = Field(default_factory=list)
+    gallery_size: int | None = None
+    # both
+    probe_quality: float | None = None
+    probe_liveness: float | None = None
+    probe_deepfake_risk: float | None = None
+    audit_hash: str = ""
+
+
+class BatchResponse(BaseModel):
+    mode: str
+    threshold: float
+    recognition_capable: bool
+    submitted: int
+    succeeded: int
+    failed: int
+    results: list[BatchItemResult]
+    notice: str = INVESTIGATIVE_NOTICE
+
+
 class AdjudicateRequest(BaseModel):
     adjudication: Adjudication
     examiner_notes: str = Field(default="", max_length=5000)
