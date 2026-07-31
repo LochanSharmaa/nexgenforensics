@@ -104,7 +104,7 @@ These are stated at the front of the package rather than buried:
 | E-mail verification | 6-digit OTP, hashed, 10-minute expiry, 5-attempt cap |
 | CSRF | Signed double-submit on cookie-borne state changes |
 | Security headers | CSP, HSTS, COOP, CORP, Permissions-Policy, X-Frame-Options, nosniff |
-| Model integrity | **Planned** — checksums for delivered weights not yet published |
+| Model integrity | **Delivered** — SHA-256 for every weight file, A4 Part I |
 
 ---
 
