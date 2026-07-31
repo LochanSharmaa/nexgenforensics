@@ -419,7 +419,72 @@ the models rather than of where the threshold sits.
 
 ---
 
-## 6a. DECISION — fine-tuning abandoned (items 36–44 closed)
+## 6b. REOPENED — the blocker was removable (2026-07-31)
+
+§6a below closed fine-tuning as a dead end. **One of its two premises has since
+been disproved, so that conclusion no longer stands as written.**
+
+### Item 39 is achievable after all
+
+§6a stated that the pipeline initialises from ImageNet because only ONNX
+inference graphs exist, with no PyTorch ArcFace checkpoint. The first half is
+true; the conclusion drawn from it was wrong. `onnx2torch` converts the
+deployed recogniser into a trainable module:
+
+```
+w600k_r50.onnx -> torch module
+  parameters : 43,572,288
+  trainable  : 43,572,288
+  forward    : (2, 512)
+  backward   : 160 tensors received gradient
+```
+
+That is initialisation **from ArcFace weights**, which is what item 39 asks for
+and what the failed attempt lacked. The 49.38%-at-chance result in §6 is
+explained by ImageNet initialisation plus ~2,000× too little data; the first of
+those is now fixable.
+
+### Deeper audit: contamination is worse than sampled, as predicted
+
+Re-run at **full identity coverage** — 10 images per identity across all 10,572
+CASIA-WebFace identities, 105,631 images:
+
+| Depth | Images | Hits ≥0.70 | Near-dup ≥0.90 |
+|---|---:|---:|---:|
+| 2/identity | 21,144 | 551 | 20 |
+| **10/identity** | **105,631** | **1,508** | **85** |
+
+5× the images found **2.7×** the hits and **4.2×** the near-duplicates. Peak
+similarity **0.9888** against AgeDB-30 — the same photograph. This confirms the
+method limitation stated in §7c: sampling gives a **floor**, never a ceiling.
+
+Per eval set at the deeper depth: AgeDB-30 417 hits / 58 near-dup; CFP-FP 901 /
+26; CALFW 91 / 1; LFW 66 / 0; CPLFW 33 / 0.
+
+### Status: achievable, not attempted
+
+Fine-tuning is **not** a dead end. The path is now clear and unblocked:
+
+1. ✅ **ArcFace initialisation** — demonstrated above.
+2. ✅ **Contamination measured** at full identity coverage.
+3. ⬜ **Exclusion list** — the audit reports which *eval* images are matched; it
+   must be extended to emit the contaminated *training* identity IDs so they can
+   be dropped.
+4. ⬜ **Clean fine-tune + evaluation** through `benchmark_finetuned.py`.
+
+Steps 3 and 4 are a multi-hour GPU job and have **not** been run. No accuracy
+number is claimed for this path, and none should be quoted until step 4
+completes.
+
+**Honest expectation, so the result is not oversold in advance:** even with
+ArcFace init and a decontaminated subset, ~10k identities is still far below the
+~360k `glintr100` was trained on. The realistic goal is a modest gain on
+degraded imagery, not a new state of the art — and a genuine attempt that fails
+to improve anything remains a valid, reportable outcome.
+
+---
+
+## 6a. DECISION — fine-tuning abandoned (SUPERSEDED, see §6b)
 
 **Date:** 2026-07-31 · **Decided by:** project owner · **Status:** closed, not deferred
 
