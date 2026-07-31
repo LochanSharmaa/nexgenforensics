@@ -116,6 +116,19 @@ class ReportService:
             "gallery_size": run.gallery_size,
             "probe_quality": run.quality_score,
             "probe_liveness": run.liveness_score,
+            # The liveness score is a passive single-frame HEURISTIC, not
+            # presentation-attack detection. Emitting the bare number invited a
+            # reader to treat it as a spoof determination, so the qualifier
+            # travels with it into the report exactly as it does in the API
+            # response (nexgen_engine/security/liveness.py sets the same fields).
+            # Do not remove this without removing the score too.
+            "probe_liveness_method": "passive_single_frame_heuristic",
+            "probe_liveness_certified": False,
+            "probe_liveness_caveat": (
+                "Heuristic image-quality signal, not certified presentation-attack "
+                "detection. It does not establish that a live person was present "
+                "and will not reliably detect a printed photo or replayed screen."
+            ),
             "review_required": run.review_required,
             # Recorded per search: a run made while the stub was loaded carries
             # no evidential weight, and that must stay visible in the report.

@@ -145,7 +145,32 @@ class _TenantShard:
         return (self.vectors @ query).astype(np.float32)
 
     def _faiss_index(self):  # noqa: ANN202 - faiss types are optional
-        """Build (and cache) a FAISS flat index for this shard."""
+        """Build (and cache) a FAISS flat index for this shard.
+
+        DELIBERATE CHOICE, MEASURED -- read before "optimising" this.
+
+        faiss is NOT installed and NOT declared in any requirements file, so
+        this path is dormant and every search runs the numpy matmul in
+        ``scores()``. That is intentional, not an oversight.
+
+        Measured on an RTX A3000 host (BENCHMARKS.md 7b), brute-force cosine:
+
+            1,000 templates    0.207 ms p50
+           10,000 templates    1.087 ms p50
+          100,000 templates   15.981 ms p50
+
+        Below ~10k the search is under 8% of the ~14.7 ms it costs to encode
+        the probe image, i.e. free. Adding a dependency to optimise 8% of the
+        request would be premature.
+
+        Note what this branch would and would not buy: ``IndexFlatIP`` is an
+        EXACT inner-product index -- brute force with better SIMD. It is not an
+        approximate-nearest-neighbour structure. Enabling faiss here would win a
+        constant factor, NOT a change in complexity; the 100k cost would still
+        grow linearly. Genuine scaling past ~100k needs an approximate index
+        (IVF-PQ or HNSW) and the recall loss that comes with it, which must be
+        measured and accepted explicitly rather than assumed.
+        """
         if not _FAISS_AVAILABLE:
             return None
         if self._index is not None and self._index_rows == len(self.template_ids):

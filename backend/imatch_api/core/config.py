@@ -9,9 +9,18 @@ from pathlib import Path
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Decision thresholds have exactly one home. Importing it here (rather than
+# repeating the numbers) is what keeps this file from becoming a stale copy.
+from nexgen_engine.config import ThresholdConfig as _EngineThresholds
+
 from nexgen_engine.config import EngineConfig, QualityConfig, SecurityConfig, ThresholdConfig
 
 logger = logging.getLogger(__name__)
+
+#: Cached ephemeral JWT secret for non-production runs. Must persist for the
+#: lifetime of the process: regenerating it per call breaks every token the
+#: moment it is verified. Never used when NEXGEN_JWT_SECRET is set.
+_EPHEMERAL_JWT_SECRET: str | None = None
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -57,12 +66,44 @@ class Settings(BaseSettings):
     search_rate_limit_per_minute: int = 30
 
     # -------------------------------------------------------------- engine --
+    # buffalo_l (w600k_r50) is deployed DELIBERATELY, and it is not the model
+    # with the best clean-benchmark score. Measured, 1:1 verification:
+    #
+    #                     clean mean (5 protocols)   TinyFace    TAR@FAR=0.1%
+    #   glintr100                 97.35 %            79.68 %       17.37 %
+    #   w600k_r50  (deployed)     97.16 %            82.45 %       33.13 %
+    #
+    # glintr100 wins the clean sets by 0.19 points and loses degraded
+    # surveillance imagery badly -- barely half the true-accept rate at
+    # FAR=0.1%, the operating point that matters for casework. Clean-benchmark
+    # ranking does not predict degraded-footage ranking.
+    #
+    # Real investigative footage is degraded, so the degraded number governs.
+    # Override with NEXGEN_MODEL_PACK if a deployment is exclusively clean
+    # imagery (e.g. passport-to-passport), and re-tune the threshold if you do:
+    # the optimum is model-specific (w600k_r50 -> 0.20, glintr100 -> 0.22).
+    # See BENCHMARKS.md sections 3 and 4.
     model_pack: str = "buffalo_l"
     model_root: str = ""
-    engine_device: str = "cpu"
-    match_threshold: float = 0.42
-    review_threshold: float = 0.32
-    verify_threshold: float = 0.42
+    # "auto": use CUDA when it actually binds, else CPU. The old "cpu" default
+    # meant this service ran ArcFace on CPU on a correctly configured GPU host
+    # and reported itself healthy while doing it. Force with NEXGEN_ENGINE_DEVICE.
+    engine_device: str = "auto"
+    # 10-fold cross-validated on AgeDB-30 for w600k_r50, the pack this service
+    # loads (BENCHMARKS.md section 2). The previous 0.42/0.32 were unmeasured
+    # README values sitting well above every observed optimum (0.18-0.29), so
+    # genuine matches were reported as non-matches. Override per deployment with
+    # NEXGEN_MATCH_THRESHOLD / NEXGEN_VERIFY_THRESHOLD after re-running the
+    # benchmark on that deployment's model pack.
+    # Defaults are DERIVED from nexgen_engine.config.ThresholdConfig, the single
+    # source of truth, so this file can never drift into being a second copy.
+    # Override per deployment with NEXGEN_MATCH_THRESHOLD / NEXGEN_REVIEW_THRESHOLD
+    # / NEXGEN_VERIFY_THRESHOLD after re-running the benchmark on that
+    # deployment's model pack -- the optimum is model-specific
+    # (w600k_r50 -> 0.20, glintr100 -> 0.22).
+    match_threshold: float = Field(default_factory=lambda: _EngineThresholds().match)
+    review_threshold: float = Field(default_factory=lambda: _EngineThresholds().review)
+    verify_threshold: float = Field(default_factory=lambda: _EngineThresholds().verify)
     min_quality: float = 0.35
     min_detection_confidence: float = 0.70
 
@@ -86,8 +127,8 @@ class Settings(BaseSettings):
     @classmethod
     def _check_device(cls, value: str) -> str:
         value = value.strip().lower()
-        if value not in {"cpu", "cuda"}:
-            raise ValueError("NEXGEN_ENGINE_DEVICE must be cpu or cuda.")
+        if value not in {"cpu", "cuda", "auto"}:
+            raise ValueError("NEXGEN_ENGINE_DEVICE must be cpu, cuda, or auto.")
         return value
 
     @field_validator("env")
@@ -161,14 +202,25 @@ class Settings(BaseSettings):
         A per-process random secret means restarting the dev server logs everyone
         out. That is the correct trade: the alternative is a hard-coded default
         that eventually ships to production.
+
+        The ephemeral secret is cached at module scope. It previously called
+        secrets.token_urlsafe() on EVERY invocation, so a token was signed with
+        one secret and verified against a freshly generated different one --
+        every login succeeded and every authenticated request then failed with
+        "Authentication required." Any deployment without NEXGEN_JWT_SECRET set
+        had no working authentication at all.
         """
         if self.jwt_secret.strip():
             return self.jwt_secret
-        logger.warning(
-            "NEXGEN_JWT_SECRET is unset; generating an ephemeral development secret. "
-            "All issued tokens become invalid when this process exits."
-        )
-        return secrets.token_urlsafe(64)
+
+        global _EPHEMERAL_JWT_SECRET
+        if _EPHEMERAL_JWT_SECRET is None:
+            _EPHEMERAL_JWT_SECRET = secrets.token_urlsafe(64)
+            logger.warning(
+                "NEXGEN_JWT_SECRET is unset; generated an ephemeral development "
+                "secret. All issued tokens become invalid when this process exits."
+            )
+        return _EPHEMERAL_JWT_SECRET
 
     def resolved_template_key(self) -> str:
         """Base64 master key for template encryption.

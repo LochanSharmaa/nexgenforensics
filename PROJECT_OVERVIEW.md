@@ -415,7 +415,21 @@ following were found by inspection and testing.
    architecture). Unexplained. Investigate before quoting CFP-FP externally.
 6. **Demographic breakdown is stale.** Measured at threshold 0.42; thresholds are
    now 0.20. Lowering a threshold changes per-group FMR/FNMR balance.
-7. **FAISS imported but unused** — 1:N search is brute-force matmul.
+7. **FAISS: resolved as a deliberate choice, not a gap.** The earlier "imported
+   but unused" wording was imprecise. faiss is neither installed nor declared in
+   any requirements file; `gallery_index.py` guards it behind
+   `faiss_available()` with a lazy import, so it is a dormant optional
+   accelerator, not dead code. Brute-force numpy matmul is the live path.
+
+   Justified by measurement (BENCHMARKS.md §7b): search costs 0.207 ms at 1k and
+   1.087 ms at 10k — under 8% of the ~14.7 ms encode — so there is nothing to
+   win below ~10k templates. At 100k it reaches 15.98 ms and becomes as
+   expensive as encoding the probe.
+
+   **Also note:** the existing branch builds `faiss.IndexFlatIP`, an *exact*
+   inner-product index. Enabling faiss would buy a constant-factor SIMD speedup,
+   **not** a complexity change — 100k would still scale linearly. Real scaling
+   needs an approximate index (IVF-PQ / HNSW) plus measured recall loss.
 8. **IJB-B / IJB-C not run.** Corrected label: the dataset is **not absent** — an
    abandoned 1.57 GB partial download exists at
    `src/Unconfirmed 459859.crdownload`, identified by its tar header as the IJB
