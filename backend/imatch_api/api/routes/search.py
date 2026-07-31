@@ -313,6 +313,28 @@ def batch(
                 f"mode='pair' requires reference_image_base64 on every item; missing at index {missing}.",
             )
 
+    # one_to_many: encode the shared reference ONCE, up front. If the reference
+    # itself is unusable the whole batch is meaningless, so that is a request
+    # error rather than a per-item error -- unlike a bad probe, which only
+    # invalidates its own item.
+    shared_reference = None
+    if payload.mode == "one_to_many":
+        if not payload.reference_image_base64:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                "mode='one_to_many' requires reference_image_base64 at the top level "
+                "of the request (one reference compared against every item).",
+            )
+        try:
+            ref_bytes = decode_base64_image(payload.reference_image_base64, settings.max_upload_bytes)
+            shared_reference = engine.encode(ref_bytes)
+        except (UnsupportedImageError, ImageTooLargeError, InvalidImageError) as exc:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"reference image: {exc}") from exc
+        except NoFaceDetectedError as exc:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY, f"reference image: {exc}"
+            ) from exc
+
     capable = engine.recognition_capable
     threshold = engine.config.thresholds.verify
     results: list[BatchItemResult] = []
@@ -335,13 +357,25 @@ def batch(
             "probe_deepfake_risk": round(float(probe.deepfake_risk), 4),
         }
 
-        if payload.mode == "pair":
-            try:
-                ref_bytes = decode_base64_image(item.reference_image_base64, settings.max_upload_bytes)
-                reference = engine.encode(ref_bytes)
-            except (UnsupportedImageError, ImageTooLargeError, InvalidImageError, NoFaceDetectedError) as exc:
-                results.append(BatchItemResult(index=index, label=label, status="error", error=str(exc)))
-                continue
+        if payload.mode in ("pair", "one_to_many"):
+            if shared_reference is not None:
+                reference = shared_reference
+            else:
+                try:
+                    ref_bytes = decode_base64_image(
+                        item.reference_image_base64, settings.max_upload_bytes
+                    )
+                    reference = engine.encode(ref_bytes)
+                except (
+                    UnsupportedImageError,
+                    ImageTooLargeError,
+                    InvalidImageError,
+                    NoFaceDetectedError,
+                ) as exc:
+                    results.append(
+                        BatchItemResult(index=index, label=label, status="error", error=str(exc))
+                    )
+                    continue
 
             similarity = engine.compare(reference.embedding, probe.embedding)
             verified = bool(capable and similarity >= threshold)

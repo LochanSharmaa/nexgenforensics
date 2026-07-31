@@ -263,12 +263,16 @@ class BatchItem(BaseModel):
 class BatchRequest(BaseModel):
     """Batch 1:1 comparison or batch 1:N gallery search.
 
-    Two modes, because they answer different questions and a single endpoint
-    that guessed between them would be worse than making the caller say:
+    Three modes, because they answer different questions and an endpoint that
+    guessed between them would be worse than making the caller say:
 
-      pair    -- each item carries its own reference; every item is an
-                 independent 1:1 verification. Needs no enrolled gallery, so it
-                 works on a fresh install.
+      one_to_many -- THE DEFAULT. One reference image, supplied once at request
+                 level, compared against every uploaded probe. This is the
+                 common investigative case: "here is my suspect, check these 30
+                 stills." The reference is encoded once.
+      pair    -- each item carries its OWN reference; every item is an
+                 independent 1:1 verification of a different couple. Use when
+                 comparing 30 distinct pairs, not one face against 30.
       gallery -- each probe is searched against the caller's tenant gallery.
                  Returns nothing useful until subjects are enrolled.
 
@@ -277,11 +281,18 @@ class BatchRequest(BaseModel):
     clear rejection instead of a request that appears to hang.
     """
 
-    mode: str = Field(default="pair", pattern="^(pair|gallery)$")
+    mode: str = Field(default="one_to_many", pattern="^(one_to_many|pair|gallery)$")
     items: list[BatchItem] = Field(min_length=1, max_length=50)
     case_id: str | None = None
     top_k: int = Field(default=5, ge=1, le=50, description="gallery mode only")
     lawful_basis: str = Field(default="", max_length=500)
+
+    #: one_to_many mode only: ONE reference compared against every uploaded
+    #: probe. Supplied once at request level, not per item, so it is encoded a
+    #: single time instead of N times -- for 20 probes that is 21 encodes
+    #: rather than 40, roughly halving the work (~15ms per encode, see
+    #: BENCHMARKS.md 7b).
+    reference_image_base64: str | None = None
 
 
 class BatchItemResult(BaseModel):
