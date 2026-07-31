@@ -140,3 +140,7 @@ node/
 
 # Clean-room verification venv (regenerable via scripts/setup_gpu.py)
 .venv-clean/
+
+# Clean-room venv used to verify the trimmed deploy dependency set
+.venv-deploy/
+.venv-dep2/

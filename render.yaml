@@ -1,8 +1,16 @@
 # Render blueprint for the NexGen iMATCH backend — FREE TIER (option B).
 #
 # CPU ONLY. Render offers no GPU instances, and this service does not need one:
-# NEXGEN_ENGINE_DEVICE=cpu uses the same weights and the same arithmetic, so
-# results are identical. Only latency differs.
+# NEXGEN_ENGINE_DEVICE=cpu loads the same weights and applies the same
+# algorithm.
+#
+# Results are NOT bit-identical to the GPU path, and an earlier version of this
+# comment wrongly said they were. Measured on the same AgeDB pair: GPU 0.494431
+# vs CPU 0.494213, a difference of 2.2e-4. That is ordinary CUDA-vs-CPU kernel
+# arithmetic, and it is ~1300x smaller than the margin to the 0.2871 decision
+# threshold, so no decision changes. But a similarity quoted in a report to four
+# decimal places WILL differ depending on which device produced it, and for a
+# forensic record that is worth knowing rather than assuming away.
 #
 # ---------------------------------------------------------------------------
 # WHY THERE IS NO `disk:` BLOCK HERE
@@ -64,11 +72,16 @@ services:
     branch: main
     rootDir: .
 
+    # TWO STEPS, and the second is not optional. insightface declares a
+    # dependency on opencv-python (the GUI build), which pip installs ALONGSIDE
+    # opencv-python-headless -- two complete OpenCV builds, 135 MB of wheels.
+    # That duplication is what exceeded the free tier's 512 MB build limit.
+    # Installing insightface with --no-deps suppresses it; every runtime
+    # dependency it genuinely needs is in requirements-deploy.txt.
     buildCommand: |
       pip install --upgrade pip
-      pip install -r backend/requirements.txt \
-                  -r backend/requirements-engine.txt \
-                  -r backend/requirements-cpu.txt
+      pip install -r backend/requirements-deploy.txt
+      pip install --no-deps "insightface>=1.0.1,<2.0"
 
     startCommand: uvicorn imatch_api.main:app --host 0.0.0.0 --port $PORT --app-dir backend
 
