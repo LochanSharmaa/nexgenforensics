@@ -29,8 +29,8 @@ def export_report(
     Exports are themselves audited: a report is a copy of biometric findings
     leaving the system, which is exactly the event a later review will ask about.
     """
-    if fmt not in {"json", "markdown"}:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "fmt must be json or markdown.")
+    if fmt not in {"json", "markdown", "pdf"}:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "fmt must be json, markdown or pdf.")
 
     case = session.get(Case, case_id)
     if case is None or case.tenant_id != principal.tenant_id:
@@ -60,6 +60,16 @@ def export_report(
             content=ReportService().to_markdown(report),
             media_type="text/markdown; charset=utf-8",
             headers={"Content-Disposition": f'attachment; filename="case-{case.reference}.md"'},
+        )
+    if fmt == "pdf":
+        # Rendered from the SAME report dict as the JSON and Markdown exports,
+        # so the three formats cannot disagree about a finding.
+        from ...services.report_pdf import render_case_report_pdf
+
+        return Response(
+            content=render_case_report_pdf(report),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="case-{case.reference}.pdf"'},
         )
     return report
 

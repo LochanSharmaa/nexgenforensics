@@ -2,7 +2,10 @@ fastapi>=0.115.0
 uvicorn[standard]>=0.30.1
 sqlmodel>=0.0.21
 alembic>=1.13.1
-pydantic>=2.9.0
+# [email] extra: imatch_api schemas use pydantic EmailStr for operator
+# accounts, which needs email-validator at import time. Declared as an extra
+# rather than a bare `pydantic` so a clean install does not fail at startup.
+pydantic[email]>=2.9.0
 pydantic-settings>=2.5.0
 python-dotenv>=1.0.1
 redis>=5.0.7
@@ -10,6 +13,10 @@ rq>=1.16.2
 httpx>=0.27.0
 pyjwt>=2.8.0
 bcrypt>=4.2.0
+# imatch_api/core/security.py hashes credentials with Argon2id. This was
+# imported but never declared, so `imatch_api.main:app` -- the target the
+# Dockerfile actually deploys -- failed to import on a clean install.
+argon2-cffi>=23.1.0
 google-generativeai>=0.8.0
 openai>=1.35.10
 stripe>=9.0.0
@@ -22,3 +29,4 @@ pillow>=11.1.0
 numpy>=2.0.0
 cryptography>=44.0.0
 
+reportlab>=4.0  # forensic case report PDF export (imatch_api/services/report_pdf.py)
