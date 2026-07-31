@@ -6,6 +6,7 @@ import {
   runSearch,
   runVerification,
   normalizeVerifyResult,
+  runBatch,
 } from "../../services/imatchApi";
 
 // Each item must correspond to something implemented and tested. See CLAIMS.md.
@@ -324,6 +325,9 @@ function ImatchUploadConsole({ step, hero = false }) {
 // ─── BatchPanel — real 1:N batch search UI ────────────────────────────────────
 function BatchPanel() {
   const [batchFiles, setBatchFiles] = useState([]);
+  const [referenceFile, setReferenceFile] = useState(null);
+  const [mode, setMode] = useState("one_to_many");
+  const [lawfulBasis, setLawfulBasis] = useState("");
   const [runState, setRunState] = useState("idle");
   const [batchResult, setBatchResult] = useState(null);
   const [error, setError] = useState("");
@@ -336,29 +340,95 @@ function BatchPanel() {
   };
 
   const handleRunBatch = async () => {
-    if (batchFiles.length === 0) {
-      setError("Please select at least 1 image file for batch processing.");
-      return;
-    }
     setError("");
     setBatchResult(null);
 
-    // NOT YET IMPLEMENTED, and deliberately surfaced as such.
-    // imatch_api exposes no batch endpoint (confirmed against its
-    // /openapi.json). The previous code called runBatchIdentify() against
-    // /api/biometrics/batch-identify on a backend that does not run, so this
-    // button could only ever have produced a network error. Saying so plainly
-    // beats a spinner that resolves to nothing.
-    setError(
-      "Batch processing is not available yet. The backend has no batch " +
-        "endpoint; single search and 1:1 comparison are working. This control " +
-        "is disabled rather than silently failing.",
-    );
-    setRunState("error");
+    if (batchFiles.length === 0) {
+      setError("Select at least one image to compare.");
+      setRunState("error");
+      return;
+    }
+    if (mode === "one_to_many" && !referenceFile) {
+      setError("Select a reference image to compare every upload against.");
+      setRunState("error");
+      return;
+    }
+    // The API records the lawful basis verbatim against EVERY item in the
+    // batch, not once for the batch. Not defaulted: the point of the field is
+    // that a person had to state a reason.
+    if (!lawfulBasis.trim()) {
+      setError("State a lawful basis before running this batch.");
+      setRunState("error");
+      return;
+    }
+
+    setRunState("running");
+    try {
+      setBatchResult(
+        await runBatch({
+          mode,
+          referenceFile,
+          probeFiles: batchFiles,
+          lawfulBasis: lawfulBasis.trim(),
+        }),
+      );
+      setRunState("complete");
+    } catch (err) {
+      setError(err.message);
+      setRunState("error");
+    }
   };
 
   return (
     <div className="im-batch-panel">
+      {/* Mode selector. The three modes answer different questions, so the
+          operator picks rather than the UI guessing. */}
+      <div className="im-batch-modes" role="radiogroup" aria-label="Batch mode">
+        {[
+          ["one_to_many", "One reference vs all", "Compare a single suspect against every uploaded image"],
+          ["pair", "Independent pairs", "Each upload compared against the enrolled gallery pairwise"],
+          ["gallery", "Search gallery", "Search each upload against enrolled subjects"],
+        ].map(([id, label, hint]) => (
+          <button
+            key={id}
+            type="button"
+            role="radio"
+            aria-checked={mode === id}
+            className={mode === id ? "is-active" : ""}
+            title={hint}
+            onClick={() => {
+              setMode(id);
+              setBatchResult(null);
+              setError("");
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {mode === "one_to_many" && (
+        <label className="im-batch-drop im-batch-reference">
+          <input
+            type="file"
+            accept="image/*"
+            aria-label="Reference image compared against every upload"
+            onChange={(e) => {
+              setReferenceFile(e.target.files?.[0] || null);
+              setBatchResult(null);
+              setError("");
+            }}
+          />
+          <span className="im-upload-mark">1</span>
+          <strong>Reference image</strong>
+          <small>
+            {referenceFile
+              ? `${referenceFile.name} — compared against every upload below`
+              : "The one face every uploaded image is compared against"}
+          </small>
+        </label>
+      )}
+
       <label className="im-batch-drop">
         <input
           type="file"
@@ -368,8 +438,24 @@ function BatchPanel() {
           onChange={handleFilesChange}
         />
         <span className="im-upload-mark">+</span>
-        <strong>Drop Multiple Probe Images (Batch Search)</strong>
-        <small>{batchFiles.length > 0 ? `${batchFiles.length} images selected` : "Select multiple JPG / PNG files to process in batch"}</small>
+        <strong>{mode === "one_to_many" ? "Images to compare" : "Probe images"}</strong>
+        <small>
+          {batchFiles.length > 0
+            ? `${batchFiles.length} images selected${batchFiles.length > 50 ? " — over the 50 limit" : ""}`
+            : "Select up to 50 JPG / PNG files"}
+        </small>
+      </label>
+
+      {/* Recorded verbatim against EVERY item, not once per batch. */}
+      <label className="im-lawful-field">
+        <span>Lawful basis (required, recorded against every item in the batch)</span>
+        <input
+          type="text"
+          value={lawfulBasis}
+          maxLength={500}
+          placeholder="e.g. Operation Redwood, warrant ref 2026/114"
+          onChange={(e) => setLawfulBasis(e.target.value)}
+        />
       </label>
 
       {batchFiles.length > 0 && (
@@ -386,8 +472,8 @@ function BatchPanel() {
 
       <div className="im-state-panel">
         <div>
-          <span>{runState === "running" ? `Processing batch queue (${batchFiles.length} files)...` : batchResult ? `Batch analysis complete (${batchResult.total_processed} images)` : "Batch search ready"}</span>
-          <strong>{runState === "running" ? "..." : batchResult ? `${batchResult.total_processed} items` : "0"}</strong>
+          <span>{runState === "running" ? `Processing ${batchFiles.length} images...` : batchResult ? `Complete — ${batchResult.succeeded}/${batchResult.submitted} processed` : "Batch ready"}</span>
+          <strong>{runState === "running" ? "..." : batchResult ? `${batchResult.succeeded}/${batchResult.submitted}` : "0"}</strong>
         </div>
         <div className="im-progress">
           <i style={{ width: runState === "running" ? "80%" : batchResult ? "100%" : "0%" }} />
@@ -400,41 +486,66 @@ function BatchPanel() {
 
       {batchResult && (
         <div className="im-batch-results-table">
-          <h4>Batch 1:N Recognition Results</h4>
+          <h4>
+            Batch results — {batchResult.succeeded} of {batchResult.submitted} processed
+            {batchResult.failed > 0 && `, ${batchResult.failed} failed`}
+          </h4>
+          <p className="im-batch-threshold">
+            Decision threshold {batchResult.threshold}. Similarity is shown to 4
+            decimal places so how close a decision fell to the line is visible.
+          </p>
           <table>
             <thead>
               <tr>
-                <th>Filename</th>
+                <th>Image</th>
                 <th>Status</th>
+                <th>{batchResult.mode === "gallery" ? "Top candidate" : "Similarity"}</th>
+                <th>{batchResult.mode === "gallery" ? "Score" : "Decision"}</th>
                 <th>Quality</th>
-                <th>Top Match Candidate</th>
-                <th>Confidence</th>
+                <th>Audit hash</th>
               </tr>
             </thead>
             <tbody>
-              {batchResult.results.map((res, idx) => (
-                <tr key={idx} className={res.status !== "success" ? "row-error" : ""}>
-                  <td><strong>{res.filename}</strong></td>
-                  <td>
-                    <span className={`im-status-pill ${res.status}`}>
-                      {res.status === "success" ? "✓ OK" : res.status === "no_face_detected" ? "⚠ No Face" : "✗ Error"}
-                    </span>
-                  </td>
-                  <td>{res.status === "success" ? `${Math.round(res.quality_score * 100)}%` : "—"}</td>
-                  <td>
-                    {res.status === "success" && res.matches?.length > 0
-                      ? res.matches[0].identity_id
-                      : res.detail || "No match"}
-                  </td>
-                  <td>
-                    {res.status === "success" && res.matches?.length > 0
-                      ? `${Math.round(res.matches[0].confidence * 100)}%`
-                      : "—"}
-                  </td>
-                </tr>
-              ))}
+              {batchResult.results.map((res) => {
+                const top = res.candidates?.[0];
+                return (
+                  <tr key={res.index} className={res.status !== "ok" ? "row-error" : ""}>
+                    <td><strong>{res.label}</strong></td>
+                    <td>
+                      <span className={`im-status-pill ${res.status}`}>
+                        {res.status === "ok" ? "✓ OK" : "✗ Error"}
+                      </span>
+                    </td>
+                    <td>
+                      {res.status !== "ok"
+                        ? res.error
+                        : batchResult.mode === "gallery"
+                          ? (top?.subject_id ?? "no candidate")
+                          : res.similarity?.toFixed(4)}
+                    </td>
+                    <td>
+                      {res.status !== "ok"
+                        ? "—"
+                        : batchResult.mode === "gallery"
+                          ? (top ? top.score.toFixed(4) : "—")
+                          : res.verified
+                            ? "Supports same person"
+                            : "Not supported"}
+                    </td>
+                    <td>
+                      {res.probe_quality != null
+                        ? `${(res.probe_quality * 100).toFixed(0)}%`
+                        : "—"}
+                    </td>
+                    <td>
+                      <code>{res.audit_hash ? `${res.audit_hash.slice(0, 12)}…` : "—"}</code>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
+          <p className="im-batch-notice">{batchResult.notice}</p>
         </div>
       )}
 

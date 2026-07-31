@@ -340,6 +340,58 @@ export async function runVerification({
   });
 }
 
+/**
+ * Batch comparison. Three modes, matching POST /api/imatch/batch:
+ *
+ *   one_to_many  ONE reference vs every probe. The common investigative case
+ *                ("here is my suspect, check these 30 stills"). The reference
+ *                is sent once and encoded once, not per item.
+ *   pair         each item carries its OWN reference; N independent 1:1
+ *                comparisons of different couples.
+ *   gallery      each probe searched against the enrolled gallery.
+ *
+ * One unreadable file does not fail the batch: the server isolates per item
+ * and returns `status: "error"` for that entry only.
+ */
+export async function runBatch({
+  mode = "one_to_many",
+  referenceFile = null,
+  probeFiles = [],
+  lawfulBasis,
+  caseId = null,
+  topK = 5,
+}) {
+  if (!probeFiles.length) {
+    throw new ApiError("Select at least one image to compare.");
+  }
+  if (probeFiles.length > 50) {
+    throw new ApiError(
+      `Batch limit is 50 images; ${probeFiles.length} selected. ` +
+        "Split it into smaller batches.",
+    );
+  }
+  if (mode === "one_to_many" && !referenceFile) {
+    throw new ApiError("Select a reference image to compare every upload against.");
+  }
+
+  const body = {
+    mode,
+    lawful_basis: lawfulBasis ?? "",
+    case_id: caseId,
+    top_k: topK,
+    items: await Promise.all(
+      probeFiles.map(async (f) => ({
+        label: f.name,
+        probe_image_base64: await fileToBase64(f),
+      })),
+    ),
+  };
+  if (mode === "one_to_many") {
+    body.reference_image_base64 = await fileToBase64(referenceFile);
+  }
+  return request("/api/imatch/batch", { method: "POST", body });
+}
+
 export function listSearches(caseId) {
   const q = caseId ? `?case_id=${encodeURIComponent(caseId)}` : "";
   return request(`/api/imatch/searches${q}`);
