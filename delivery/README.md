@@ -33,17 +33,22 @@ Accordingly:
 |---|---|---|
 | 01 | Installation Guide | Planned |
 | 02 | User Manual | Planned |
-| 03 | API Documentation | Partially exists — OpenAPI at `/docs`, `/openapi.json` |
+| 03 | API Documentation | **Superseded by A8** (plus live OpenAPI at `/openapi.json`) |
 | **04** | **Model Card** | **Delivered** — `04-MODEL-CARD.md` |
-| 05 | Performance Report | Source data complete (`BENCHMARKS.md`, `runtime/benchmarks/*.json`); formal document planned |
+| 05 | Performance Report | **Superseded by A5** — full per-fold record, 350 fold entries |
 | 06 | Validation Report | Partial — internal testing and edge cases measured; **external validation NOT YET DELIVERABLE** (see below) |
-| 07 | Dataset Documentation | Source data complete (BENCHMARKS §2b, §6c, §6e); formal document planned |
+| 07 | Dataset Documentation | **Superseded by A6** |
 | 08 | Deployment Package | Partial — `render.yaml`, `requirements-deploy.txt`, `Dockerfile` exist; **not yet validated on a live deployment** |
 | 09 | Inference Pipeline Spec | Partially exists — OpenAPI schemas; worked examples planned |
-| 10 | Security Documentation | Partial — implemented controls listed below; formal document planned |
+| 10 | Security Documentation | **Superseded by A10** |
 | 11 | Maintenance Package | Partial — `regression_check.py` exists; retraining pipeline documented in BENCHMARKS §6 |
 | 12 | Test Suite | **Delivered** — 197 test functions, 362 assertions; catalogued in A9 |
 | A9 | Test Suite Catalogue (every test, full source) | **Delivered** — generated |
+| A6 | Dataset Provenance and Integrity | **Delivered** — generated |
+| A7 | Threshold Calibration Record | **Delivered** — generated |
+| A8 | API and Interface Specification (36 endpoints) | **Delivered** — generated |
+| A10 | Security Architecture and Controls | **Delivered** — generated |
+| A11 | Deployment and Operations | **Delivered** — generated |
 | 13 | Licensing and Legal | **NOT YET DELIVERABLE** — requires legal counsel, not engineering |
 | 14 | Knowledge Transfer | **NOT YET DELIVERABLE** — requires scheduled sessions with the receiving organisation |
 
