@@ -564,7 +564,7 @@ function BatchPanel() {
       >
         {runState === "running" ? "Processing Batch Queue..." : batchResult ? "Run Batch Again" : "Launch Batch Processing"}
       </button>
-      <p className="im-secure-line">Secure · Encrypted · Live API: {`http://127.0.0.1:8000/api/biometrics/batch-identify`}</p>
+      <p className="im-secure-line">Secure · Encrypted · Live API: {`${imatchApiUrl}/batch`}</p>
     </div>
   );
 }
@@ -756,7 +756,7 @@ function ComparePanel() {
       >
         {runState === "running" ? "Comparing…" : result ? "Run Again" : "Run Comparison"}
       </button>
-      <p className="im-secure-line">Secure · Encrypted · Live backend: {`http://127.0.0.1:8000/api/biometrics/verify`}</p>
+      <p className="im-secure-line">Secure · Encrypted · Live backend: {`${imatchApiUrl}/verify`}</p>
     </div>
   );
 }

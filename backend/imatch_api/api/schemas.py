@@ -1,11 +1,49 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, field_validator
 
 from ..db.models import Adjudication, CaseStatus, Role
+
+# Account e-mail.
+#
+# This deliberately does NOT use pydantic's EmailStr. EmailStr delegates to
+# `email-validator`, which rejects special-use and reserved domains -- `.local`
+# among them. That produced a real broken state: `bootstrap_admin.py` writes
+# straight to the database and happily creates `investigator@nexgen.local`,
+# while the login endpoint then refuses that exact address as malformed. The
+# system could mint an account that could never authenticate, and the error
+# shown at the door ("not a valid email address") pointed at the wrong thing.
+#
+# Internal and air-gapped deployments legitimately use domains like
+# `.local`, `.internal` and `.lan`, so the rule to drop is deliverability, not
+# syntax. What remains is a shape check that still catches ordinary typos
+# ("alice", "alice@agency") while accepting anything routable inside an
+# organisation.
+#
+# Applied to BOTH creation and login, because the invariant that matters is
+# that every account the system lets you create is an account you can sign
+# into.
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _normalise_email(value: Any) -> Any:
+    if not isinstance(value, str):
+        return value
+    cleaned = value.strip().lower()
+    if not _EMAIL_RE.match(cleaned):
+        raise ValueError("must look like name@domain.tld")
+    return cleaned
+
+
+AccountEmail = Annotated[
+    str,
+    BeforeValidator(_normalise_email),
+    Field(min_length=3, max_length=320),
+]
 
 # The one line that must accompany every automated match shown to a human.
 INVESTIGATIVE_NOTICE = (
@@ -18,7 +56,7 @@ INVESTIGATIVE_NOTICE = (
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: AccountEmail
     password: str = Field(min_length=1, max_length=256)
     tenant: str = Field(default="", description="Tenant slug. Required when the email exists in several tenants.")
 
@@ -48,7 +86,7 @@ class UserResponse(BaseModel):
 
 
 class CreateUserRequest(BaseModel):
-    email: EmailStr
+    email: AccountEmail
     full_name: str = Field(default="", max_length=200)
     password: str = Field(min_length=12, max_length=256)
     role: Role = Role.INVESTIGATOR
