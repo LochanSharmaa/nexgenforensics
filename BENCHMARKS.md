@@ -548,6 +548,63 @@ under parallel load requires the request-batching work and has not been run.
 
 ---
 
+## 7c. TRAIN/EVAL IDENTITY OVERLAP AUDIT — overlap found in all three sets
+
+```bash
+python backend/scripts/audit_train_eval_overlap.py --per-identity 2
+```
+
+**Result: OVERLAP DETECTED. No further fine-tuning may use these archives
+against these evaluation sets without an exclusion list.**
+
+Name matching is impossible — the `.bin` packs carry no identity metadata
+(verified by scanning pickle opcodes without executing them) and the training
+sets carry only numeric IDs (`/CASIA-WebFace/0000045/001.jpg`) or Flickr
+handles. Detection is therefore embedding-based.
+
+### Rate-normalised, so different sample depths compare fairly
+
+| Training set | Images | Identities | ≥0.70 hits | **per 1k images** | Near-dup ≥0.90 |
+|---|---:|---:|---:|---:|---:|
+| CASIA-WebFace | 21,144 | 10,572 (100%) | 551 | **26.1** | 20 |
+| **UMDFaces** | 16,554 | 8,277 (100%) | 4,833 | **292.0** | **253** |
+| MegaFace-train | 22,000 | 22,000 (3.3%) | 553 | **25.1** | 1 |
+
+**UMDFaces is ~11× worse than either alternative** and overlaps all five
+evaluation sets, peaking at similarity **0.9890** against AgeDB-30. A genuine
+same-person pair averages ~0.49 in this system; **0.98–0.99 is the same
+photograph**, not a similar person.
+
+CASIA-WebFace and MegaFace-train are comparable per-image (26.1 vs 25.1) and
+roughly an order of magnitude cleaner than UMDFaces.
+
+### Why the MegaFace numbers are floors, not totals
+
+Only 22,000 of its 657,078 identities were sampled — **3.3% coverage**, versus
+100% for the other two. Its raw counts are therefore not comparable to theirs;
+only the per-1k-image rate is. At full coverage its absolute count would be
+far higher.
+
+### What this does and does not invalidate
+
+- **Current BENCHMARKS.md figures stand.** The deployed model is stock
+  `buffalo_l` / `w600k_r50`, trained by InsightFace on WebFace600K — not on
+  these local archives. Nothing reported here was trained on contaminated data.
+- **It does explain why the rejected fine-tune could never have been trusted.**
+  That checkpoint scored 49.38% (chance), so contamination never got a chance
+  to inflate it — but had it trained successfully, its numbers would have been
+  partly memorisation.
+
+### Method limitation, stated so it is not overclaimed
+
+Sampling proves overlap **exists**; it cannot prove overlap is **absent**. An
+identity whose sampled images happen not to resemble the evaluation shots is
+missed. The true overlap is necessarily **larger** than the figures above.
+
+The script exits `2` on detection so it can gate a training run in CI.
+
+---
+
 ## 8. Reproducibility
 
 - Embeddings are cached per (dataset, backbone) under
