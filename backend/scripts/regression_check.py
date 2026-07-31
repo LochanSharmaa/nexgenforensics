@@ -113,10 +113,18 @@ def main() -> int:
     ap.add_argument("--model", default="w600k_r50", help="model whose cached embeddings to score")
     ap.add_argument("--tolerance", type=float, default=0.30, help="accuracy points of allowed drop")
     ap.add_argument("--update", action="store_true", help="re-record the baseline instead of checking")
+    ap.add_argument(
+        "--config-only",
+        action="store_true",
+        help="check configuration invariants only, skipping accuracy. For CI: "
+        "the embedding cache is gitignored (~595MB) so accuracy cannot be "
+        "recomputed on a fresh checkout, but the config half still catches "
+        "threshold drift and a reappearing second copy.",
+    )
     args = ap.parse_args()
 
     config = current_config()
-    accuracy = measure(args.model)
+    accuracy = {} if args.config_only else measure(args.model)
 
     if args.update:
         BASELINE.write_text(json.dumps({
@@ -162,7 +170,7 @@ def main() -> int:
 
     # ---- accuracy: directional tolerance ----
     print(f"\nAccuracy (tolerance {args.tolerance:.2f} points, drops only)")
-    for ds, exp in base["accuracy"].items():
+    for ds, exp in ({} if args.config_only else base["accuracy"]).items():
         cur = accuracy.get(ds)
         if cur is None:
             notes.append(f"{ds}: no cached embeddings; SKIPPED (not a pass)")

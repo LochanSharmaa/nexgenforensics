@@ -1,0 +1,101 @@
+# Render blueprint for the NexGen iMATCH backend.
+#
+# CPU ONLY. Render does not offer GPU instances, and this service does not need
+# one: NEXGEN_ENGINE_DEVICE=cpu uses the same weights and the same arithmetic,
+# so results are identical to the GPU path. Only latency changes -- roughly
+# 15 ms per encode on GPU versus noticeably more on a shared CPU instance.
+#
+# ---------------------------------------------------------------------------
+# BEFORE DEPLOYING, READ THIS: the disk below requires a PAID instance.
+# ---------------------------------------------------------------------------
+# Render's docs are explicit that persistent disks attach only to a paid web
+# service, private service, or background worker. They are NOT available on the
+# free tier.
+#
+# Two viable shapes, and the choice is a spending decision, not a technical one:
+#
+#   A. PAID + DISK (this file as written)
+#      plan: starter, with the disk mounted at /var/data.
+#      SQLite lives on the disk; enrolments, cases and the audit trail survive
+#      restarts and redeploys. Simplest correct setup.
+#
+#   B. FREE + EXTERNAL POSTGRES (set plan: free, delete the `disk:` block)
+#      Point NEXGEN_DATABASE_URL at a managed Postgres instance. The API
+#      already supports this -- db/session.py branches on the URL scheme -- but
+#      a Postgres driver is NOT currently in requirements.txt and would need
+#      adding (psycopg[binary]).
+#      Two caveats that matter:
+#        * Free web services spin down when idle, so the first request after a
+#          quiet period pays a cold start AND reloads the ~350 MB model pack.
+#        * Probe images written by StorageService go to the ephemeral
+#          filesystem and are LOST on restart. The database rows survive; the
+#          stored image bytes referenced by probe_path do not. For a demo that
+#          is acceptable; for casework it is not.
+#
+# Whichever is chosen, generate NEXGEN_JWT_SECRET and NEXGEN_TEMPLATE_KEY as
+# real random values and set them in the Render dashboard. They are marked
+# sync: false below so they are never committed to this file.
+#
+# LOSING NEXGEN_TEMPLATE_KEY MAKES EVERY STORED TEMPLATE UNDECRYPTABLE.
+# Back it up somewhere you will still have in a year.
+
+services:
+  - type: web
+    name: nexgen-imatch-api
+    runtime: python
+    plan: starter # free tier cannot mount the disk below; see note above
+    region: oregon
+    branch: main
+    rootDir: .
+
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r backend/requirements.txt \
+                  -r backend/requirements-engine.txt \
+                  -r backend/requirements-cpu.txt
+
+    startCommand: uvicorn imatch_api.main:app --host 0.0.0.0 --port $PORT --app-dir backend
+
+    healthCheckPath: /api/health
+
+    disk:
+      name: imatch-data
+      mountPath: /var/data
+      sizeGB: 1
+
+    envVars:
+      # --- secrets: set these in the dashboard, never here ---
+      - key: NEXGEN_JWT_SECRET
+        sync: false
+      - key: NEXGEN_TEMPLATE_KEY
+        sync: false
+
+      # --- runtime ---
+      - key: NEXGEN_ENGINE_DEVICE
+        value: cpu
+      - key: NEXGEN_ENV
+        value: production
+
+      # Database and image storage both live on the persistent disk. With
+      # option B above, repoint NEXGEN_DATABASE_URL at Postgres and accept that
+      # NEXGEN_STORAGE_ROOT is ephemeral.
+      - key: NEXGEN_DATABASE_URL
+        value: sqlite:////var/data/imatch.db
+      - key: NEXGEN_STORAGE_ROOT
+        value: /var/data/storage
+      - key: NEXGEN_AUDIT_LOG_PATH
+        value: /var/data/audit.jsonl
+
+      # Relocate the InsightFace model cache onto the disk so the ~350 MB pack
+      # is downloaded once rather than on every cold start.
+      - key: NEXGEN_MODEL_ROOT
+        value: /var/data/models
+
+      # CORS: replace with the real Vercel origin once it is known. A wildcard
+      # is never acceptable here -- these endpoints carry biometric data behind
+      # credentialed requests.
+      - key: NEXGEN_CORS_ORIGINS
+        value: https://REPLACE-WITH-YOUR-VERCEL-DOMAIN.vercel.app
+
+      - key: PYTHON_VERSION
+        value: "3.11"

@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# WHAT THIS RUNS, AND WHAT IT DELIBERATELY DOES NOT
+# --------------------------------------------------
+# A fresh checkout has neither the InsightFace model pack (~350 MB, downloaded
+# at runtime) nor the embedding cache (~595 MB, gitignored). So CI runs the
+# subset that is genuinely reproducible from the repository alone:
+#
+#   * 145 of 161 tests -- everything not marked `slow`. Verified to pass with
+#     NEXGEN_MODEL_ROOT pointed at an empty directory, i.e. with no model pack
+#     present at all.
+#   * The CONFIGURATION half of the regression gate. The accuracy half needs
+#     the cached embeddings and cannot run here; the config half still catches
+#     threshold drift and a reappearing second copy of the thresholds, which is
+#     the failure this project actually had.
+#
+# The 16 `slow` tests exercise the real recognition pipeline and must be run
+# locally before release:  pytest backend/tests_engine/ backend/tests/
+#
+# This badge therefore attests "the code imports, the logic is sound, and the
+# configuration has not drifted" -- not "the model still scores 99.78% on LFW".
+# Claiming the latter from CI would be a badge that is not backed by its check.
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies (CPU)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt \
+                      -r backend/requirements-engine.txt \
+                      -r backend/requirements-cpu.txt
+          pip install pytest
+
+      - name: Verify the package imports
+        # Catches the circular-import class of bug: importing a submodule
+        # directly, rather than via main, which is what a script or test does.
+        working-directory: backend
+        run: |
+          python -c "from imatch_api.services.storage_service import decode_base64_image; print('submodule import OK')"
+          python -c "from imatch_api.main import app; print('app builds OK')"
+
+      - name: Run tests (no model pack required)
+        working-directory: backend
+        env:
+          # No model pack on a fresh runner. Pointing the root at an empty
+          # directory makes that explicit rather than accidental.
+          NEXGEN_MODEL_ROOT: ${{ runner.temp }}/no-models
+          NEXGEN_ENGINE_DEVICE: cpu
+          NEXGEN_JWT_SECRET: ci-only-not-a-real-secret-do-not-reuse
+        run: |
+          mkdir -p "$NEXGEN_MODEL_ROOT"
+          pytest tests_engine/ tests/ -q -m "not slow"
+
+      - name: Regression gate (configuration invariants)
+        env:
+          NEXGEN_ENGINE_DEVICE: cpu
+          NEXGEN_JWT_SECRET: ci-only-not-a-real-secret-do-not-reuse
+        run: python backend/scripts/regression_check.py --config-only
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install and build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build

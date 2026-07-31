@@ -89,7 +89,7 @@ thresholds 0.2871 / 0.2153 / 0.2871.
 | **L4** | `frontend/dist` is force-added to a gitignored path — tracked copy drifts from source. Decide: untrack and build on deploy, or keep force-adding. |
 | **L5** | **Demographic differentials persist.** Women 1.7× the FNMR of men, under-25s 3.8× the 41–55 band. Raising the threshold relocated the errors; it did not remove the gap. |
 | **L6** | **CFP-FP absolute figures** in §2 were measured on the outlier pack and understate all configurations by ~1.5 points. Rankings unaffected. |
-| **L7** | **Concurrency unmeasured.** All latency figures are single-threaded (item 29, request batching, was never scheduled). |
+| **L7** | **Concurrency unmeasured.** All latency figures are single-threaded. **Item 29 (request batching) is now scheduled: after the deploy is proven working, before the Phase 7 stranger test (item 45).** L7 stays open until that measurement exists. |
 | **L8** | **Fine-tuning abandoned** — every available training archive is contaminated. No clean corpus on disk. |
 | **L9** | **Stranger test (item 45) not run** — blocked by L1. |
 | **L10** | **`IndexFlatIP` measured but not enabled in production**; installing faiss activates the existing guarded branch, which needs a deliberate verification run. |

@@ -2,17 +2,20 @@
 
 Forensic face recognition with auditable 1:1 verification and 1:N gallery search, built so every accuracy claim is measured and reproducible.
 
+[![CI](https://github.com/LochanSharmaa/nexgenforensics/actions/workflows/ci.yml/badge.svg)](https://github.com/LochanSharmaa/nexgenforensics/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
-[![Tests: 161 passing](https://img.shields.io/badge/tests-161%20passing-brightgreen.svg)](#running-the-tests)
 [![LFW 99.78%](https://img.shields.io/badge/LFW%201%3A1-99.78%25-informational.svg)](BENCHMARKS.md)
 [![TinyFace 82.45%](https://img.shields.io/badge/TinyFace-82.45%25-orange.svg)](BENCHMARKS.md)
 
-> **On badges:** there is no CI in this repository, so there is deliberately no
-> build-status badge. The test and accuracy badges above are static values
-> reproduced by the commands in [Running the tests](#running-the-tests) and
-> [Benchmarks](#benchmarks); they do not update automatically. Adding GitHub
-> Actions would make them live.
+> **What the CI badge attests.** CI runs 145 of the 161 tests — everything that
+> does not need the InsightFace model pack — plus the configuration half of the
+> regression gate. It verifies that the code imports, the logic is sound, and
+> the decision thresholds have not drifted. It does **not** re-measure accuracy:
+> that needs a ~350 MB model pack and a ~595 MB embedding cache, neither of
+> which is in the repository. The accuracy badges are static values reproduced
+> by the commands in [Benchmarks](#benchmarks). The remaining 16 tests exercise
+> the real recognition pipeline and must be run locally before release.
 
 ---
 
