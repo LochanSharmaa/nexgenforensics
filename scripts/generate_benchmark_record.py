@@ -92,13 +92,65 @@ def flatten(obj, prefix="") -> list[tuple[str, str]]:
             else:
                 rows.append((key, str(v)))
     elif isinstance(obj, list):
-        for i, v in enumerate(obj[:60]):
+        for i, v in enumerate(obj[:2000]):
             key = f"{prefix}[{i}]"
             if isinstance(v, (dict, list)):
                 rows.extend(flatten(v, key))
             else:
                 rows.append((key, str(v)))
     return rows
+
+
+def render_result_tables(data, parts: list[str]) -> bool:
+    """Emit full per-configuration and PER-FOLD tables for recognised shapes.
+
+    The per-fold rows are the substance of a verification record. They are what
+    demonstrates the threshold was fitted on nine folds and applied to the
+    tenth, and they are what a reader recomputes the mean and standard
+    deviation from. A document printing only the mean asks to be trusted; one
+    printing all ten folds can be checked.
+    """
+    rows = data.get("results") if isinstance(data, dict) else data
+    if not isinstance(rows, list) or not rows or not isinstance(rows[0], dict):
+        return False
+    if "dataset" not in rows[0] and "config" not in rows[0]:
+        return False
+
+    keys = [k for k in rows[0] if k != "folds" and not isinstance(rows[0][k], (dict, list))]
+    parts.append(f"### Per-configuration results ({len(rows)} rows)\n\n")
+    parts.append("| " + " | ".join(keys) + " |\n")
+    parts.append("|" + "---|" * len(keys) + "\n")
+    for row in rows:
+        cells = [f"{row[k]:.5f}" if isinstance(row.get(k), float) else str(row.get(k, ""))
+                 for k in keys]
+        parts.append("| " + " | ".join(cells) + " |\n")
+    parts.append("\n")
+
+    total = sum(len(r.get("folds") or []) for r in rows)
+    if not total:
+        return True
+
+    parts.append(f"### Per-fold detail ({total} fold records)\n\n")
+    parts.append("The threshold shown for each fold was fitted on the other nine "
+                 "and applied to this one.\n\n")
+    for row in rows:
+        folds = row.get("folds") or []
+        if not folds:
+            continue
+        parts.append(f"#### {row.get('dataset', '?')} / {row.get('config', '?')}\n\n")
+        parts.append("| Fold | Accuracy | Threshold (fitted on 9) |\n|---|---|---|\n")
+        for i, f in enumerate(folds, 1):
+            acc, thr = f.get("accuracy"), f.get("threshold")
+            acc_s = f"{acc * 100:.4f}%" if isinstance(acc, float) else str(acc)
+            thr_s = f"{thr:.6f}" if isinstance(thr, float) else str(thr)
+            parts.append(f"| {i} | {acc_s} | {thr_s} |\n")
+        accs = [f["accuracy"] for f in folds if isinstance(f.get("accuracy"), float)]
+        if accs:
+            mean = sum(accs) / len(accs)
+            std = (sum((a - mean) ** 2 for a in accs) / len(accs)) ** 0.5
+            parts.append(f"| **mean** | **{mean * 100:.4f}%** | std {std * 100:.4f}pp |\n")
+        parts.append("\n")
+    return True
 
 
 def main() -> int:
@@ -186,14 +238,19 @@ pairs it is reported against.**
             parts.append(f"## Measurement — `runtime/benchmarks/{f.name}`\n\n")
 
             if data is not None:
-                rows = flatten(data)
-                scalar = [r for r in rows if len(r[0]) < 90][:400]
-                if scalar:
-                    parts.append("### Values\n\n| Field | Value |\n|---|---|\n")
-                    for k, v in scalar:
-                        vv = v.replace("|", "\\|")[:200]
-                        parts.append(f"| `{k}` | {vv} |\n")
-                    parts.append("\n")
+                if not render_result_tables(data, parts):
+                    # Unrecognised shape: fall back to a flattened view. The cap
+                    # is high because this document's premise is that nothing is
+                    # silently dropped — a truncated table is a summary
+                    # presented as a record.
+                    rows = flatten(data)
+                    scalar = [r for r in rows if len(r[0]) < 120]
+                    if scalar:
+                        parts.append("### Values\n\n| Field | Value |\n|---|---|\n")
+                        for k, v in scalar:
+                            vv = v.replace("|", "\\|")[:300]
+                            parts.append(f"| `{k}` | {vv} |\n")
+                        parts.append("\n")
 
             parts.append("### Raw artefact\n\n```json\n")
             parts.append(pretty)
