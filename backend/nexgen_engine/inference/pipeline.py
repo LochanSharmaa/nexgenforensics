@@ -285,9 +285,44 @@ def decode_image(image_bytes: bytes) -> Image.Image:
     try:
         with Image.open(BytesIO(image_bytes)) as handle:
             handle.load()
-            return ImageOps.exif_transpose(handle).convert("RGB")
+            image = ImageOps.exif_transpose(handle).convert("RGB")
     except (UnidentifiedImageError, OSError, ValueError) as exc:
         raise InvalidImageError(f"Could not decode image: {exc}") from exc
+
+    # Reject degenerate geometry HERE, where it can still be a typed error.
+    #
+    # SCRFD scales the image to fit the detector input while preserving aspect
+    # ratio: new_height = int(new_width * height / width). For a 4000x1 strip
+    # that rounds to 0, and cv2.resize then raises a bare cv2.error
+    # ("inv_scale_x > 0") from deep inside insightface. That exception is not
+    # one the API maps to a 4xx, so it surfaced as a 500 -- an unreadable
+    # failure for the operator and, in a batch, one that killed the request.
+    #
+    # Found by tests_engine/test_adversarial_input.py. A 1px-tall strip is a
+    # realistic accident from a bad crop, not just a synthetic attack.
+    #
+    # The floor is the detector's minimum useful edge, not 1px: an image
+    # smaller than this cannot contain a detectable face, so rejecting it with
+    # a clear message beats letting the detector return nothing.
+    min_edge = 16
+    if image.width < min_edge or image.height < min_edge:
+        raise InvalidImageError(
+            f"Image is {image.width}x{image.height}; each side must be at least "
+            f"{min_edge}px for face detection to be possible."
+        )
+
+    # Guard the ratio itself as well as the sides: 4000x20 clears the floor
+    # above but still scales to a sub-pixel height at detector input size.
+    longest, shortest = max(image.width, image.height), min(image.width, image.height)
+    max_ratio = 50
+    if longest / shortest > max_ratio:
+        raise InvalidImageError(
+            f"Image aspect ratio is {longest / shortest:.0f}:1 "
+            f"({image.width}x{image.height}); the maximum supported is {max_ratio}:1. "
+            "This usually means the image was cropped incorrectly."
+        )
+
+    return image
 
 
 __all__ = [
