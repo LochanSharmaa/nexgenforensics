@@ -1,14 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./FaceSearchExperience.css";
 import faceSearchVideo from "../../assets/facesearch.mp4";
-import { imatchApiUrl, runImatchSearch, runVerifyCompare, runBatchIdentify } from "../../services/imatchApi";
+import {
+  imatchApiUrl,
+  runSearch,
+  runVerification,
+  normalizeVerifyResult,
+} from "../../services/imatchApi";
 
+// Each item must correspond to something implemented and tested. See CLAIMS.md.
+// "99.99% Benchmark Target" was a placeholder with no measurement behind it and
+// is replaced by a real, dataset-qualified number from BENCHMARKS.md. Accuracy
+// must never be quoted without naming the dataset and the task (1:1
+// verification vs. rank-1 identification).
 const trustItems = [
   "Commercial Face Matching",
-  "Liveness Detection",
-  "Deepfake Check",
-  "Tenant Isolation",
-  "99.99% Benchmark Target",
+  "Image Quality & Capture Check",
+  "Synthetic-Media Artifact Screen",
+  "Tenant-Isolated Gallery",
+  "99.77% 1:1 verification — LFW, 6,000 pairs",
 ];
 
 const storySteps = [
@@ -47,10 +57,10 @@ const storySteps = [
   {
     label: "Verification Complete",
     title: "Confirm authenticity before results move forward.",
-    body: "Liveness, deepfake, consent, and quality checks are preserved with recognition scoring for enterprise review workflows.",
+    body: "Capture-quality and synthetic-media artifact screens are recorded alongside the recognition score, and every search writes a retrievable audit record.",
     mode: "complete",
     score: "96.8%",
-    results: ["Liveness passed", "Deepfake check passed", "Audit entry ready"],
+    results: ["Quality check passed", "Artifact screen passed", "Audit record written"],
   },
 ];
 
@@ -116,15 +126,9 @@ const searchModes = [
     placeholder: "Enter manifest URL or cloud batch path",
     summary: ["Batch queue ready", "Multi-image processing", "Result export"],
   },
-  {
-    id: "url",
-    label: "URL Import",
-    title: "Import a remote face image from a secure URL",
-    formats: "HTTPS - S3 - Azure Blob - GCS",
-    urlLabel: "Image URL",
-    placeholder: "Paste secure image URL",
-    summary: ["Remote intake", "Source validation", "Cloud path verified"],
-  },
+  // "URL Import" mode removed alongside the URL field: the API accepts
+  // multipart uploads only, so this mode could never complete a search.
+  // See CLAIMS.md for the SSRF requirements before reinstating it.
 ];
 
 // ─── Label → display config ──────────────────────────────────────────────────
@@ -166,13 +170,19 @@ export function FaceSearchExperience() {
         <div className="im-orb im-orb-one" aria-hidden="true" />
         <div className="im-hero-copy">
           <p className="im-eyebrow">NexGen Identity Product Suite</p>
-          <p className="im-badge">Enterprise biometric engine - validation target 99.99%</p>
+          {/* Real measured number, dataset-qualified. See BENCHMARKS.md section 2.
+              The previous "validation target 99.99%" was an aspiration with no
+              measurement behind it, presented as a capability. */}
+          <p className="im-badge">
+            Enterprise biometric engine - 99.77% 1:1 verification (LFW, 6,000 pairs)
+          </p>
           <h1 id="imatch-title">NexGen iMatch</h1>
           <h2>Enterprise Facial Recognition System</h2>
           <p>
             Advanced facial recognition for commercial face search, identity
-            verification, fraud prevention, access control, liveness detection,
-            deepfake checks, and secure recognition workflows.
+            verification, fraud prevention, access control, capture-quality
+            screening, synthetic-media artifact checks, and audited recognition
+            workflows.
           </p>
           <div className="im-hero-actions">
             <a href="#story">Start Face Search</a>
@@ -332,15 +342,19 @@ function BatchPanel() {
     }
     setError("");
     setBatchResult(null);
-    setRunState("running");
-    try {
-      const res = await runBatchIdentify(batchFiles);
-      setBatchResult(res);
-      setRunState("complete");
-    } catch (err) {
-      setError(err.message);
-      setRunState("error");
-    }
+
+    // NOT YET IMPLEMENTED, and deliberately surfaced as such.
+    // imatch_api exposes no batch endpoint (confirmed against its
+    // /openapi.json). The previous code called runBatchIdentify() against
+    // /api/biometrics/batch-identify on a backend that does not run, so this
+    // button could only ever have produced a network error. Saying so plainly
+    // beats a spinner that resolves to nothing.
+    setError(
+      "Batch processing is not available yet. The backend has no batch " +
+        "endpoint; single search and 1:1 comparison are working. This control " +
+        "is disabled rather than silently failing.",
+    );
+    setRunState("error");
   };
 
   return (
@@ -446,6 +460,7 @@ function ComparePanel() {
   const [runState, setRunState] = useState("idle"); // idle | running | complete | error
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
+  const [lawfulBasis, setLawfulBasis] = useState("");
 
   // Build preview URLs
   useEffect(() => {
@@ -465,10 +480,39 @@ function ComparePanel() {
   const handleRun = async () => {
     setError("");
     setResult(null);
+
+    // The API requires a stated lawful basis and records it verbatim in the
+    // audit chain. It is deliberately NOT defaulted to a placeholder here: the
+    // point of the field is that a person had to type a reason.
+    if (!lawfulBasis.trim()) {
+      setError("State a lawful basis for this comparison before running it.");
+      setRunState("error");
+      return;
+    }
+
     setRunState("running");
     try {
-      const res = await runVerifyCompare(refFile, probeFile);
-      setResult(res);
+      const n = normalizeVerifyResult(
+        await runVerification({
+          referenceFile: refFile,
+          probeFile,
+          lawfulBasis: lawfulBasis.trim(),
+        }),
+      );
+
+      // Only two decisions are reported, because the API returns exactly two:
+      // a similarity and a boolean against one threshold. An "inconclusive"
+      // middle band would be a decision rule the engine does not apply.
+      setResult({
+        ...n,
+        score: n.similarity,
+        label: n.verified ? "same_person" : "different_person",
+        qualityRef: n.reference.quality,
+        livenessRef: n.reference.liveness,
+        qualityProbe: n.probe.quality,
+        livenessProbe: n.probe.liveness,
+        reviewRequired: !n.reference.qualityAccepted || !n.probe.qualityAccepted,
+      });
       setRunState("complete");
     } catch (err) {
       setError(err.message);
@@ -477,7 +521,9 @@ function ComparePanel() {
   };
 
   const labelCfg = result ? (LABEL_CONFIG[result.label] ?? LABEL_CONFIG.unknown) : null;
-  const scorePct = result ? `${Math.round(result.score * 100)}%` : "—";
+  // Similarity is a cosine in [-1, 1]; a negative score must not render as a
+  // negative percentage bar, and must not be silently clamped away either.
+  const scorePct = result ? `${(result.score * 100).toFixed(1)}%` : "—";
 
   return (
     <div className="im-compare-panel">
@@ -498,6 +544,18 @@ function ComparePanel() {
         />
       </div>
 
+      {/* Lawful basis - required by the API, recorded verbatim in the audit chain */}
+      <label className="im-lawful-field">
+        <span>Lawful basis for this comparison (required, recorded in the audit log)</span>
+        <input
+          type="text"
+          value={lawfulBasis}
+          maxLength={500}
+          placeholder="e.g. Operation Redwood, warrant ref 2026/114"
+          onChange={(event) => setLawfulBasis(event.target.value)}
+        />
+      </label>
+
       {/* Score bar */}
       <div className="im-state-panel">
         <div>
@@ -505,15 +563,24 @@ function ComparePanel() {
           <strong>{runState === "running" ? "…" : scorePct}</strong>
         </div>
         <div className="im-progress">
-          <i style={{ width: runState === "running" ? "60%" : result ? `${Math.round(result.score * 100)}%` : "0%" }} />
+          {/* Cosine ranges [-1,1]; clamp only the BAR width so a negative score
+              does not render as a negative element. The numeric score above is
+              shown unclamped. */}
+          <i style={{ width: runState === "running" ? "60%" : result ? `${Math.max(0, Math.min(100, result.score * 100))}%` : "0%" }} />
         </div>
         <ul>
           {result
             ? [
-                `Cosine similarity: ${result.score.toFixed(4)}`,
-                `Ref quality: ${Math.round(result.qualityRef * 100)}% · Liveness: ${Math.round(result.livenessRef * 100)}%`,
-                `Probe quality: ${Math.round(result.qualityProbe * 100)}% · Liveness: ${Math.round(result.livenessProbe * 100)}%`,
-              ].map((item) => <li key={item}>{item}</li>)
+                `Cosine similarity: ${result.score.toFixed(4)} (threshold ${result.threshold ?? "—"})`,
+                `Reference — quality ${(result.qualityRef * 100).toFixed(1)}% · deepfake-artifact risk ${(result.reference.deepfakeRisk * 100).toFixed(1)}%`,
+                `Probe — quality ${(result.qualityProbe * 100).toFixed(1)}% · deepfake-artifact risk ${(result.probe.deepfakeRisk * 100).toFixed(1)}%`,
+                // Both figures below are HEURISTICS. The backend reports
+                // certified:false on every liveness block; that qualifier is
+                // rendered here rather than dropped, so nobody reads these as
+                // anti-spoofing or as a trained deepfake classifier.
+                `Capture heuristics (not certified anti-spoofing): ref ${(result.livenessRef * 100).toFixed(1)}% · probe ${(result.livenessProbe * 100).toFixed(1)}%`,
+                result.explanation,
+              ].filter(Boolean).map((item) => <li key={item}>{item}</li>)
             : ["Upload reference + probe images", "Runs full ArcFace pipeline", "Returns cosine similarity score"].map((item) => (
                 <li key={item}>{item}</li>
               ))}
@@ -529,9 +596,19 @@ function ComparePanel() {
             <span className="im-verdict-score">{Math.round(result.score * 100)}% similarity</span>
           </div>
           <div className="im-compare-meta">
+            {/* Rendered from the value the backend reports for THIS comparison.
+                Never hardcode it: the optimum is model-specific (w600k_r50
+                tunes to 0.20, glintr100 to 0.22) and this panel previously
+                stated a fixed ">=42% = same person" rule that the engine had
+                stopped using -- a decision rule shown to an operator that the
+                system was not actually applying. */}
             <div>
-              <b>Threshold</b>
-              <span>≥ 42% → same person · 28–42% → inconclusive · &lt; 28% → different</span>
+              <b>Decision threshold</b>
+              <span>
+                {typeof result.threshold === "number"
+                  ? `similarity ≥ ${result.threshold.toFixed(2)} → supports same person`
+                  : "reported by engine per comparison"}
+              </span>
             </div>
             {result.reviewRequired && (
               <div className="im-compare-review">⚠ Human review recommended</div>
@@ -591,17 +668,28 @@ function FaceDropZone({ id, label, preview, onChange }) {
 function SingleSearchPanel({ step, activeMode }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState("");
-  const [sourceUrl, setSourceUrl] = useState("");
+  // Labels describe what the backend actually computes. See CLAIMS.md.
+  // - "Image Quality & Capture Check" is security/liveness.py: a passive
+  //   single-frame texture/moire/colour heuristic. It is NOT presentation-attack
+  //   detection and will not stop a printed photo or a replay attack.
+  // - "Synthetic-Media Artifact Screen" is security/deepfake_detector.py: an FFT
+  //   smoothness + checkerboard heuristic, not a trained deepfake classifier.
+  //   Advisory only.
+  // "Auto-enhance" was removed: it had no backend implementation at all, so the
+  // checkbox told users their image was being processed when nothing happened.
   const [selectedChecks, setSelectedChecks] = useState({
-    "Liveness Check": true,
-    "Deepfake Check": true,
+    "Image Quality & Capture Check": true,
+    "Synthetic-Media Artifact Screen": true,
     "Quality Assessment": true,
-    "Auto-enhance": true,
   });
   const [runState, setRunState] = useState("idle");
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
-  const options = ["Liveness Check", "Deepfake Check", "Quality Assessment", "Auto-enhance"];
+  const options = [
+    "Image Quality & Capture Check",
+    "Synthetic-Media Artifact Screen",
+    "Quality Assessment",
+  ];
   const mode = searchModes.find((item) => item.id === activeMode) ?? searchModes[0];
   const scorePercent = result ? `${Math.round(result.matchScore * 100)}%` : step.score;
   const panelLabel = result ? result.decision.replaceAll("_", " ") : step.label;
@@ -645,7 +733,6 @@ function SingleSearchPanel({ step, activeMode }) {
       const response = await runImatchSearch({
         file: selectedFile,
         mode: activeMode,
-        sourceUrl,
         checks: Object.entries(selectedChecks)
           .filter(([, enabled]) => enabled)
           .map(([label]) => label),
@@ -689,15 +776,11 @@ function SingleSearchPanel({ step, activeMode }) {
         </div>
       </div>
 
-      <label className="im-url-field">
-        <span>{mode.urlLabel}</span>
-        <input
-          type="url"
-          placeholder={mode.placeholder}
-          value={sourceUrl}
-          onChange={(event) => setSourceUrl(event.target.value)}
-        />
-      </label>
+      {/* URL import removed: the API accepts multipart uploads only, so this
+          field was collected and silently discarded. Re-adding it requires a
+          real fetch endpoint with SSRF protection (scheme allowlist, DNS
+          pinning, RFC1918/loopback/link-local blocking, redirect cap, response
+          size limit) -- see CLAIMS.md. */}
 
       <div className="im-mode-summary" aria-live="polite">
         {mode.summary.map((item) => (
