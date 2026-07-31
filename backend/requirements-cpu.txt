@@ -1,0 +1,9 @@
+# NexGen iMATCH - CPU-only inference pins.
+#
+#   pip install -r requirements.txt -r requirements-engine.txt -r requirements-cpu.txt
+#
+# Use this ONLY on hosts with no CUDA GPU. Do not combine with
+# requirements-gpu.txt -- `onnxruntime` and `onnxruntime-gpu` share the same
+# import namespace and will shadow each other unpredictably.
+
+onnxruntime>=1.20.0,<1.21

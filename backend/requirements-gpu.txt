@@ -1,0 +1,46 @@
+# NexGen iMATCH - GPU (CUDA) runtime pins.
+#
+# DO NOT install these files with pip directly. Use:
+#
+#   python scripts/setup_gpu.py
+#
+# `insightface` declares a dependency on the CPU `onnxruntime`, and pip cannot
+# know that `onnxruntime-gpu` provides the same import package -- so a plain
+# `pip install -r` lands BOTH in the same namespace and whichever unpacks last
+# wins. When the CPU build wins, everything silently runs on CPU. setup_gpu.py
+# installs these files, removes the CPU distribution, and then asserts CUDA
+# actually bound. See that script's docstring for the full explanation.
+#
+# ---------------------------------------------------------------------------
+# WHY THESE EXACT PINS (do not "upgrade to latest" without re-reading this)
+# ---------------------------------------------------------------------------
+# onnxruntime-gpu 1.20.1 is the last 1.x line built against CUDA 12.x + cuDNN 9.x.
+# onnxruntime-gpu >= 1.22 is built against CUDA 13.x and will NOT bind to a
+# CUDA 12 runtime -- it fails to load onnxruntime_providers_cuda.dll and then
+# SILENTLY falls back to CPUExecutionProvider with no error and no crash.
+#
+# onnxruntime-gpu does not ship the CUDA runtime itself; it dynamically loads
+# cudart64_12.dll / cublasLt64_12.dll / cudnn64_9.dll from the process DLL path.
+# In this project those DLLs come from the PyTorch cu121 wheels below, which is
+# why torch MUST be a +cu121 build. A `torch==X+cpu` install removes every CUDA
+# DLL from the venv and breaks onnxruntime GPU inference even though
+# onnxruntime-gpu itself is still installed -- this is the exact failure mode
+# this project hit before (torch 2.2.2+cpu next to onnxruntime-gpu 1.20.1).
+#
+# PyTorch 2.5.1+cu121 bundles CUDA 12.1 + cuDNN 9.1, satisfying onnxruntime-gpu
+# 1.20.1's "cuDNN 9.* and CUDA 12.*" requirement from a single dependency.
+#
+# scripts/verify_gpu.py asserts this stack actually binds CUDA at runtime.
+# Run it after ANY change to this file or to the venv.
+# ---------------------------------------------------------------------------
+
+--extra-index-url https://download.pytorch.org/whl/cu121
+
+torch==2.5.1+cu121
+torchvision==0.20.1+cu121
+
+# 1.20.2, not 1.20.1: PyPI publishes no Windows cp311 wheel for 1.20.1 (the
+# published Windows versions skip from 1.20.0 to 1.20.2), so pinning 1.20.1
+# fails on a clean Windows host even though it can be sideloaded. Verified by
+# rebuilding this venv from scratch.
+onnxruntime-gpu==1.20.2
