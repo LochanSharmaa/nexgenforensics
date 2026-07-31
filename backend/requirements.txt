@@ -31,3 +31,9 @@ reportlab>=4.0  # forensic case report PDF export (imatch_api/services/report_pd
 # the numpy path at 50k templates with recall 1.000 by construction (exact).
 # See BENCHMARKS.md 7d. Approximate indexes were measured and REJECTED.
 faiss-cpu>=1.8
+
+# Postgres driver (psycopg 3). Required for hosted deployments where SQLite on
+# a persistent disk is not available -- see render.yaml. imatch_api/db/session.py
+# rewrites postgres:// and postgresql:// URLs to postgresql+psycopg:// so a
+# connection string pasted from a provider dashboard works unmodified.
+psycopg[binary]>=3.1

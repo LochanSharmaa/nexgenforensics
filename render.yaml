@@ -1,49 +1,65 @@
-# Render blueprint for the NexGen iMATCH backend.
+# Render blueprint for the NexGen iMATCH backend — FREE TIER (option B).
 #
-# CPU ONLY. Render does not offer GPU instances, and this service does not need
-# one: NEXGEN_ENGINE_DEVICE=cpu uses the same weights and the same arithmetic,
-# so results are identical to the GPU path. Only latency changes -- roughly
-# 15 ms per encode on GPU versus noticeably more on a shared CPU instance.
+# CPU ONLY. Render offers no GPU instances, and this service does not need one:
+# NEXGEN_ENGINE_DEVICE=cpu uses the same weights and the same arithmetic, so
+# results are identical. Only latency differs.
 #
 # ---------------------------------------------------------------------------
-# BEFORE DEPLOYING, READ THIS: the disk below requires a PAID instance.
+# WHY THERE IS NO `disk:` BLOCK HERE
 # ---------------------------------------------------------------------------
-# Render's docs are explicit that persistent disks attach only to a paid web
-# service, private service, or background worker. They are NOT available on the
-# free tier.
+# Render's persistent disks attach only to PAID services; they are not offered
+# on the free tier. Rather than pay for one, this configuration keeps all
+# durable state in Postgres, which Render does offer free.
 #
-# Two viable shapes, and the choice is a spending decision, not a technical one:
+# That works because imatch_api/db/session.py branches on the URL scheme, so
+# SQLite and Postgres are both supported. Two consequences follow, and both are
+# real limitations rather than details:
 #
-#   A. PAID + DISK (this file as written)
-#      plan: starter, with the disk mounted at /var/data.
-#      SQLite lives on the disk; enrolments, cases and the audit trail survive
-#      restarts and redeploys. Simplest correct setup.
+#   1. PROBE IMAGES DO NOT SURVIVE A RESTART. StorageService writes uploaded
+#      images to the local filesystem, which on a free instance is ephemeral.
+#      Database rows survive -- cases, subjects, templates, the audit chain --
+#      but the bytes at `probe_path` are gone after a redeploy or a spin-down.
+#      A report can still be produced; the original image it references cannot
+#      be retrieved. Acceptable for a demo, NOT acceptable for casework.
 #
-#   B. FREE + EXTERNAL POSTGRES (set plan: free, delete the `disk:` block)
-#      Point NEXGEN_DATABASE_URL at a managed Postgres instance. The API
-#      already supports this -- db/session.py branches on the URL scheme -- but
-#      a Postgres driver is NOT currently in requirements.txt and would need
-#      adding (psycopg[binary]).
-#      Two caveats that matter:
-#        * Free web services spin down when idle, so the first request after a
-#          quiet period pays a cold start AND reloads the ~350 MB model pack.
-#        * Probe images written by StorageService go to the ephemeral
-#          filesystem and are LOST on restart. The database rows survive; the
-#          stored image bytes referenced by probe_path do not. For a demo that
-#          is acceptable; for casework it is not.
+#   2. COLD STARTS ARE SLOW. Free services spin down when idle. The first
+#      request afterwards restarts the process AND re-downloads the ~350 MB
+#      InsightFace model pack, because there is no disk to cache it on. Expect
+#      the first request after a quiet period to take minutes, not seconds.
 #
-# Whichever is chosen, generate NEXGEN_JWT_SECRET and NEXGEN_TEMPLATE_KEY as
-# real random values and set them in the Render dashboard. They are marked
-# sync: false below so they are never committed to this file.
+# To remove both, move to a paid instance and add:
 #
-# LOSING NEXGEN_TEMPLATE_KEY MAKES EVERY STORED TEMPLATE UNDECRYPTABLE.
-# Back it up somewhere you will still have in a year.
+#   disk:
+#     name: imatch-data
+#     mountPath: /var/data
+#     sizeGB: 1
+#
+# then set NEXGEN_STORAGE_ROOT and NEXGEN_MODEL_ROOT under /var/data.
+#
+# ---------------------------------------------------------------------------
+# SECRETS
+# ---------------------------------------------------------------------------
+# NEXGEN_JWT_SECRET and NEXGEN_TEMPLATE_KEY are marked `sync: false`, so Render
+# prompts for them in the dashboard and they are never committed here.
+#
+# LOSING NEXGEN_TEMPLATE_KEY MAKES EVERY STORED TEMPLATE PERMANENTLY
+# UNDECRYPTABLE. There is no recovery path. Back it up before first deploy.
+
+databases:
+  - name: nexgen-imatch-db
+    plan: free
+    databaseName: imatch
+    user: imatch
+    # NOTE: Render's free Postgres instances expire. Check the current
+    # retention period on the dashboard -- when it lapses the database is
+    # removed and every enrolment, case and audit row goes with it. Treat this
+    # deployment as a demo, and export anything that matters.
 
 services:
   - type: web
     name: nexgen-imatch-api
     runtime: python
-    plan: starter # free tier cannot mount the disk below; see note above
+    plan: free
     region: oregon
     branch: main
     rootDir: .
@@ -56,46 +72,40 @@ services:
 
     startCommand: uvicorn imatch_api.main:app --host 0.0.0.0 --port $PORT --app-dir backend
 
+    # Render polls this to decide the service is live. /api/health needs no
+    # auth and does not touch the model, so it answers during warm-up.
     healthCheckPath: /api/health
 
-    disk:
-      name: imatch-data
-      mountPath: /var/data
-      sizeGB: 1
-
     envVars:
-      # --- secrets: set these in the dashboard, never here ---
+      # --- secrets: Render prompts for these; never commit them ---
       - key: NEXGEN_JWT_SECRET
         sync: false
       - key: NEXGEN_TEMPLATE_KEY
         sync: false
+
+      # --- database: wired automatically from the instance declared above ---
+      # Render supplies a postgres:// URL. session.py rewrites the scheme to
+      # postgresql+psycopg:// so psycopg 3 is used; pasting it unmodified is
+      # correct and intended.
+      - key: NEXGEN_DATABASE_URL
+        fromDatabase:
+          name: nexgen-imatch-db
+          property: connectionString
 
       # --- runtime ---
       - key: NEXGEN_ENGINE_DEVICE
         value: cpu
       - key: NEXGEN_ENV
         value: production
-
-      # Database and image storage both live on the persistent disk. With
-      # option B above, repoint NEXGEN_DATABASE_URL at Postgres and accept that
-      # NEXGEN_STORAGE_ROOT is ephemeral.
-      - key: NEXGEN_DATABASE_URL
-        value: sqlite:////var/data/imatch.db
-      - key: NEXGEN_STORAGE_ROOT
-        value: /var/data/storage
-      - key: NEXGEN_AUDIT_LOG_PATH
-        value: /var/data/audit.jsonl
-
-      # Relocate the InsightFace model cache onto the disk so the ~350 MB pack
-      # is downloaded once rather than on every cold start.
-      - key: NEXGEN_MODEL_ROOT
-        value: /var/data/models
-
-      # CORS: replace with the real Vercel origin once it is known. A wildcard
-      # is never acceptable here -- these endpoints carry biometric data behind
-      # credentialed requests.
-      - key: NEXGEN_CORS_ORIGINS
-        value: https://REPLACE-WITH-YOUR-VERCEL-DOMAIN.vercel.app
-
       - key: PYTHON_VERSION
         value: "3.11"
+
+      # Ephemeral on the free tier. Named explicitly so the path is visible
+      # rather than defaulting somewhere surprising. See limitation 1 above.
+      - key: NEXGEN_STORAGE_ROOT
+        value: /tmp/imatch-storage
+
+      # CORS: replace with the real Vercel origin once known. Never a wildcard
+      # -- these endpoints carry biometric data behind credentialed requests.
+      - key: NEXGEN_CORS_ORIGINS
+        value: https://REPLACE-WITH-YOUR-VERCEL-DOMAIN.vercel.app

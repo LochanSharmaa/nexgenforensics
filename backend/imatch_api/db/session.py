@@ -23,9 +23,29 @@ def _sqlite_path(url: str) -> Path | None:
     return Path(tail) if tail and tail != ":memory:" else None
 
 
+def normalise_database_url(url: str) -> str:
+    """Make a hosted-Postgres URL usable by SQLAlchemy with psycopg 3.
+
+    Managed providers (Render, Heroku, Fly) hand out URLs beginning `postgres://`
+    or `postgresql://`. SQLAlchemy maps both to the psycopg **2** driver, which
+    this project does not install -- the declared dependency is `psycopg[binary]`,
+    which is psycopg **3**. Without this the service fails at startup with
+    "No module named 'psycopg2'", and the URL you pasted looks perfectly correct
+    while being wrong.
+
+    Rewriting the scheme here rather than asking an operator to hand-edit the
+    connection string keeps copy-paste from the provider dashboard working.
+    """
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://") :]
+    if url.startswith("postgresql://"):
+        url = "postgresql+psycopg://" + url[len("postgresql://") :]
+    return url
+
+
 def build_engine(settings: Settings | None = None) -> Engine:
     settings = settings or get_settings()
-    url = settings.database_url
+    url = normalise_database_url(settings.database_url)
 
     connect_args: dict[str, object] = {}
     if url.startswith("sqlite"):
