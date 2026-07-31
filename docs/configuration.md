@@ -106,6 +106,12 @@ badly wrong for 50,000.
 Measure the genuine and impostor distributions on your own imagery:
 
 ```bash
+# Full published benchmark suite (LFW/AgeDB-30/CFP-FP/CALFW/CPLFW) -- use this
+# to pick the deployed threshold. See BENCHMARKS.md section 5c.
+python scripts/calibrate_threshold_suite.py --model w600k_r50
+
+# Your OWN operational imagery, one directory per identity (folders only,
+# cannot read the .bin protocol packs):
 python scripts/calibrate_threshold.py path/to/dataset --max-identities 500
 ```
 

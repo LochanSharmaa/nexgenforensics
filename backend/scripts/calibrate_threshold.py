@@ -1,5 +1,20 @@
 """Calibrate the match threshold against your own imagery.
 
+    NOT THE TOOL FOR FULL-SUITE CALIBRATION -- use
+    backend/scripts/calibrate_threshold_suite.py for that.
+
+    This script reads a folder-per-identity dataset and constructs its own
+    pairs. It CANNOT read the .bin protocol packs (lfw/agedb_30/cfp_fp/
+    calfw/cplfw), so it cannot calibrate against the published pair lists this
+    project reports accuracy on. Calibrating on one dataset and deploying the
+    result across all of them is the mistake calibrate_threshold_suite.py
+    exists to prevent -- see BENCHMARKS.md section 5c, where the two methods
+    returned 0.2871 and 0.2363 for the same target FMR.
+
+    Use THIS script only for its stated purpose: calibrating against your OWN
+    operational imagery, laid out as one directory per identity.
+
+
 The shipped defaults (match 0.42, review 0.32) are generic ArcFace operating
 points. They are a starting position, not a validated setting: the false-match
 rate at a fixed threshold rises with gallery size and degrades with image

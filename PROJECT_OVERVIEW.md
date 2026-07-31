@@ -113,7 +113,8 @@ nexgenforensics/
 │   │   └── data/                 loader, quality_filter, augmentation, manifest, ingestion_validator
 │   │
 │   ├── scripts/                  benchmark_verification / _tinyface / _demographics / _finetuned,
-│   │                             bootstrap_admin, inventory_datasets, calibrate_threshold, others
+│   │                             bootstrap_admin, inventory_datasets, benchmark_speed,
+│                             calibrate_threshold_suite (full-suite calibration), others
 │   ├── tests_engine/             Engine + persistence tests (10 passing)
 │   ├── tests/                    API tests (require full imatch_api stack)
 │   ├── deployment/Dockerfile     Deploys imatch_api on :8443
@@ -142,7 +143,9 @@ nexgenforensics/
 
 ### `nexgen_engine/config.py`
 - `ThresholdConfig` — **the single source of truth for decision thresholds**
-  (`match`, `review`, `verify`; currently 0.20 / 0.15 / 0.20).
+  (`match`, `review`, `verify`; currently **0.2871 / 0.2153 / 0.2871**, raised
+  from 0.20/0.15/0.20 on 2026-07-31 to control false matches — decision record
+  and both calibration attempts in BENCHMARKS.md §5c).
   `imatch_api.core.config.Settings` and `nexgen_engine/api/service.py` both
   derive from it; no other copy may exist.
 - `EngineConfig` — model pack, `device` (`auto` | `cuda` | `cpu`),

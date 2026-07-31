@@ -18,7 +18,8 @@ backend/
     db/                   SQLModel schema and session management
     api/routes/           auth, cases, subjects, search, audit, admin, reports
     services/             Engine lifecycle, audit chain, storage, reporting
-  scripts/                seed.py, calibrate_threshold.py, dataset_cli.py
+  scripts/                seed.py, calibrate_threshold_suite.py (full suite),
+                          calibrate_threshold.py (folders only), dataset_cli.py
   tests/
   test_recognition.py     End-to-end CLI demonstration
 frontend/

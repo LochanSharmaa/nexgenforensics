@@ -30,9 +30,32 @@ class ThresholdConfig:
     given threshold depends heavily on gallery size and capture conditions.
     """
 
-    match: float = 0.42
-    review: float = 0.32
-    verify: float = 0.42
+    # CALIBRATED FOR FALSE-MATCH CONTROL, not for peak accuracy.
+    # Decision record and full measured tradeoff: BENCHMARKS.md section 5c.
+    #
+    # 0.2871 is the FMR=0.1% operating point for w600k_r50 (the pack this
+    # service loads), measured over 40,098 AgeDB pairs.
+    #
+    # It is deliberately NOT the accuracy-maximising value. That was 0.20, the
+    # 10-fold cross-validated optimum, and it carried FMR = 1.19% -- roughly
+    # one false match per 84 impostor comparisons. That was demonstrated in
+    # practice: two different people scored 0.2405 and the system reported the
+    # comparison as supporting the same person.
+    #
+    # For forensic use the objective is not accuracy. A missed lead costs a
+    # re-check; a false match points investigators at an innocent person. The
+    # measured trade is a 12x reduction in false matches (1.19% -> 0.10%) for
+    # roughly double the miss rate (FNMR 3.30% -> 6.32%).
+    #
+    # Model-specific: re-derive with backend/scripts/benchmark_demographics.py
+    # (omit --threshold to get the FMR=0.1% point) after ANY change to the
+    # model pack or embedding pipeline. Do not copy this number to another pack.
+    match: float = 0.2871
+    # Review band kept at the previous 0.75 ratio to the match threshold, so
+    # near-miss candidates still reach a human. This ratio was not separately
+    # optimised and is a carried-forward convention, not a measured value.
+    review: float = 0.2153
+    verify: float = 0.2871
 
 
 @dataclass(frozen=True)
@@ -70,7 +93,9 @@ class EngineConfig:
 
     model_pack: str = "buffalo_l"
     model_root: str | None = None
-    device: str = "cpu"
+    # "auto" picks CUDA when it genuinely binds (verified with a real ONNX
+    # session, not the build-time provider list) and CPU otherwise.
+    device: str = "auto"
     # Upper bound for the detector input. The detector picks the smallest size
     # that fits each image, so this is a ceiling and not a fixed cost.
     detection_size: tuple[int, int] = (640, 640)
@@ -87,8 +112,8 @@ class EngineConfig:
     search: SearchConfig = field(default_factory=SearchConfig)
 
     def __post_init__(self) -> None:
-        if self.device not in {"cpu", "cuda"}:
-            raise ValueError(f"Unknown device {self.device!r}; expected cpu or cuda.")
+        if self.device not in {"cpu", "cuda", "auto"}:
+            raise ValueError(f"Unknown device {self.device!r}; expected cpu, cuda, or auto.")
         if not 0.0 < self.min_detection_confidence <= 1.0:
             raise ValueError("min_detection_confidence must be in (0, 1].")
 

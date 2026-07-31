@@ -280,6 +280,118 @@ actually loads, at the threshold the service actually decides on.
    concealing a subgroup at 7.61%, and says nothing about the 1.70% FMR
    carried by women.
 
+### 5c. DECISION RECORD — operating threshold raised 0.20 → 0.2871
+
+**Date:** 2026-07-31 · **Approved by:** project owner · **Model:** `w600k_r50`
+**Changed in:** `nexgen_engine/config.py::ThresholdConfig` (single source of truth)
+
+#### What prompted it
+
+A real 1:1 comparison of **two different people** returned similarity
+**0.2405** and the system reported *"supports … that the images show the same
+person."* Not a defect — the pair fell between the deployed threshold (0.20)
+and the FMR=0.1% point (0.2871). It is a direct instance of the 1.19%
+false-match rate measured in §5a: about **1 in 84** impostor comparisons.
+
+#### Why the old value was wrong for this system
+
+0.20 was the **accuracy-maximising** threshold from 10-fold cross-validation.
+Accuracy weights a miss and a false match equally. Forensic work does not: a
+missed lead costs a re-check, a false match points investigators at an innocent
+person. Optimising accuracy silently chose a permissive operating point.
+
+#### Measured tradeoff — 40,098 AgeDB pairs, same model, same pair set
+
+| Subgroup | FNMR @0.20 | FNMR @0.2871 | FMR @0.20 | FMR @0.2871 |
+|---|---:|---:|---:|---:|
+| **ALL** | 3.30% | **6.32%** | **1.19%** | **0.10%** |
+| gender = female | 4.88% | 8.45% | 1.70% | 0.16% |
+| gender = male | 2.21% | 4.86% | 0.68% | 0.03% |
+| age 0–25 | 7.61% | **14.75%** | 1.21% | 0.10% |
+| age 26–40 | 3.24% | 5.78% | 1.26% | 0.05% |
+| age 41–55 | 2.14% | 3.91% | 1.10% | 0.15% |
+| age 56+ | 2.90% | 6.12% | 1.19% | 0.09% |
+
+**Net:** false matches fall **12×** (1.19% → 0.10%, ~1 in 84 → ~1 in 1,000);
+misses roughly double (3.30% → 6.32%). The 0.2405 pair above now correctly
+rejects.
+
+#### Costs accepted, stated plainly
+
+1. **Misses nearly double**, and the burden is uneven. The under-25 group goes
+   from 7.61% to **14.75%** FNMR — close to one in seven genuine pairs missed.
+2. **The demographic disparity is not fixed, only relocated.** Women retain
+   ~1.7× the FNMR of men (8.45% vs 4.86%) and ~5× the FMR (0.16% vs 0.03%).
+   Raising the threshold changes where errors land, not who bears them.
+3. **This is a single-dataset calibration.** It is derived from AgeDB pairs and
+   has not been validated against operational imagery. It is an operating point,
+   not an accuracy guarantee.
+
+#### Two calibrations were run, and they disagreed
+
+Before applying 0.2871 it was validated against the **full published suite**
+rather than the single dataset it came from. The two methods returned different
+answers, and the disagreement is the useful part of this record.
+
+| Calibration | Impostor pairs | FMR=0.1% threshold |
+|---|---|---|
+| AgeDB, within-subgroup pairs (`benchmark_demographics.py`) | 32,000, matched on gender + age band | **0.2871** |
+| Full suite, published protocol pairs (`calibrate_threshold_suite.py`) | 15,500 across LFW/AgeDB-30/CFP-FP/CALFW/CPLFW | **0.2363** |
+
+Per-dataset FMR=0.1% points were tightly clustered — LFW 0.2137, AgeDB-30
+0.2388, CFP-FP 0.2094, CALFW 0.2480, CPLFW 0.2404, spread 0.0386 — so the
+disagreement is **not** between datasets. It is between *impostor difficulty*.
+
+**Why 0.2363 was rejected.** The published packs pair identities at random, so
+most impostors are trivially separable — different sex, decades apart. The
+within-subgroup set pairs only same-gender, same-age-band identities. Measured
+on that harder distribution:
+
+| Threshold | FMR on protocol pairs | FMR on within-subgroup pairs |
+|---|---|---|
+| 0.2363 | 0.09% ✓ on target | **0.44%** ✗ 4.4× target |
+| 0.2871 | ~0.00% | **0.10%** ✓ on target |
+
+0.2363 reaches the FMR target only on an unrepresentatively easy distribution.
+Decisively, the triggering false-match pair scored **0.2405** — *above* 0.2363 —
+so adopting the combined-suite number would have reintroduced the exact failure
+this change was made to remove.
+
+Real casework impostors resemble the hard set: examiners compare people who are
+already plausibly similar, not random strangers. **0.2871 was kept.**
+
+#### Accuracy cost, all datasets, all three thresholds
+
+| Dataset | Acc @0.20 | Acc @0.2363 | Acc @0.2871 |
+|---|---|---|---|
+| LFW | 99.77% | 99.80% | 99.78% |
+| AgeDB-30 | 98.13% | 97.97% | 96.68% |
+| CFP-FP | 97.43% | 97.11% | 96.27% |
+| CALFW | 96.07% | 96.07% | 95.53% |
+| CPLFW | 94.32% | 93.65% | 92.55% |
+| **Pooled** | **97.15%** | **96.93%** | **96.17%** |
+
+Pooled FNMR rises 5.40% → 6.06% → 7.65%. **Accuracy is highest at 0.20**, which
+is the point: 0.20 *is* the accuracy-optimal threshold and it is the one that
+produced the false match. About one point of pooled accuracy was traded for a
+12× reduction in false matches. CFP-FF is excluded — no cached embeddings, and
+it was not estimated.
+
+#### Verification status of the triggering case — read this before citing it
+
+The 0.2405 pair was confirmed to reject **arithmetically only** (0.2405 <
+0.2871). The original two images were not available to re-run, so this has
+**not** been re-tested end to end through the engine. The score itself came
+from a real run, but the rejection is inferred from that recorded score rather
+than observed directly. Re-run it if those images become available.
+
+#### What this threshold is not
+
+It is **not** transferable. The optimum is model-specific (`glintr100` tunes
+elsewhere) and condition-specific — TinyFace-grade imagery tunes near 0.22 (§4).
+Re-derive with `benchmark_demographics.py` (omit `--threshold` for the FMR=0.1%
+point) after any change to the model pack or embedding pipeline.
+
 ### 5b. Prior measurement — superseded, retained for comparison
 
 The earlier run used **`glintr100`** (not the deployed model) at a threshold of

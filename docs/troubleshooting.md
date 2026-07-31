@@ -88,6 +88,9 @@ Recalibrate. The shipped thresholds are generic operating points, and false-matc
 rate rises with gallery size:
 
 ```bash
+# Deployed threshold comes from the full suite:
+python scripts/calibrate_threshold_suite.py --model w600k_r50
+# Folder-per-identity datasets only:
 python scripts/calibrate_threshold.py path/to/dataset
 ```
 

@@ -193,7 +193,8 @@ Authenticate with `Authorization: Bearer <token>` or `X-API-Key: <key>`.
 
 ```bash
 python scripts/seed.py                     # first tenant and administrator
-python scripts/calibrate_threshold.py DIR  # measure your operating point
+python scripts/calibrate_threshold_suite.py    # full suite -> deployed threshold
+python scripts/calibrate_threshold.py DIR      # your own folder-per-identity imagery
 python scripts/dataset_cli.py --help       # dataset manifest utilities
 ```
 
