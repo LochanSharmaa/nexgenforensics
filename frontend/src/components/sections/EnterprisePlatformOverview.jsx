@@ -50,7 +50,7 @@ export function EnterprisePlatformOverview() {
               dataset AND the task (1:1 verification, not identification). */}
           NexGen Identity is positioned for private-sector identity verification,
           fraud prevention, access control, and secure face search. Measured 1:1
-          verification accuracy is 99.77% on LFW (6,000 published pairs) and
+          verification accuracy is 99.78% on LFW (6,000 published pairs) and
           96.68% on AgeDB-30 (cross-age), falling to 82.45% on TinyFace
           (surveillance-resolution, median 32×32 px). No independent third-party
           validation has been carried out.

@@ -238,8 +238,25 @@ class TestDecisionEngine:
         assert decision.label == DECISION_NO_MATCH
 
     def test_borderline_score_goes_to_review(self, decisions):
+        """A score inside the review band must reach a human.
+
+        The probe score is DERIVED from the configured thresholds, not
+        hardcoded. It previously used a literal 0.36, which sat in the review
+        band only while the thresholds were 0.32/0.42. When they were
+        recalibrated to 0.2153/0.2871 for false-match control (BENCHMARKS.md
+        section 5c), 0.36 became a clear match and this test failed -- it was
+        asserting a number, not a behaviour.
+        """
+        t = decisions.config.thresholds
+        midband = (t.review + t.match) / 2
+        assert t.review < midband < t.match, "fixture assumption: a review band exists"
+
         decision = decisions.decide(
-            top_score=0.36, recognition_capable=True, probe_accepted=True, gallery_size=100, margin=0.1
+            top_score=midband,
+            recognition_capable=True,
+            probe_accepted=True,
+            gallery_size=100,
+            margin=0.1,
         )
         assert decision.label == DECISION_REVIEW
         assert "score_in_review_band" in decision.reasons

@@ -12,14 +12,23 @@ the current wording overstates it. **Remove**: no implementation.
 
 ---
 
+> **All figures on this page are for the DEPLOYED model, `w600k_r50`
+> (`buffalo_l`), at the deployed threshold 0.2871.** An earlier version of this
+> file quoted `glintr100` numbers while `w600k_r50` was in production — the two
+> models differ by ~1.5 points on clean sets and by 15 points on TinyFace, so
+> the mismatch materially misstated the system. Cross-checked against
+> BENCHMARKS.md on 2026-07-31 (item 46).
+>
+> Re-run that cross-check after ANY model, threshold or fusion change.
+
 ## Backed by code and tests
 
 | Claim | Implementation | Proof |
 |---|---|---|
 | GPU-accelerated inference | `models/cuda_runtime.py` asserts the *post-construction* execution provider; CPU fallback raises | `scripts/verify_gpu.py` — 12/12 checks pass, all 15 ONNX sub-models on `CUDAExecutionProvider` |
 | 1:1 face verification | `EngineService.verify()` | `BENCHMARKS.md` §2 — 5 published protocols, 31,000 pairs, 10-fold CV |
-| **99.77% verification accuracy (LFW)** | `glintr100`, flip-TTA, threshold 0.22 | `BENCHMARKS.md` §2. **Must be quoted with the dataset name** |
-| **98.32% (AgeDB-30, cross-age)** | same | `BENCHMARKS.md` §2 |
+| **99.78% verification accuracy (LFW)** | `w600k_r50` (DEPLOYED), flip-TTA, threshold 0.2871 | `BENCHMARKS.md` §2. **Must be quoted with the dataset name** |
+| **96.68% (AgeDB-30, cross-age)** | same, at the deployed 0.2871 threshold | `BENCHMARKS.md` §2, §5c |
 | Enrollments survive restart | `search/persistence.py` + `EngineService._restore_index()` | `tests_engine/test_service_durability.py::test_enrollment_survives_restart` |
 | Encrypted templates at rest | AES-256-GCM per row, key from `NEXGEN_TEMPLATE_KEY` | `test_persistence.py::test_templates_are_encrypted_on_disk` asserts plaintext floats are absent from the DB file |
 | Tamper detection on templates | GCM is authenticated — a wrong key raises, never silently decrypts | `test_persistence.py::test_wrong_key_is_detected_not_silently_wrong` |
@@ -74,19 +83,19 @@ Never publish a single blended accuracy number.
 
 | Allowed | Not allowed |
 |---|---|
-| "99.77% 1:1 verification accuracy on LFW (6,000 pairs, 10-fold CV)" | "99.99% accuracy" |
-| "98.32% on AgeDB-30 (cross-age)" | "99.99% validation target" |
-| "79.68% on TinyFace (degraded, median 32×32 px)" | any average of clean and degraded |
+| "99.78% 1:1 verification accuracy on LFW (6,000 pairs, 10-fold CV)" | "99.99% accuracy" |
+| "96.68% on AgeDB-30 (cross-age)" | "99.99% validation target" |
+| "82.45% on TinyFace (degraded, median 32×32 px)" | any average of clean and degraded |
 | "87.32% rank-1 identification" — **only** if labelled as identification | quoting the identification number for the verification feature |
 
 Two facts that must accompany any published number:
 
 1. **Degraded-footage performance collapses.** On TinyFace, TAR at FAR=0.1% is
-   **17.37%** — roughly one genuine match found in six. Clean-benchmark numbers
+   **33.13%** — roughly one genuine match found in three. Clean-benchmark numbers
    do not describe surveillance footage.
 2. **Error rates are not uniform across demographics.** At one global
-   threshold, women are falsely rejected 2.0× more often than men (6.09% vs
-   3.11%) and falsely matched 2.8× more often; the under-25 group has 4.2× the
+   threshold, women are falsely rejected 1.7× more often than men (8.45% vs
+   4.86%) and falsely matched 5× more often; the under-25 group has 3.8× the
    false-non-match rate of the 41–55 group. See `BENCHMARKS.md` §5.
 
 ---

@@ -19,7 +19,7 @@ const trustItems = [
   "Image Quality & Capture Check",
   "Synthetic-Media Artifact Screen",
   "Tenant-Isolated Gallery",
-  "99.77% 1:1 verification — LFW, 6,000 pairs",
+  "99.78% 1:1 verification — LFW, 6,000 pairs",
 ];
 
 const storySteps = [
@@ -175,7 +175,7 @@ export function FaceSearchExperience() {
               The previous "validation target 99.99%" was an aspiration with no
               measurement behind it, presented as a capability. */}
           <p className="im-badge">
-            Enterprise biometric engine - 99.77% 1:1 verification (LFW, 6,000 pairs)
+            Enterprise biometric engine - 99.78% 1:1 verification (LFW, 6,000 pairs)
           </p>
           <h1 id="imatch-title">NexGen iMatch</h1>
           <h2>Enterprise Facial Recognition System</h2>
