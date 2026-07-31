@@ -26,3 +26,8 @@ numpy>=1.26.4,<3.0
 cryptography>=44.0.0
 
 reportlab>=4.0  # forensic case report PDF export (imatch_api/services/report_pdf.py)
+
+# Exact inner-product index for 1:N gallery search. Measured 2.4x faster than
+# the numpy path at 50k templates with recall 1.000 by construction (exact).
+# See BENCHMARKS.md 7d. Approximate indexes were measured and REJECTED.
+faiss-cpu>=1.8

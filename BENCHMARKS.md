@@ -651,6 +651,61 @@ The script exits `2` on detection so it can gate a training run in CI.
 
 ---
 
+## 7d. ANN SEARCH — latency vs recall (item 28)
+
+```bash
+python backend/scripts/benchmark_ann.py --real --sizes 10000 50000
+```
+
+**Recall, not speed, decides adoption.** An approximate index that misses a
+candidate has silently withheld an investigative lead.
+
+### Measured on REAL ArcFace templates (50,000 gallery, top_k=10)
+
+| Index | p50 | qps | recall@1 | recall@10 |
+|---|---|---|---|---|
+| exact numpy *(production)* | 4.94 ms | 201 | 1.000 | 1.000 |
+| **faiss IndexFlatIP (exact)** | **2.07 ms** | **466** | **1.000** | **1.000** |
+| IVF-PQ nprobe=32 | 2.87 ms | 350 | 0.575 | 0.811 |
+| HNSW efSearch=256 | 0.72 ms | 1,314 | 0.615 | 0.968 |
+| HNSW efSearch=16 | 0.04 ms | 23,180 | 0.610 | 0.956 |
+
+### The synthetic run was invalid, and is retained only as a caution
+
+A first pass used random 512-d unit vectors and showed approximate recall@1
+collapsing to 0.005–0.465. **That was an artifact of the data, not a
+prediction.** Random high-dimensional vectors are nearly equidistant, so there
+is no cluster structure for IVF or HNSW to exploit. Real face embeddings
+cluster by identity — which is precisely what these indexes exist to use — and
+recall roughly doubled when measured on real templates.
+
+Quoting the synthetic numbers as the adoption answer would have been wrong.
+
+### Decision: adopt faiss `IndexFlatIP`; do NOT adopt an approximate index
+
+**`IndexFlatIP` is a free win.** It is *exact* — recall 1.000 by construction,
+not by measurement — and still **2.4× faster** than the numpy path at 50k
+(4.94 ms → 2.07 ms). This is the constant-factor speedup predicted in §7b;
+the prediction was right that it does not change complexity, and wrong that it
+was therefore not worth having.
+
+**Approximate indexes are rejected at current tuning.** HNSW is dramatically
+faster (up to 23,000 qps) but recall@1 sits at **0.61** on real data: roughly
+two in five searches return a different top-1 than exact search. For lead
+generation that is not acceptable without a much stronger recall guarantee.
+
+Caveat on recall@1: it compares gallery *indices*, and these packs contain
+near-duplicate images of the same identity, so a differing index does not
+always mean a different person. recall@10 (0.968) is the more forgiving and
+probably more operationally relevant figure. Even so, neither approaches the
+1.000 that exact search gives for free at this scale.
+
+**Revisit if the gallery exceeds ~100k**, where exact search costs ~11 ms and
+the trade may become worth measuring again — against real templates, with
+identity-level rather than index-level recall.
+
+---
+
 ## 8. Reproducibility
 
 - Embeddings are cached per (dataset, backbone) under
