@@ -205,16 +205,59 @@ export function fileToBase64(file) {
 
 // ------------------------------------------------------------------ auth ---
 
-export async function login({ email, password, tenant = "" }) {
+export async function login({ email, password, tenant = "", rememberMe = false }) {
   const payload = await request("/api/auth/login", {
     method: "POST",
     auth: false,
-    body: { email, password, tenant },
+    body: { email, password, tenant, remember_me: rememberMe },
   });
   tokenStore.set(payload?.access_token, payload?.refresh_token);
   // The login response carries tokens, not a profile. Fetch the profile so the
   // caller always receives the same shape it would get on session restore.
   return fetchCurrentUser();
+}
+
+/**
+ * Account lifecycle. Every one of these is unauthenticated (auth: false) --
+ * they are the endpoints a person uses precisely because they cannot sign in
+ * yet, so attaching a bearer token would be meaningless.
+ */
+export async function register({ fullName, email, password, confirmPassword, tenant = "" }) {
+  return request("/api/auth/register", {
+    method: "POST",
+    auth: false,
+    body: {
+      full_name: fullName,
+      email,
+      password,
+      confirm_password: confirmPassword,
+      tenant,
+    },
+  });
+}
+
+export async function verifyEmail({ email, otp }) {
+  return request("/api/auth/verify-email", {
+    method: "POST",
+    auth: false,
+    body: { email, otp },
+  });
+}
+
+export async function resendOtp({ email }) {
+  return request("/api/auth/resend-otp", { method: "POST", auth: false, body: { email } });
+}
+
+export async function forgotPassword({ email }) {
+  return request("/api/auth/forgot-password", { method: "POST", auth: false, body: { email } });
+}
+
+export async function resetPassword({ token, password, confirmPassword }) {
+  return request("/api/auth/reset-password", {
+    method: "POST",
+    auth: false,
+    body: { token, password, confirm_password: confirmPassword },
+  });
 }
 
 export async function logout() {

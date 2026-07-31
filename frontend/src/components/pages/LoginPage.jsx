@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { destinationFor, getWorkspaceMode } from "../../context/workspaceMode";
 import "./LoginPage.css";
+import "./AuthFlowPages.css";
 
 const accessItems = [
   "Case management and search history",
@@ -22,6 +23,10 @@ export function LoginPage() {
   const [tenant, setTenant] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  // Set by verify-email and reset-password so the outcome of those flows is
+  // confirmed on the screen the user lands on, not lost in the redirect.
+  const notice = location.state?.notice || "";
 
   const from = location.state?.from;
 
@@ -30,7 +35,7 @@ export function LoginPage() {
     setBusy(true);
     setError("");
     try {
-      await signIn({ email, password, tenant });
+      await signIn({ email, password, tenant, rememberMe });
       // First sign-in on this device: ask which experience they want before
       // dropping them somewhere. Afterwards the stored preference decides, so
       // the question is asked once and not on every login.
@@ -74,6 +79,11 @@ export function LoginPage() {
         </div>
 
         <form className="nx-login-form" onSubmit={handleSubmit}>
+          {notice && !error && (
+            <p className="nx-auth-ok" role="status">
+              {notice}
+            </p>
+          )}
           {error && (
             <p className="nx-login-error" role="alert">
               {error}
@@ -118,8 +128,18 @@ export function LoginPage() {
             />
           </label>
 
+          <label className="nx-remember">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(event) => setRememberMe(event.target.checked)}
+            />
+            <span>Keep me signed in on this device</span>
+          </label>
+
           <div className="nx-login-options">
-            <a href="/contact">Need access?</a>
+            <Link to="/forgot-password">Forgot password?</Link>
+            <Link to="/register">Create an account</Link>
           </div>
 
           <button type="submit" disabled={busy}>

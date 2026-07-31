@@ -22,6 +22,12 @@ import { FingerprintAIPage } from "./components/sections/FingerprintAIPage";
 import { NavigationPage } from "./components/pages/NavigationPages";
 import { LoginPage } from "./components/pages/LoginPage";
 import { ChooseRolePage } from "./components/pages/ChooseRolePage";
+import {
+  ForgotPasswordPage,
+  RegisterPage,
+  ResetPasswordPage,
+  VerifyEmailPage,
+} from "./components/pages/AuthFlowPages";
 import { IndividualComparePage } from "./components/pages/IndividualComparePage";
 
 import { WorkspaceLayout } from "./workspace/WorkspaceLayout";
@@ -154,6 +160,21 @@ export default function App() {
               </MarketingShell>
             }
           />
+          {/* Account lifecycle: all public, all reachable without a session --
+              they exist for people who cannot sign in yet. */}
+          {[
+            ["/register", <RegisterPage />],
+            ["/verify-email", <VerifyEmailPage />],
+            ["/forgot-password", <ForgotPasswordPage />],
+            ["/reset-password", <ResetPasswordPage />],
+          ].map(([path, element]) => (
+            <Route
+              key={path}
+              path={path}
+              element={<MarketingShell>{element}</MarketingShell>}
+            />
+          ))}
+
           {/* Post-login destination chooser. Sets a UI preference only -- it
               grants nothing, so it sits behind the same auth gate as anything
               else that assumes a signed-in user. */}

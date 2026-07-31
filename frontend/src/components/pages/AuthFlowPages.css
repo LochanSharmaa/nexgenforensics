@@ -1,0 +1,144 @@
+/* Only what the sign-in page does not already provide. Everything else comes
+   from LoginPage.css so these screens are the same surface, not a lookalike. */
+
+.nx-auth-narrow {
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 460px);
+}
+
+.nx-auth-footer {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(60, 45, 35, 0.12);
+  text-align: center;
+  font-size: 0.9rem;
+  color: rgba(44, 32, 24, 0.66);
+}
+
+.nx-auth-footer a {
+  color: #9a2f42;
+  font-weight: 600;
+}
+
+.nx-auth-ok {
+  margin: 0 0 16px;
+  padding: 11px 14px;
+  border: 1px solid rgba(31, 122, 77, 0.3);
+  border-radius: 10px;
+  background: rgba(31, 122, 77, 0.09);
+  color: #1f7a4d;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.nx-field-error {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.82rem;
+  color: #9a2f42;
+}
+
+/* ---- one-time-code boxes ---- */
+
+.nx-otp {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  margin: 6px 0 18px;
+}
+
+.nx-otp input {
+  width: 100%;
+  padding: 14px 0;
+  border: 1px solid rgba(60, 45, 35, 0.22);
+  border-radius: 10px;
+  background: rgba(255, 253, 248, 0.9);
+  text-align: center;
+  font: 700 22px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #1d3557;
+}
+
+.nx-otp input:focus {
+  outline: none;
+  border-color: rgba(154, 47, 66, 0.55);
+  box-shadow: 0 0 0 3px rgba(154, 47, 66, 0.12);
+}
+
+/* ---- password strength ---- */
+
+.nx-strength {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+  margin-top: 9px;
+}
+
+.nx-strength i {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(60, 45, 35, 0.15);
+}
+
+.nx-strength b,
+.nx-strength em {
+  grid-column: 1 / -1;
+  font-size: 0.8rem;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.nx-strength em {
+  font-weight: 400;
+  color: rgba(44, 32, 24, 0.62);
+}
+
+.nx-strength.s1 i:nth-child(1) { background: #b3462f; }
+.nx-strength.s2 i:nth-child(-n + 2) { background: #c07a1e; }
+.nx-strength.s3 i:nth-child(-n + 3) { background: #1f7a4d; }
+.nx-strength.s4 i { background: #1f7a4d; }
+.nx-strength.s1 b { color: #b3462f; }
+.nx-strength.s2 b { color: #c07a1e; }
+.nx-strength.s3 b,
+.nx-strength.s4 b { color: #1f7a4d; }
+
+/* ---- secondary action that reads as a link but is a real button ---- */
+
+.nx-linkish {
+  margin-top: 10px;
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: #9a2f42 !important;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.nx-linkish:disabled {
+  color: rgba(44, 32, 24, 0.42) !important;
+  cursor: default;
+}
+
+.nx-login-options a + a {
+  margin-left: auto;
+}
+
+@media (max-width: 860px) {
+  .nx-auth-narrow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.nx-remember {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.88rem;
+  color: rgba(44, 32, 24, 0.72);
+  cursor: pointer;
+}
+
+.nx-remember input {
+  width: auto !important;
+  margin: 0;
+  accent-color: #9a2f42;
+}
