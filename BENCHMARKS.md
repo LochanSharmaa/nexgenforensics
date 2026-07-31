@@ -614,6 +614,160 @@ python backend/scripts/eval_finetuned_checkpoint.py
 
 ---
 
+## 6e. QMUL-SurvFace evaluation — audit before training (2026-07-31)
+
+Real degraded training data was the conclusion of §6d. QMUL-SurvFace was
+obtained to test it. **No training has been run.** This section reports steps
+1–4 only.
+
+### 1. Licence — a blocking question, not a technical one
+
+The archive ships **no licence file**. `readme.txt` contains structure, protocol
+and citation, and nothing else. The published terms say the dataset
+
+> is made available for research purposes
+
+and, materially:
+
+> all the images were collected from the existing person re-identification
+> datasets, and the copyright belongs to the original owners
+
+Two consequences, both of which are the project owner's call and neither of
+which is a technical matter:
+
+- **"Research purposes" is narrower than this product.** NexGen iMATCH is an
+  operational forensic tool. A model whose weights were trained on this data
+  carries the restriction into whatever the model is used for. That is a
+  question to resolve *before* training, because it cannot be undone afterwards
+  by deleting the dataset.
+- **Copyright is not QMUL's to grant.** It sits with the original
+  re-identification datasets, which are not enumerated on the site. At least one
+  dataset commonly used in that space (DukeMTMC) was withdrawn by its own
+  authors on ethics grounds. Which sources feed SurvFace cannot be established
+  from the files on disk.
+
+Nothing here says the dataset cannot be used. It says the terms are
+research-scoped and the provenance is not fully traceable from what was
+downloaded, and both facts would be discoverable under cross-examination.
+
+### 2. Identity-overlap audit — the raw result, and why it is wrong
+
+`audit_qmul_survface.py`, same method as §6c, against a gallery of **84,171
+embeddings covering all seven evaluation sets** (LFW, AgeDB-30, CFP-FP, CFP-FF,
+CALFW, CPLFW, TinyFace — CFP-FF and TinyFace were embedded for this).
+78,733 QMUL images sampled at ≤40/identity across all 5,319 identities.
+
+| identity max-similarity | identities | share |
+|---|---|---|
+| ≥ 0.90 | 1 | 0.0% |
+| 0.70–0.90 | 1,490 | 28.0% |
+| 0.50–0.70 | 3,391 | 63.8% |
+| 0.40–0.50 | 271 | 5.1% |
+| < 0.40 | 166 | 3.1% |
+
+At the §6c threshold of 0.40 this excludes **5,153 of 5,319 identities (96.9%)**,
+leaving 166. Nearest neighbours land overwhelmingly in TinyFace (78.2%).
+
+Reported as-is that reads as near-total contamination. **It is not.**
+
+### 3. The control that overturns it
+
+Both QMUL and TinyFace are native low-resolution capture, and ArcFace embeddings
+of very low quality faces collapse toward a common region of the hypersphere —
+a 27×22px face encodes mostly "degraded face", not "this person". A
+QMUL↔TinyFace affinity is exactly what that artefact produces with **zero**
+shared identities.
+
+`qmul_overlap_control.py` separates the two explanations using ground truth that
+is free here: distinct QMUL directories are distinct people by construction.
+
+| measurement | median |
+|---|---|
+| QMUL genuine (same person, single pair) | 0.316 |
+| QMUL impostor (different people, single pair) | 0.151 |
+| nearest TinyFace neighbour (max over 8,171) | 0.522 |
+| **nearest different-person QMUL (max over 6,693) — matched null** | **0.600** |
+| LFW clean impostor, for scale | 0.003 |
+| LFW clean genuine, for scale | 0.689 |
+
+**The matched null is HIGHER than the TinyFace affinity (0.600 vs 0.522,
+separation −0.078).** A QMUL face resembles an arbitrary *different* QMUL person
+more than it resembles anything in TinyFace. And a true same-person QMUL pair
+medians 0.316 — well *below* the best unrelated TinyFace match. If identity
+drove the affinity, genuine pairs would be the strongest signal present. They
+are the weakest.
+
+**Conclusion: no detectable identity contamination between QMUL-SurvFace and any
+of the seven evaluation sets. The 96.9% figure is an artefact of quality-induced
+embedding collapse and must not be quoted as contamination.**
+
+A methodological note, recorded because it nearly went the other way: the first
+version of this control compared the nearest TinyFace neighbour (a *maximum over
+8,171 candidates*) against a single random impostor pair (*one draw*), and
+printed "SPECIFIC — treat the overlap as real". The maximum of 8,171 draws
+exceeds a single draw regardless of the underlying distribution, so that test
+would have declared contamination on unrelated data. Comparing max-of-N against
+a matched max-of-N reversed the verdict. The 0.40 threshold from §6c is
+calibrated for clean-vs-clean and carries no meaning at this image quality.
+
+### 4. Quality characterisation — genuinely native low-resolution
+
+`qmul_quality_stats.py`, 40,000 images sampled of 220,888 on disk.
+
+| | QMUL-SurvFace | TinyFace (target) | CASIA (clean ref) |
+|---|---|---|---|
+| height px p5/p50/p95 | 11 / **27** / 35 | 31 / **32** / 32 | 112 / 112 / 112 |
+| width px p5/p50/p95 | 9 / **22** / 29 | 24 / **32** / 32 | 112 / 112 / 112 |
+| range | 7×5 … 117×106 | 14×12 … 32×32 | 112×112 |
+| under 32px high | **84.1%** | 6.4% | 0% |
+
+Confirmed native low-resolution capture, not downsampled clean imagery. QMUL is
+in fact **harder than the target**: TinyFace is standardised at a 32px cap, while
+84% of QMUL sits below 32px and the smallest images are 7×5.
+
+Variance-of-Laplacian was also measured (QMUL 460, TinyFace 771, CASIA 301) but
+**is not interpretable across these groups** — the statistic is computed at
+native resolution and scales with pixel density, so it compares three different
+things. It is recorded for completeness, not used as evidence.
+
+**Detectability:** SCRFD finds a face in **0%** of both QMUL *and* TinyFace
+images at native resolution. This is not a QMUL defect — both datasets are
+pre-cropped face chips, and the existing TinyFace benchmark already bypasses
+detection and resizes straight to 112×112. QMUL enters the pipeline the same
+way. No extra pre-processing is required.
+
+### 5. One finding that matters more than the audit
+
+On QMUL imagery the deployed model barely separates identities at all. Genuine
+pairs median 0.316 against an impostor median of 0.151, with heavy overlap
+(genuine p25 0.180 vs impostor p75 0.268). Compare LFW, where genuine p5 (0.510)
+sits cleanly above impostor p95 (0.100).
+
+Read two ways, both true:
+
+- **Opportunity.** This is real headroom — precisely the regime §6d failed to
+  reach with synthetic degradation, and the reason this dataset is the right
+  next attempt.
+- **Risk.** With separation this weak, ArcFace's angular margin may not find
+  usable gradient, and any per-identity label noise in the source re-ID data
+  will be amplified rather than averaged out.
+
+### Status
+
+Steps 1–4 complete. Overlap audit clean, so no exclusion list needs to be
+applied — `runtime/benchmarks/qmul_exclusion_list.json` is retained as the raw
+audit record, **not** as a list to act on. Training has not started, pending the
+licence decision in §1.
+
+Reproduce:
+```
+python backend/scripts/audit_qmul_survface.py
+python backend/scripts/qmul_overlap_control.py
+python backend/scripts/qmul_quality_stats.py
+```
+
+---
+
 ## 6a. DECISION — fine-tuning abandoned (SUPERSEDED, see §6b)
 
 **Date:** 2026-07-31 · **Decided by:** project owner · **Status:** closed, not deferred
