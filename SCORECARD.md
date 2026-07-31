@@ -90,7 +90,7 @@ thresholds 0.2871 / 0.2153 / 0.2871.
 | **L5** | **Demographic differentials persist.** Women 1.7× the FNMR of men, under-25s 3.8× the 41–55 band. Raising the threshold relocated the errors; it did not remove the gap. |
 | **L6** | **CFP-FP absolute figures** in §2 were measured on the outlier pack and understate all configurations by ~1.5 points. Rankings unaffected. |
 | **L7** | ~~Concurrency unmeasured.~~ **MEASURED (item 29).** Threading saturates at 4 workers (1.86×, 131.9/s); 8 workers gains nothing and degrades p99 2.3× to 100 ms. Request batching reaches 2.82× (551/s) without the latency cost. If throughput becomes a constraint the fix is a request-collecting queue, not more workers. Engine-level figures only — the full HTTP stack is still unmeasured. See BENCHMARKS.md §7b-i. |
-| **L8** | **Fine-tuning abandoned** — every available training archive is contaminated. No clean corpus on disk. |
+| **L8** | **Fine-tuning attempted properly and it did not work.** Contamination was removed (692 of 10,572 CASIA identities excluded, BENCHMARKS.md §6c) and the model was fine-tuned from ArcFace weights on degraded data. It scored **worse on every benchmark**, worst on TinyFace (82.45% → 79.38%, TAR@FAR0.1% 33.13% → 22.23%). Deployed model unchanged. §6d. |
 | **L9** | **Stranger test (item 45) not run** — blocked by L1. |
 | **L10** | **`IndexFlatIP` measured but not enabled in production**; installing faiss activates the existing guarded branch, which needs a deliberate verification run. |
 
@@ -100,7 +100,7 @@ thresholds 0.2871 / 0.2153 / 0.2871.
 2. **Independent validation** (L2). The single largest credibility gap; nothing internal can close it.
 3. **Degraded-footage accuracy** (L3). The measured weakness that matters operationally. AdaFace is the cheapest untested lever — one model swap, measurable on the existing harness.
 4. **Concurrency measurement** (L7), then request batching if it is warranted.
-5. **A clean training corpus** (L8) if fine-tuning is ever revisited.
+5. **Real degraded training data** (L8). Fine-tuning has now been run end to end and made the model worse; the evidence points at synthetic degradation not matching real low-resolution capture, so the next attempt needs genuinely low-resolution training imagery, not a better training loop.
 
 ### Honest summary
 

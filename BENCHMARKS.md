@@ -467,20 +467,150 @@ Fine-tuning is **not** a dead end. The path is now clear and unblocked:
 
 1. ✅ **ArcFace initialisation** — demonstrated above.
 2. ✅ **Contamination measured** at full identity coverage.
-3. ⬜ **Exclusion list** — the audit reports which *eval* images are matched; it
+3. ✅ **Exclusion list** — the audit reports which *eval* images are matched; it
    must be extended to emit the contaminated *training* identity IDs so they can
-   be dropped.
-4. ⬜ **Clean fine-tune + evaluation** through `benchmark_finetuned.py`.
+   be dropped. → `build_exclusion_list.py`, results in §6c.
+4. ✅ **Clean fine-tune + evaluation** → §6d. **The result is negative.**
 
-Steps 3 and 4 are a multi-hour GPU job and have **not** been run. No accuracy
-number is claimed for this path, and none should be quoted until step 4
-completes.
-
-**Honest expectation, so the result is not oversold in advance:** even with
-ArcFace init and a decontaminated subset, ~10k identities is still far below the
-~360k `glintr100` was trained on. The realistic goal is a modest gain on
+**Honest expectation, recorded in advance so the result was not oversold:** even
+with ArcFace init and a decontaminated subset, ~10k identities is still far below
+the ~360k `glintr100` was trained on. The realistic goal is a modest gain on
 degraded imagery, not a new state of the art — and a genuine attempt that fails
 to improve anything remains a valid, reportable outcome.
+
+That is what happened. See §6d.
+
+---
+
+## 6c. Training-identity exclusion list (step 3)
+
+**Script:** `backend/scripts/build_exclusion_list.py` · **Date:** 2026-07-31
+
+The overlap audit (§6b) answers *"is there contamination?"* from the eval side:
+for each evaluation image, how similar is the nearest training image. That
+proves contamination exists but cannot be acted on, because it never names the
+training identities responsible.
+
+This runs the search in the opposite direction — for each of the 10,572 CASIA
+identities, the similarity of its nearest evaluation image — against a pooled
+gallery of **62,000 cached eval embeddings** (LFW, AgeDB-30, CFP-FP, CALFW,
+CPLFW), using `faiss.IndexFlatIP` (exact; an approximate index could silently
+miss a match and leave a contaminated identity in).
+
+Sampled 105,631 images across all 10,572 identities.
+
+| identity max-similarity | identities | share |
+|---|---|---|
+| ≥ 0.90 | 32 | 0.3% |
+| 0.70–0.90 | 176 | 1.7% |
+| 0.50–0.70 | 277 | 2.6% |
+| 0.40–0.50 | 207 | 2.0% |
+| 0.30–0.40 | 6,654 | 62.9% |
+| < 0.30 | 3,226 | 30.5% |
+
+**Threshold 0.40 → exclude 692 identities (6.5%), keep 9,880 (93.5%).**
+
+0.40 sits *below* the ~0.49 mean of genuine same-person pairs, which is
+deliberate and asymmetric: excluding a clean identity costs a little training
+data, while keeping a contaminated one makes every downstream accuracy number
+unfalsifiable.
+
+**Limitation — this list is a floor, not a proof.** Sampling cannot establish
+that an identity is clean, only that its sampled images did not match. The true
+contaminated set is at least this large.
+
+---
+
+## 6d. RESULT — the clean fine-tune did not work (step 4)
+
+**Date:** 2026-07-31 · **Status:** completed and **negative**
+**Scripts:** `finetune_degraded.py` (train), `eval_finetuned_checkpoint.py` (score)
+
+Every methodological objection from §6a/§6b was addressed. It still did not
+help. Both facts are recorded here.
+
+### What was run
+
+| requirement | how it was met |
+|---|---|
+| item 36 contamination | trained only on the 9,880 identities kept by §6c |
+| item 37 degraded data | ~50% of every batch downscaled to 16–48px and back up, plus Gaussian blur and JPEG q20–60 |
+| item 38 held-out val | 500 identities, **disjoint by identity** from the 9,380 trained on |
+| item 39 ArcFace init | backbone converted from the deployed `w600k_r50.onnx` via `onnx2torch` — 43,572,288 params, **not** ImageNet |
+| item 40 hard negatives | ArcFace angular margin, plus each degraded view is by construction the hard positive of its clean counterpart |
+| item 41 early stopping | on validation, patience 4 |
+
+75,018 training images, batch 48, AdamW, 600 steps of frozen-backbone head
+warm-up at lr 1e-4 then 2,400 steps unfrozen at lr 1e-5, 1,573 s on the RTX 3060.
+
+### Result — scored against the deployed model on identical pair lists
+
+Both models were embedded **in the same run**, through the same 10-fold
+harness that produced §2 and §4, so a stale cache cannot manufacture a
+difference. The only variable is the weights.
+
+| dataset | deployed | fine-tuned | Δ acc | TAR@FAR 0.1% | verdict |
+|---|---|---|---|---|---|
+| LFW | 99.78% | 99.75% | −0.03pp | 99.70 → 99.67 | no change |
+| AgeDB-30 | 98.15% | 97.38% | −0.77pp | 96.03 → **86.97** | **WORSE** |
+| CFP-FP | 97.44% | 97.23% | −0.21pp | 94.69 → 93.94 | no change |
+| CALFW | 95.95% | 95.62% | −0.33pp | 92.10 → 88.63 | no change |
+| CPLFW | 94.47% | 93.88% | −0.58pp | 87.40 → 85.13 | no change |
+| **TinyFace** | **82.45%** | **79.38%** | **−3.07pp** | 33.13 → **22.23** | **WORSE** |
+
+**It is worst on TinyFace — the exact condition it was built to improve.** At
+the 0.1% false-match operating point, a third of the true matches it previously
+found are gone (33.13% → 22.23%).
+
+### Two things worth recording
+
+**1. The internal validation metric lied, and the run itself proves it.**
+Training reported its val margin improving +0.5474 → +0.6055. But during the
+first 600 steps the backbone was *frozen*, and the margin still swung 0.5474 →
+0.4887. Frozen weights cannot learn, so that entire swing is sampling noise —
+and its magnitude (~0.06) is the same size as the final "gain" (+0.058). The
+proxy never had the resolution to answer the question. Only the fixed-pair-list
+benchmarks could, and they say the opposite. Any future run must be judged on
+§2/§4, never on a training-time proxy.
+
+**2. AUC rose on four sets while accuracy fell.** LFW, AgeDB-30, CFP-FP and
+CALFW all show slightly *better* AUC (e.g. AgeDB-30 0.99130 → 0.99184) alongside
+worse accuracy and much worse TAR@FAR. Ranking within a pair list held up; what
+broke was calibration — the score distribution shifted so a single global
+threshold fits it worse. On TinyFace even AUC fell (0.89217 → 0.86940), so there
+the loss is genuine discrimination, not just calibration.
+
+### Why it most likely failed
+
+Not stated as proven — these are the candidate causes, in the order the evidence
+supports them:
+
+- **Synthetic degradation ≠ real low-resolution capture.** The model was taught
+  to invert *this specific* pipeline (bicubic down/up + Gaussian blur + JPEG).
+  Real TinyFace imagery is natively low-resolution from distance and optics. The
+  drop being *largest* on TinyFace is what a domain-gap failure looks like.
+- **9,380 identities against 600k.** Fine-tuning on ~1.5% of the original
+  identity count pulls the embedding space toward a narrow slice of it.
+- **Catastrophic forgetting of calibration**, consistent with the AUC-up /
+  TAR-down split above.
+
+### Decision
+
+**The deployed model stays `buffalo_l` / `w600k_r50`, unchanged.** The
+checkpoint is not shipped and no accuracy claim is made for it. Phase 6 is now
+*complete* rather than open: the path was built, executed end to end, and
+measured — and the measurement says do not adopt it.
+
+This supersedes §6a's "abandoned for contamination." The barrier was removable;
+the fine-tune was run properly and simply did not improve the model. That is a
+result, not a dead end.
+
+Reproduce:
+```
+python backend/scripts/build_exclusion_list.py
+python backend/scripts/finetune_degraded.py --steps 3000 --warmup 600
+python backend/scripts/eval_finetuned_checkpoint.py
+```
 
 ---
 

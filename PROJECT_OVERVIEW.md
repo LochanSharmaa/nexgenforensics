@@ -531,8 +531,13 @@ static host, and its CSP `connect-src 'self' https:` blocks any `http://`
 backend. A frontend-only deploy cannot work. Needs a hosted HTTPS backend first,
 then `VITE_IMATCH_BASE_URL` and the CSP updated to match.
 
-**Items 36–44 — fine-tuning.** Closed as an investigated dead end, not a gap.
-See BENCHMARKS.md §6a and §7c.
+**Items 36–42 — fine-tuning.** Run to completion, with a **negative result**.
+The contamination barrier was removed (692 of 10,572 CASIA identities excluded)
+and the model was fine-tuned from ArcFace weights — not ImageNet — on degraded
+imagery, with an identity-disjoint validation split and early stopping. It
+scored worse on all six benchmarks, worst on TinyFace (82.45% → 79.38%). The
+deployed model is unchanged and no claim is made for the checkpoint. This is a
+measured outcome, not an unexplored gap. See BENCHMARKS.md §6c and §6d.
 
 ---
 
