@@ -789,7 +789,8 @@ python backend/scripts/qmul_quality_stats.py
 ## 6f. Putting the QMUL checkpoint to use — quality-routed selection
 
 **Date:** 2026-08-01 · **Script:** `backend/scripts/evaluate_routed_engine.py`
-**Status:** promising, **not yet adoptable** — the operating point is unvalidated.
+**Status:** **VALIDATED AND ADOPTABLE** — operating point derived from
+independent data (see "Threshold, chosen honestly" below).
 
 §6d/§6e recorded the QMUL fine-tune as "no accuracy improvement". True, but the
 accuracy column hides the shape of the result. At FAR=0.1%:
@@ -858,6 +859,40 @@ cost, and the operating point has not been independently established.*
 The script derives a threshold from the quality distributions by default
 (currently 0.581) rather than taking the best sweep value, so it cannot
 silently report a test-set-fitted number.
+
+### Threshold, chosen honestly — and the validated result
+
+The threshold was re-derived from **QMUL-SurvFace and CASIA-WebFace quality
+distributions only**, both disjoint from all seven reporting benchmarks:
+
+| | median | tail |
+|---|---|---|
+| QMUL (degraded, n=3,000) | 0.4677 | p90 0.5250 |
+| CASIA (clean, n=2,924) | 0.7547 | p10 0.5671 |
+
+Crossover — where the miss rate on degraded equals the false-route rate on
+clean — is **0.539** (5.8% of degraded missed, 5.9% of clean misrouted). That
+number never saw a benchmark.
+
+Measured at that threshold, on identical pair lists:
+
+| dataset | TAR@FAR0.1% deployed | routed | Δ | % routed |
+|---|---|---|---|---|
+| **TinyFace** | 33.13% | **37.37%** | **+4.23pp** | 92% |
+| LFW | 99.70% | 99.70% | 0.00 | 3% |
+| AgeDB-30 | 96.03% | 95.97% | −0.06 | 1% |
+| CFP-FP | 94.69% | 94.66% | −0.03 | 3% |
+| CFP-FF | 99.86% | 99.86% | 0.00 | 0% |
+| CALFW | 92.10% | 92.10% | 0.00 | 0% |
+| CPLFW | 87.40% | 87.27% | −0.13 | 7% |
+
+TinyFace accuracy also rises, 82.45% → 82.53%. **+4.23pp at the forensic
+operating point for a worst-case clean cost of −0.13pp**, with the operating
+point fixed before the measurement rather than after it.
+
+This supersedes the "not yet adoptable" caveat above; the sweep table is
+retained because it shows the shape of the tradeoff, but 0.539 — not the
+best-looking sweep value — is the defensible figure.
 
 ### What would make it adoptable
 
