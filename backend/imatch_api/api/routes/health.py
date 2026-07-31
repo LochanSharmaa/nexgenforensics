@@ -64,3 +64,27 @@ def engine_status(
 
 
 __all__ = ["router"]
+
+
+@router.get("/api/imatch/engine/metrics")
+def engine_metrics(
+    principal: Principal = Depends(get_current_principal),
+    engine: EngineService = Depends(get_engine_service),
+) -> dict:
+    """Per-stage latency percentiles for the running process.
+
+    Authenticated deliberately. Timing data is a side channel: response times
+    leak gallery size and whether a probe matched, so this sits behind the same
+    auth as every other biometric endpoint rather than on an open /metrics path.
+
+    Percentiles come from a bounded in-process window (see
+    nexgen_engine/observability.py), so they describe THIS process since it
+    started -- not a historical series and not a cluster. Restarting the
+    service resets them.
+    """
+    from nexgen_engine.observability import LATENCY
+
+    snapshot = LATENCY.snapshot()
+    snapshot["model"] = engine.runtime.recognizer.info.as_dict()
+    snapshot["device"] = engine.runtime.device
+    return snapshot

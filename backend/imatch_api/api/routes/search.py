@@ -90,7 +90,17 @@ def search(
         lawful_basis = case.lawful_basis
 
     raw = _load_probe_bytes(payload, settings)
-    stored = storage.store(principal.tenant_id, raw, category="probes")
+
+    # storage.store() sniffs the format and rejects anything that is not an
+    # image. It sat outside the try below, so a non-image upload -- valid
+    # base64 that decodes to text, a renamed PDF -- escaped as an unhandled
+    # UnsupportedImageError and returned 500 instead of 400. Found by driving
+    # real traffic through the metrics endpoint (item 31); the same class of
+    # bug as item 33.
+    try:
+        stored = storage.store(principal.tenant_id, raw, category="probes")
+    except (UnsupportedImageError, ImageTooLargeError) as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
 
     try:
         result = engine.encode(raw)

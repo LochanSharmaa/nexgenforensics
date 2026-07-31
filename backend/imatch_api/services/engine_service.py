@@ -179,7 +179,27 @@ class EngineService:
     # ------------------------------------------------------------- search ---
 
     def encode(self, image_bytes: bytes) -> RecognitionResult:
-        return self.pipeline.encode_bytes(image_bytes)
+        """Encode one image, recording its per-stage latency.
+
+        This is the single choke point every biometric operation passes
+        through -- search, verify, batch and enrolment all call it -- so
+        instrumenting here captures the whole service without touching each
+        route. See nexgen_engine/observability.py.
+        """
+        from nexgen_engine.observability import LATENCY  # noqa: PLC0415
+
+        try:
+            result = self.pipeline.encode_bytes(image_bytes)
+        except Exception:
+            # Rejections are load too: a flood of malformed uploads shows up
+            # as an error rate rather than vanishing from the metrics.
+            LATENCY.record_error()
+            raise
+        try:
+            LATENCY.record(result.timings.as_dict())
+        except Exception:  # pragma: no cover - observability must never break a request
+            pass
+        return result
 
     def search(
         self,
