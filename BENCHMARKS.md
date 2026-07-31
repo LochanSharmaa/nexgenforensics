@@ -193,27 +193,62 @@ support this — it is anonymised and retains only the is-same flag.
 - **One global threshold** (0.3089, set at FMR=0.1% over all impostors).
   Per-group thresholds would conceal the differential this audit exists to find
 
+### 5a. DEPLOYED CONFIGURATION — `w600k_r50` at operating threshold 0.20
+
+```bash
+python backend/scripts/benchmark_demographics.py --model w600k_r50 --threshold 0.20
+```
+
+**This is the operationally meaningful table.** It uses the model the service
+actually loads, at the threshold the service actually decides on.
+
 | Subgroup | Genuine | Impostor | FNMR % | FMR % |
 |---|---:|---:|---:|---:|
-| **ALL** | 8,098 | 32,000 | **4.32** | **0.10** |
-| gender = female | 3,300 | 16,000 | **6.09** | **0.14** |
-| gender = male | 4,798 | 16,000 | 3.11 | 0.05 |
-| age 0–25 | 854 | 8,000 | **10.66** | 0.10 |
-| age 26–40 | 2,595 | 8,000 | 4.01 | 0.10 |
-| age 41–55 | 2,199 | 8,000 | **2.55** | 0.10 |
-| age 56+ | 2,450 | 8,000 | 4.04 | 0.09 |
+| **ALL** | 8,098 | 32,000 | **3.30** | **1.19** |
+| gender = female | 3,300 | 16,000 | **4.88** | **1.70** |
+| gender = male | 4,798 | 16,000 | 2.21 | 0.68 |
+| age 0–25 | 854 | 8,000 | **7.61** | 1.21 |
+| age 26–40 | 2,595 | 8,000 | 3.24 | 1.26 |
+| age 41–55 | 2,199 | 8,000 | **2.14** | 1.10 |
+| age 56+ | 2,450 | 8,000 | 2.90 | 1.19 |
 
 ### Findings
 
-1. **Gender.** Women are falsely rejected **2.0×** more often than men
-   (6.09% vs 3.11%) and falsely matched **2.8×** more often (0.14% vs 0.05%).
-   Both error types run against the same group — this is a genuine accuracy
-   differential, not a threshold placement artifact.
-2. **Age.** The under-25 bucket has **4.2×** the false-non-match rate of the
-   41–55 bucket (10.66% vs 2.55%). Young subjects change appearance fastest
+1. **False-match rate at the deployed threshold is 1.19%** — roughly **1 in 84**
+   impostor comparisons returns a false match. The 0.20 threshold was tuned to
+   maximise *accuracy*, which trades away FMR. For forensic use, where a false
+   match points at an innocent person, this is the single most important number
+   on this page and it is **not** a low-FMR operating point.
+2. **Gender.** Women are falsely rejected **2.21×** more often than men
+   (4.88% vs 2.21%) and falsely matched **2.50×** more often (1.70% vs 0.68%).
+   Both error types run against the same group, so this is a genuine accuracy
+   differential, not a threshold-placement artifact.
+3. **Age.** The under-25 bucket has **3.56×** the false-non-match rate of the
+   41–55 bucket (7.61% vs 2.14%). Young subjects change appearance fastest
    between captures, and AgeDB pairs span up to 30 years.
-3. **The aggregate hides both.** A single "4.32% FNMR" looks acceptable while
-   concealing a subgroup at 10.66%.
+4. **The aggregate hides both.** A single "3.30% FNMR" looks acceptable while
+   concealing a subgroup at 7.61%, and says nothing about the 1.70% FMR
+   carried by women.
+
+### 5b. Prior measurement — superseded, retained for comparison
+
+The earlier run used **`glintr100`** (not the deployed model) at a threshold of
+**0.3089** anchored to FMR=0.1% on this pair set (not the deployed decision
+threshold). Both differences matter, so it does not describe production:
+
+| Subgroup | FNMR % | FMR % |
+|---|---:|---:|
+| ALL | 4.32 | 0.10 |
+| gender = female | 6.09 | 0.14 |
+| gender = male | 3.11 | 0.05 |
+| age 0–25 | 10.66 | 0.10 |
+| age 41–55 | 2.55 | 0.10 |
+
+Moving to the deployed configuration lowered FNMR across the board but raised
+FMR **~12×** (0.10% → 1.19%), because 0.20 is a far more permissive cut-point
+than 0.3089. The demographic *ratios* stayed broadly stable (gender FNMR 2.0× →
+2.21×, gender FMR 2.8× → 2.50×), which indicates the disparity is a property of
+the models rather than of where the threshold sits.
 
 > These pairs are locally constructed, so the 4.32% aggregate is **not**
 > comparable to the published AgeDB-30 figure in §2 and is not quoted as such.
