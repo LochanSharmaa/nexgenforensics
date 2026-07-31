@@ -42,9 +42,18 @@ export function EnterprisePlatformOverview() {
         <p className="nx-kicker">Enterprise Platform</p>
         <h2 id="enterprise-title">Built for sellable commercial biometric deployment.</h2>
         <p>
+          {/* The previous copy floated a "99.99% accuracy figure" as a benchmark
+              goal. No such measurement exists, and naming an aspirational number
+              beside the word "accuracy" reads as a capability regardless of the
+              hedge attached to it. Replaced with measured, dataset-qualified
+              figures from BENCHMARKS.md. Accuracy is never stated without the
+              dataset AND the task (1:1 verification, not identification). */}
           NexGen Identity is positioned for private-sector identity verification,
-          fraud prevention, access control, and secure face search. The 99.99%
-          accuracy figure is treated as a benchmark goal until independently validated.
+          fraud prevention, access control, and secure face search. Measured 1:1
+          verification accuracy is 99.77% on LFW (6,000 published pairs) and
+          96.68% on AgeDB-30 (cross-age), falling to 82.45% on TinyFace
+          (surveillance-resolution, median 32×32 px). No independent third-party
+          validation has been carried out.
         </p>
       </div>
 
