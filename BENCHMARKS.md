@@ -589,8 +589,48 @@ reaches 15.98 ms — **roughly the same cost as encoding the probe image itself*
 so the search stops being free and starts doubling request latency. Scaling is
 linear, as expected for a dense matmul.
 
-Concurrency is **not** measured: all figures are single-threaded. Throughput
-under parallel load requires the request-batching work and has not been run.
+### 7b-i. Concurrency and request batching (item 29)
+
+```bash
+python backend/scripts/benchmark_concurrency.py --total 100
+```
+
+**Thread concurrency — full pipeline, RTX A3000**
+
+| Workers | Throughput | p50 | p95 | p99 | Scaling |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 70.9/s | 13.79 ms | 16.16 ms | 16.65 ms | 1.00× |
+| 2 | 112.7/s | 17.21 ms | 21.56 ms | 22.63 ms | 1.59× |
+| 4 | **131.9/s** | 29.52 ms | 37.57 ms | 43.45 ms | **1.86×** |
+| 8 | 130.3/s | 58.00 ms | 86.79 ms | **99.86 ms** | 1.84× |
+
+**Threading saturates at 4 workers.** Going from 4 to 8 buys *no* throughput
+(131.9 → 130.3/s) while p99 latency degrades **2.3×** (43 → 100 ms). More
+uvicorn workers past 4 is strictly worse: the same work, much slower tails.
+
+**Request batching — recognition model only**
+
+| Batch | Throughput | ms/image | Speedup |
+|---:|---:|---:|---:|
+| 1 | 195.4/s | 5.118 | 1.00× |
+| 4 | 399.7/s | 2.502 | 2.05× |
+| 32 | 472.3/s | 2.118 | 2.42× |
+| 64 | **551.2/s** | **1.814** | **2.82×** |
+
+**Batching is the better lever — 2.82× versus threading's 1.86×, and without
+the latency penalty.** Per-call overhead (blob construction, session dispatch,
+memory transfer) is paid once instead of N times.
+
+**What this means for the build.** If throughput becomes a constraint, the fix
+is a request-collecting queue in front of the recogniser, **not** more workers.
+Threading is already at its ceiling; batching has headroom.
+
+**Scope, stated honestly:** this measures the engine under load, not the full
+HTTP stack. Real end-to-end throughput is additionally bounded by request
+parsing, base64 decoding and database writes. Treat these as an upper bound on
+what the recognition path can sustain, not a service-level SLO. Batching is
+measured on the recogniser alone — detection is per-image and would need
+batching separately.
 
 ---
 
