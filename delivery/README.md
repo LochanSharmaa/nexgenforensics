@@ -42,7 +42,8 @@ Accordingly:
 | 09 | Inference Pipeline Spec | Partially exists — OpenAPI schemas; worked examples planned |
 | 10 | Security Documentation | Partial — implemented controls listed below; formal document planned |
 | 11 | Maintenance Package | Partial — `regression_check.py` exists; retraining pipeline documented in BENCHMARKS §6 |
-| 12 | Test Suite | **Delivered** — 209 automated tests, `backend/tests/`, `backend/tests_engine/` |
+| 12 | Test Suite | **Delivered** — 197 test functions, 362 assertions; catalogued in A9 |
+| A9 | Test Suite Catalogue (every test, full source) | **Delivered** — generated |
 | 13 | Licensing and Legal | **NOT YET DELIVERABLE** — requires legal counsel, not engineering |
 | 14 | Knowledge Transfer | **NOT YET DELIVERABLE** — requires scheduled sessions with the receiving organisation |
 
