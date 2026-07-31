@@ -419,6 +419,52 @@ the models rather than of where the threshold sits.
 
 ---
 
+## 6a. DECISION — fine-tuning abandoned (items 36–44 closed)
+
+**Date:** 2026-07-31 · **Decided by:** project owner · **Status:** closed, not deferred
+
+Custom fine-tuning is **not being pursued**. This is a completed investigation
+with a negative result, not an unfinished task. Two independent findings led
+here, either of which would have been sufficient.
+
+**1. Every available training archive is contaminated** (§7c). All three
+overlap the evaluation sets — UMDFaces severely (292 hits per 1k images, 253
+near-duplicates, peak similarity 0.9890 against AgeDB-30), CASIA-WebFace and
+MegaFace-train comparably to each other (~25–26 per 1k). There is no clean
+training corpus on disk. Any accuracy gain measured against these evaluation
+sets would be partly memorisation, and in a forensic system that is a number
+which could not survive cross-examination.
+
+**2. The one attempt that ran produced a model at chance** (§6). AgeDB-30
+49.38% against a 50% baseline, AUC 0.4897. The pipeline initialised from
+ImageNet weights rather than ArcFace and trained on 8,738 images against
+glintr100's ~17M — roughly 2,000× less data. That gap is not closable by
+tuning.
+
+### What would have to change before revisiting
+
+- A training corpus with **verified** zero overlap against the evaluation sets
+  — either a full-depth exclusion list (the audit in §7c is sampled, so it
+  gives a floor, not a complete list) or a held-out evaluation set built from
+  data never present in any training archive.
+- Initialisation from **ArcFace** weights, not ImageNet.
+- Enough data that fine-tuning can plausibly beat a model trained on 17M images.
+
+None of these are satisfied today.
+
+### What was NOT abandoned
+
+The training pipeline itself is fixed and works: the BatchNorm crash is
+resolved, a full epoch completes, gradients are stable, and checkpoints are
+versioned. `benchmark_finetuned.py` exists and correctly rejected the one
+candidate produced. The machinery is sound; the data is not.
+
+**Deployed model is unchanged: stock `buffalo_l` / `w600k_r50`.** Nothing in
+this document was trained on the contaminated archives, so every figure here
+stands.
+
+---
+
 ## 6. Fine-tuned checkpoint — REJECTED
 
 ```bash
