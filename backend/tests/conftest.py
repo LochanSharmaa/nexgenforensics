@@ -218,6 +218,9 @@ def user_factory():
                 full_name=email.split("@")[0].title(),
                 password_hash=hash_password(password),
                 role=role,
+                # Fixture users stand in for admin-created accounts, which are
+                # verified on creation.
+                email_verified=True,
             )
             session.add(user)
             session.commit()

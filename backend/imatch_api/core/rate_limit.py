@@ -75,3 +75,24 @@ class SlidingWindowRateLimiter:
 
 
 __all__ = ["RateLimitResult", "SlidingWindowRateLimiter"]
+
+
+# Registry of the limiters guarding unauthenticated auth endpoints.
+#
+# They are process-global by necessity: there is no principal to key on before
+# sign-in, so state has to live somewhere shared. That makes them stateful
+# across a test session, where dozens of logins arrive from one client and
+# would otherwise trip the limit and fail unrelated tests. `reset_auth_limiters`
+# exists so a test fixture can clear that state without weakening the limits
+# themselves -- the production numbers stay exactly as configured.
+_AUTH_LIMITERS: list["SlidingWindowRateLimiter"] = []
+
+
+def register_auth_limiter(limiter: "SlidingWindowRateLimiter") -> "SlidingWindowRateLimiter":
+    _AUTH_LIMITERS.append(limiter)
+    return limiter
+
+
+def reset_auth_limiters() -> None:
+    for limiter in _AUTH_LIMITERS:
+        limiter.reset()

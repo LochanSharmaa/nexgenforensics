@@ -76,6 +76,42 @@ class User(SQLModel, table=True):
     last_login_at: datetime | None = Field(default=None)
     created_at: datetime = Field(default_factory=utcnow)
 
+    # --- e-mail verification -------------------------------------------
+    # Accounts created by an administrator (bootstrap_admin.py, or the
+    # supervisor-only POST /auth/users) are verified on creation: a human with
+    # authority already vouched for the address. Only self-service
+    # registration starts unverified, because there nobody has.
+    email_verified: bool = Field(default=False)
+    # Only the HASH of the one-time code is stored, for the same reason only
+    # password hashes are: a database copy must not hand over live credentials.
+    otp_hash: str | None = Field(default=None)
+    otp_expires_at: datetime | None = Field(default=None)
+    otp_attempts: int = Field(default=0)
+    otp_sent_count: int = Field(default=0)
+    otp_window_started_at: datetime | None = Field(default=None)
+
+    # --- password reset -------------------------------------------------
+    reset_token_hash: str | None = Field(default=None)
+    reset_token_expires_at: datetime | None = Field(default=None)
+
+    # --- brute-force protection -----------------------------------------
+    failed_login_attempts: int = Field(default=0)
+    locked_until: datetime | None = Field(default=None)
+
+    # --- session -------------------------------------------------------
+    # Hash of the currently-valid refresh token. Storing it is what makes
+    # logout actually revoke: before this, refresh tokens stayed usable until
+    # they expired and /logout only wrote an audit line.
+    refresh_token_hash: str | None = Field(default=None)
+    refresh_token_expires_at: datetime | None = Field(default=None)
+    # Bumped on password reset. Any access token minted before this instant is
+    # rejected, which is how "invalidate previous sessions" reaches tokens that
+    # are stateless by design.
+    session_epoch: int = Field(default=0)
+
+    last_login_ip: str = ""
+    updated_at: datetime = Field(default_factory=utcnow)
+
 
 class ApiKey(SQLModel, table=True):
     """Machine credential for system-to-system integrations.

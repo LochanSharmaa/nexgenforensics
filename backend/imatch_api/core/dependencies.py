@@ -11,7 +11,7 @@ from sqlmodel import Session, select
 from ..db.models import ApiKey, Role, Tenant, User, utcnow
 from ..db.session import get_session
 from .config import Settings, get_settings
-from .rate_limit import SlidingWindowRateLimiter
+from .rate_limit import SlidingWindowRateLimiter, reset_auth_limiters
 from .security import TokenError, api_key_prefix, decode_token, verify_api_key
 
 logger = logging.getLogger(__name__)
@@ -64,6 +64,10 @@ def reset_limiters() -> None:
     global _general_limiter, _search_limiter
     _general_limiter = None
     _search_limiter = None
+    # The unauthenticated auth limiters are process-global (there is no
+    # principal to key on before sign-in), so a test session's repeated logins
+    # would otherwise exhaust the login budget and fail unrelated cases.
+    reset_auth_limiters()
 
 
 def get_current_principal(

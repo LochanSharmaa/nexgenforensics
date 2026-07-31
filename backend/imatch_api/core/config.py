@@ -35,7 +35,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_prefix="NEXGEN_",
-        env_file=(REPO_ROOT / ".env", ".env"),
+        env_file=(REPO_ROOT / ".env", REPO_ROOT / "backend" / ".env", ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
@@ -64,6 +64,50 @@ class Settings(BaseSettings):
     template_key: str = ""
     rate_limit_per_minute: int = 120
     search_rate_limit_per_minute: int = 30
+
+    # ------------------------------------------------------- account auth --
+    # Self-service registration. OFF by default and deliberately so: this is a
+    # biometric investigation tool, and who can run a search is a controlled
+    # decision, not a signup form. Turn it on per deployment with
+    # NEXGEN_ALLOW_SELF_REGISTRATION=true, and restrict who may register with
+    # NEXGEN_REGISTRATION_ALLOWED_DOMAINS.
+    allow_self_registration: bool = False
+    registration_allowed_domains: str = ""
+    registration_default_role: str = "investigator"
+
+    otp_length: int = 6
+    otp_ttl_minutes: int = 10
+    otp_max_attempts: int = 5
+    otp_resend_max: int = 3
+    otp_resend_window_minutes: int = 30
+
+    reset_token_ttl_minutes: int = 15
+
+    max_failed_logins: int = 5
+    lockout_minutes: int = 15
+
+    # "Remember me" only extends the REFRESH token. The access token lifetime
+    # is unchanged, so a stolen access token is never long-lived.
+    remember_me_refresh_days: int = 30
+
+    auth_cookies_enabled: bool = True
+    cookie_secure: bool = False          # must be True behind HTTPS
+    cookie_samesite: str = "lax"
+    cookie_domain: str = ""
+
+    # ---------------------------------------------------------------- mail --
+    # Read from RESEND_API_KEY exactly, NOT NEXGEN_RESEND_API_KEY. The
+    # validation_alias bypasses this class's NEXGEN_ env_prefix because the
+    # variable name is fixed by Resend's own convention and by the deployment
+    # brief.
+    resend_api_key: str = Field(default="", validation_alias="RESEND_API_KEY")
+    mail_from: str = "NexGen Forensics <onboarding@resend.dev>"
+    mail_reply_to: str = ""
+    app_public_url: str = "http://localhost:5173"
+    # When no API key is configured, e-mails are written to this file instead
+    # of being sent. That keeps local development and the test-suite working
+    # without a network call, and makes "did we send it?" checkable.
+    mail_outbox_path: str = "runtime/mail_outbox.jsonl"
 
     # -------------------------------------------------------------- engine --
     # buffalo_l (w600k_r50) is deployed DELIBERATELY, and it is not the model

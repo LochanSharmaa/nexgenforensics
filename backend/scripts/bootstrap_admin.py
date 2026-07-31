@@ -96,6 +96,9 @@ def main() -> int:
             password_hash=hash_password(args.password),
             role=Role(args.role),
             active=True,
+            # Bootstrapped by an operator with database access; there is nobody
+            # to send a verification code to yet.
+            email_verified=True,
         )
         session.add(user)
         session.commit()

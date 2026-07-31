@@ -79,6 +79,75 @@ def validate_password_strength(password: str) -> None:
         )
 
 
+# --------------------------------------------------------- one-time codes --
+
+
+def generate_otp(length: int = 6) -> str:
+    """A numeric one-time code from a cryptographically secure source.
+
+    `secrets.randbelow` rather than `random`: the stdlib Mersenne Twister is
+    predictable from prior outputs, which for an account-recovery code means a
+    remote attacker can compute the next one.
+
+    Leading zeros are preserved by zero-padding, so every code is exactly
+    `length` digits and the whole space is reachable -- trimming them would
+    quietly shrink a 6-digit space and bias it away from low values.
+    """
+    if length < 4:
+        raise ValueError("OTP length must be at least 4 digits.")
+    upper = 10 ** length
+    return str(secrets.randbelow(upper)).zfill(length)
+
+
+def hash_otp(otp: str) -> str:
+    """Hash a one-time code for storage.
+
+    SHA-256 rather than Argon2, unlike passwords. That is a deliberate
+    difference: this value is high-entropy only in combination with a short
+    expiry and a hard attempt cap, and it is verified on a hot path. The thing
+    protecting a 6-digit code is `otp_max_attempts` and `otp_ttl_minutes`, not
+    the cost of the hash -- a million-guess offline attack on 10^6 codes
+    succeeds regardless of the KDF, so the defence has to be online rate
+    limiting.
+    """
+    return hashlib.sha256(otp.strip().encode("utf-8")).hexdigest()
+
+
+def verify_otp(otp: str, stored_hash: str | None) -> bool:
+    """Constant-time comparison, so a wrong code leaks nothing by timing."""
+    if not stored_hash:
+        return False
+    return hmac.compare_digest(hash_otp(otp), stored_hash)
+
+
+def generate_reset_token() -> tuple[str, str]:
+    """Return (plaintext, hash) for a password-reset token.
+
+    256 bits from `secrets.token_urlsafe`, so unlike the 6-digit OTP this one
+    genuinely cannot be guessed and can safely travel in a URL. Only the hash
+    is stored; the plaintext exists in the e-mail and nowhere else.
+    """
+    plaintext = secrets.token_urlsafe(32)
+    return plaintext, hash_reset_token(plaintext)
+
+
+def hash_reset_token(token: str) -> str:
+    return hashlib.sha256(token.strip().encode("utf-8")).hexdigest()
+
+
+def verify_reset_token(token: str, stored_hash: str | None) -> bool:
+    if not stored_hash:
+        return False
+    return hmac.compare_digest(hash_reset_token(token), stored_hash)
+
+
+def hash_refresh_token(token: str) -> str:
+    """Refresh tokens are stored hashed so a database read cannot resume a
+    session. The token itself is already a signed JWT with high entropy, so a
+    plain digest is sufficient and keeps rotation cheap."""
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
 # ------------------------------------------------------------------- tokens --
 
 

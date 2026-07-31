@@ -47,7 +47,7 @@ from nexgen_engine.benchmarks.verification import (  # noqa: E402
 )
 
 _ROOT = _BACKEND.parent
-CLEAN = ["lfw", "agedb_30", "cfp_fp", "calfw", "cplfw"]
+CLEAN = ["lfw", "agedb_30", "cfp_fp", "cfp_ff", "calfw", "cplfw"]
 TINYFACE = _ROOT / "src_extracted/tinyface/tinyface/Testing_Set"
 ID_RE = re.compile(r"^(\d+)_")
 

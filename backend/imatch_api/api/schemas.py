@@ -4,7 +4,7 @@ import re
 from datetime import datetime
 from typing import Annotated, Any
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, field_validator
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, field_validator, model_validator
 
 from ..db.models import Adjudication, CaseStatus, Role
 
@@ -58,7 +58,54 @@ INVESTIGATIVE_NOTICE = (
 class LoginRequest(BaseModel):
     email: AccountEmail
     password: str = Field(min_length=1, max_length=256)
+    remember_me: bool = False
     tenant: str = Field(default="", description="Tenant slug. Required when the email exists in several tenants.")
+
+
+class RegisterRequest(BaseModel):
+    full_name: str = Field(min_length=1, max_length=200)
+    email: AccountEmail
+    password: str = Field(min_length=1, max_length=256)
+    confirm_password: str = Field(min_length=1, max_length=256)
+    tenant: str = Field(default="", max_length=120)
+
+    @model_validator(mode="after")
+    def _passwords_match(self):
+        # Compared here rather than in the route so the mismatch is reported as
+        # a field error on confirm_password, next to the input that is wrong.
+        if self.password != self.confirm_password:
+            raise ValueError("Passwords do not match.")
+        return self
+
+
+class VerifyEmailRequest(BaseModel):
+    email: AccountEmail
+    otp: str = Field(min_length=4, max_length=12)
+
+
+class ResendOtpRequest(BaseModel):
+    email: AccountEmail
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: AccountEmail
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=16, max_length=512)
+    password: str = Field(min_length=1, max_length=256)
+    confirm_password: str = Field(min_length=1, max_length=256)
+
+    @model_validator(mode="after")
+    def _passwords_match(self):
+        if self.password != self.confirm_password:
+            raise ValueError("Passwords do not match.")
+        return self
+
+
+class MessageResponse(BaseModel):
+    message: str
+    email_verified: bool | None = None
 
 
 class TokenResponse(BaseModel):
