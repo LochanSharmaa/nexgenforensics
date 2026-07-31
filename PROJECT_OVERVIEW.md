@@ -483,6 +483,59 @@ following were found by inspection and testing.
 
 ---
 
+## 9b. NEXT WORK — agreed order (owner-approved 2026-07-31)
+
+Work these top to bottom. Everything below is open; everything above it in
+this document is done and merged to `main`.
+
+| # | Item | Why this position |
+|---|---|---|
+| 1 | **33 — adversarial / malformed input tests** | Self-contained, no new dependencies, directly hardens the API. Corrupted bytes, extreme aspect ratios, zero-byte files, non-face images; confirm clean errors rather than 500s. |
+| 2 | **31 — structured observability** | Cheap: `StageTimings` already instruments every stage per call (see `inference/pipeline.py`). This is mostly plumbing p50/p95/p99 out to logs/metrics. |
+| 3 | **32 — automated regression harness** | High value now that BENCHMARKS.md holds real numbers to regress against. Model / threshold / fusion changes must trigger the suite and fail loudly. |
+| 4 | **20 — batch UI** | Backend endpoint is built and tested (3 modes). Frontend only. |
+| 5 | **28 — ANN search** | **RE-SCOPED, see below.** |
+| 6 | **45–50 — Phase 7** | Genuinely last: item 46 cross-checks docs against the final state, so it is meaningless before that state exists. |
+
+### Item 28 is re-scoped — do NOT just install faiss
+
+The original framing ("FAISS-backed search") would not achieve its goal. The
+existing branch in `gallery_index.py` builds `faiss.IndexFlatIP`, which is an
+**exact** inner-product index — brute force with better SIMD. Installing faiss
+would buy a constant factor, **not** a change in complexity; 100k templates
+would still scale linearly.
+
+Measured baseline (BENCHMARKS.md §7b): 1k → 0.207 ms, 10k → 1.087 ms,
+100k → **15.98 ms**, i.e. at 100k the search costs about as much as encoding the
+probe. Below ~10k there is nothing to win.
+
+Real scaling needs an **approximate** index — IVF-PQ or HNSW — and the recall
+loss that comes with it. That loss must be **measured and accepted explicitly**,
+not assumed away: for a forensic system, a missed candidate from an ANN index is
+an investigative lead that silently never surfaced. Benchmark at 1k / 10k / 100k
+and report recall against exact search at each size.
+
+### Deliberately not implemented
+
+**Item 22 — enhanced-image rendering in reports.** `report_pdf.py`'s
+`draw_enhanced_pair()` raises `NotImplementedError` on purpose. The constraint is
+that an enhanced image may appear only when labelled *"AI-enhanced preview — not
+evidentiary, for visual reference only"* **and** shown beside the unmodified
+original. A partial implementation could render an enhanced image without that
+pairing, which would breach the evidentiary rule, so it fails loudly instead.
+Owner confirmed this is the correct state.
+
+**Item 19 — Vercel deploy.** Blocked on infrastructure, not effort. There is no
+deployed backend, `vercel.json`'s catch-all rewrite returns 405 on POST to a
+static host, and its CSP `connect-src 'self' https:` blocks any `http://`
+backend. A frontend-only deploy cannot work. Needs a hosted HTTPS backend first,
+then `VITE_IMATCH_BASE_URL` and the CSP updated to match.
+
+**Items 36–44 — fine-tuning.** Closed as an investigated dead end, not a gap.
+See BENCHMARKS.md §6a and §7c.
+
+---
+
 ## 10. Entry Points
 
 ### Backend API — canonical
