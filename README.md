@@ -167,14 +167,33 @@ If not present, any endpoint call will trigger automatic download (internet requ
 python -m venv .venv
 .venv\Scripts\activate
 
-pip install -r backend/requirements.txt
+# GPU host (recommended) -- installs and then ASSERTS CUDA actually bound
+python scripts/setup_gpu.py
 
-# Start server
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload --app-dir backend
+# CPU-only host
+pip install -r backend/requirements.txt -r backend/requirements-engine.txt -r backend/requirements-cpu.txt
+
+# Create the first operator account (required -- no account exists by default)
+export NEXGEN_JWT_SECRET="$(python -c 'import secrets;print(secrets.token_urlsafe(64))')"
+python backend/scripts/bootstrap_admin.py --password '<a strong password>' \
+    --email 'investigator@your-org.example' --role admin
+
+# Start the server
+python -m uvicorn imatch_api.main:app --host 127.0.0.1 --port 8443 --app-dir backend
 ```
 
-Server: `http://127.0.0.1:8000`  
-API docs: `http://127.0.0.1:8000/docs`
+Server: `http://127.0.0.1:8443`
+API docs: `http://127.0.0.1:8443/docs`
+
+> **There is only one backend: `imatch_api`, on port 8443.** This is what
+> `backend/deployment/Dockerfile` runs. Earlier revisions of this README
+> documented `app.main:app` on port 8000; that package was a leftover from an
+> unrelated product, could not start (its `core/config.py` was never
+> committed), and has been quarantined to `backend/_deprecated_app/`. Do not
+> restore it.
+
+> `NEXGEN_JWT_SECRET` must be set. Without it the service generates an
+> ephemeral per-process secret, so every token is invalidated on restart.
 
 > First startup takes ~30–60 seconds while all 3 InsightFace model packs load into memory.
 

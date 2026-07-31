@@ -122,3 +122,21 @@ Thumbs.db
 *.sln
 *.swp
 *.sw?
+
+# Benchmark embedding caches (regenerable; ~900MB)
+runtime/benchmarks/embeddings/
+
+# Fine-tuned checkpoints (regenerable; ~94MB each)
+runtime/checkpoints/*.pt
+
+# Durable biometric template store - contains encrypted biometric data
+runtime/templates.db
+runtime/templates.db-wal
+runtime/templates.db-shm
+
+# Node runtime distribution committed into the repo root by mistake.
+# Not source; ignored rather than deleted in case it is a working install.
+node/
+
+# Clean-room verification venv (regenerable via scripts/setup_gpu.py)
+.venv-clean/

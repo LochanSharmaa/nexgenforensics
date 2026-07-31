@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import importlib.util
 import logging
+import tempfile
 import threading
 from dataclasses import dataclass
+from pathlib import Path
 
 from .config import EngineConfig
 from .detection.detector import InsightFaceDetector, build_detector
@@ -62,6 +64,48 @@ def _installed(name: str) -> bool:
         return False
 
 
+def _cuda_actually_binds() -> bool:
+    """Build a throwaway session and check whether CUDA really binds.
+
+    `onnxruntime.get_available_providers()` lists providers the wheel was
+    COMPILED with, not providers that loaded. On a host missing the CUDA 12 /
+    cuDNN 9 DLLs it still reports CUDAExecutionProvider while every session
+    silently falls back to CPU. Deciding the device from that list is how this
+    service ended up running ArcFace on CPU while reporting itself healthy.
+    """
+    try:
+        import numpy as np
+        import onnx
+        import onnxruntime
+        from onnx import TensorProto, helper
+
+        from .models.cuda_runtime import CUDA_PROVIDER as _CUDA, init_cuda
+
+        init_cuda()  # register the CUDA DLL directories before probing
+        if _CUDA not in onnxruntime.get_available_providers():
+            return False
+
+        tmp = Path(tempfile.gettempdir()) / "nexgen_runtime_probe.onnx"
+        graph = helper.make_graph(
+            [helper.make_node("Relu", ["X"], ["Y"])],
+            "probe",
+            [helper.make_tensor_value_info("X", TensorProto.FLOAT, [1, 4])],
+            [helper.make_tensor_value_info("Y", TensorProto.FLOAT, [1, 4])],
+        )
+        model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 13)])
+        model.ir_version = 9
+        onnx.save(model, str(tmp))
+        try:
+            sess = onnxruntime.InferenceSession(str(tmp), providers=[_CUDA, CPU_PROVIDER])
+            sess.run(None, {"X": np.ones((1, 4), dtype=np.float32)})
+            return _CUDA in sess.get_providers()
+        finally:
+            tmp.unlink(missing_ok=True)
+    except Exception as exc:  # pragma: no cover - host-specific
+        logger.debug("CUDA binding probe failed: %s", exc)
+        return False
+
+
 def detect_runtime_capabilities() -> RuntimeCapabilities:
     providers: tuple[str, ...] = ()
     if _installed("onnxruntime"):
@@ -77,7 +121,8 @@ def detect_runtime_capabilities() -> RuntimeCapabilities:
         opencv=_installed("cv2"),
         faiss=_installed("faiss"),
         torch=_installed("torch"),
-        cuda_provider=CUDA_PROVIDER in providers,
+        # Verified by an actual session, not by the build-time provider list.
+        cuda_provider=CUDA_PROVIDER in providers and _cuda_actually_binds(),
         onnx_providers=providers,
     )
 
@@ -97,6 +142,16 @@ def resolve_providers(requested_device: str) -> tuple[list[str], str]:
     device.
     """
     capabilities = detect_runtime_capabilities()
+
+    if requested_device == "auto":
+        # Use the GPU when it genuinely binds, otherwise CPU -- without the
+        # caller having to know which host it is on. Defaulting to "cpu"
+        # meant a correctly configured CUDA host still ran ArcFace on CPU.
+        if capabilities.cuda_provider:
+            logger.info("device=auto resolved to cuda (%s bound)", CUDA_PROVIDER)
+            return [CUDA_PROVIDER, CPU_PROVIDER], "cuda"
+        logger.info("device=auto resolved to cpu (no CUDA provider bound)")
+        return [CPU_PROVIDER], "cpu"
 
     if requested_device == "cuda":
         if capabilities.cuda_provider:

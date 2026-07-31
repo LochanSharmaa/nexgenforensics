@@ -50,7 +50,14 @@ class ResNet50ArcFaceBackbone(nn.Module):
         x = self.bn_out(x)
         return torch.nn.functional.normalize(x, p=2, dim=1)
 
-def run_training(sanity_check=False, epochs=5, batch_size=32, lr=1e-4):
+def run_training(
+    sanity_check=False,
+    epochs=5,
+    batch_size=32,
+    lr=1e-4,
+    sanity_steps=100,
+    run_tag="v1",
+):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"=========================================================================")
     print(f"   STARTING ARCFACE MODEL FINE-TUNING PIPELINE ON DEVICE: {device}       ")
@@ -59,7 +66,28 @@ def run_training(sanity_check=False, epochs=5, batch_size=32, lr=1e-4):
     # 1. Dataset & DataLoader
     max_ids = 50 if sanity_check else 300
     dataset = MultiDatasetFaceDataset(is_train=True, max_identities=max_ids)
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+    # drop_last=True: the model head ends in nn.BatchNorm1d(512). BatchNorm
+    # computes per-feature variance across the batch dimension, which is
+    # undefined for a batch of 1 -- PyTorch raises
+    # "Expected more than 1 value per channel when training". Whenever
+    # len(dataset) % batch_size == 1 the final batch of each epoch is exactly
+    # that size, so training crashed at the first epoch boundary.
+    #
+    # Chosen over swapping BatchNorm1d -> GroupNorm because the BN layer is
+    # part of the standard ArcFace head (BN after the embedding FC is what the
+    # pretrained ArcFace models use); replacing it would change the head
+    # architecture and make our checkpoint incompatible with the reference
+    # topology for no benefit. Dropping <=batch_size-1 samples per epoch is a
+    # negligible data loss (<0.5% at batch_size=32) and shuffle=True means a
+    # different remainder is dropped each epoch.
+    loader = DataLoader(
+        dataset, batch_size=batch_size, shuffle=True, num_workers=0, drop_last=True
+    )
+    if len(loader) == 0:
+        raise ValueError(
+            f"dataset has {len(dataset)} samples but batch_size={batch_size}; "
+            "with drop_last=True that yields zero batches. Lower --batch-size."
+        )
 
     print(f"Dataset Loaded: {len(dataset)} samples across {dataset.num_classes} identities.")
 
@@ -85,8 +113,12 @@ def run_training(sanity_check=False, epochs=5, batch_size=32, lr=1e-4):
     print(f"{'Epoch':<6} | {'Step':<8} | {'ArcFace Loss':<14} | {'LR':<10} | {'Grad Norm':<10} | {'Step Time':<10}")
     print("-" * 75)
 
+    epoch_stats: list[dict] = []
+
     for epoch in range(1, epochs + 1):
         model.train()
+        ep_losses: list[float] = []
+        ep_grads: list[float] = []
         for batch_idx, (images, labels) in enumerate(loader):
             step_start = time.time()
             step_count += 1
@@ -108,36 +140,85 @@ def run_training(sanity_check=False, epochs=5, batch_size=32, lr=1e-4):
             optimizer.step()
             scheduler.step()
 
+            ep_losses.append(float(loss.item()))
+            ep_grads.append(float(total_norm))
+
             step_time = (time.time() - step_start) * 1000.0  # ms
             current_lr = optimizer.param_groups[0]['lr']
 
             if step_count % 10 == 0 or step_count == 1 or sanity_check:
                 print(f"{epoch:<6} | {step_count:<8} | {loss.item():<14.6f} | {current_lr:<10.6f} | {total_norm:<10.4f} | {step_time:<8.1f} ms")
 
-            if sanity_check and step_count >= 100:
-                print(f"\n[SANITY CHECK PASSED] Successfully completed 100 gradient steps.")
-                print(f"Initial Loss -> Final Loss reduction verified!")
+            if sanity_check and step_count >= sanity_steps:
+                first, last = ep_losses[0], ep_losses[-1]
+                print(f"\n[SANITY CHECK] completed {step_count} gradient steps without error.")
+                print(f"  loss  first={first:.4f}  last={last:.4f}  delta={last - first:+.4f}")
+                print(f"  grad norm  min={min(ep_grads):.3f} max={max(ep_grads):.3f}")
+                print("  NOTE: a short sanity run proves the loop executes; it does NOT")
+                print("        establish convergence and yields no accuracy claim.")
                 return model, ckpt_path
 
-    # Save final checkpoint to both root and backend relative paths
+        # ---- end of epoch: report the loss curve, not just 'it ran' ----
+        n = len(ep_losses)
+        head = sum(ep_losses[: max(1, n // 10)]) / max(1, n // 10)
+        tail = sum(ep_losses[-max(1, n // 10) :]) / max(1, n // 10)
+        grads = torch.tensor(ep_grads)
+        stats = {
+            "epoch": epoch,
+            "steps": n,
+            "loss_first_decile_mean": head,
+            "loss_last_decile_mean": tail,
+            "loss_min": min(ep_losses),
+            "loss_max": max(ep_losses),
+            "grad_norm_mean": float(grads.mean()),
+            "grad_norm_std": float(grads.std()),
+            "grad_norm_max": float(grads.max()),
+            "grad_norm_nonfinite": int((~torch.isfinite(grads)).sum()),
+        }
+        epoch_stats.append(stats)
+        print(
+            f"\n[EPOCH {epoch} COMPLETE] steps={n}  "
+            f"loss {head:.4f} -> {tail:.4f} ({tail - head:+.4f})  "
+            f"grad_norm mean={stats['grad_norm_mean']:.3f} "
+            f"std={stats['grad_norm_std']:.3f} max={stats['grad_norm_max']:.3f} "
+            f"nonfinite={stats['grad_norm_nonfinite']}\n"
+        )
+
+    # Versioned checkpoint so runs are distinguishable and A/B-able against
+    # the stock pretrained weights. Never overwrite a previous run's file.
+    from datetime import datetime, timezone
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+    versioned = checkpoint_dir / f"arcface_ft_{run_tag}_{stamp}.pt"
+
     ckpt_dict = {
         'model_state_dict': model.state_dict(),
         'num_classes': dataset.num_classes,
-        'embedding_dim': 512
+        'embedding_dim': 512,
+        'arch': 'resnet50_arcface',
+        'epochs': epochs,
+        'batch_size': batch_size,
+        'lr': lr,
+        'max_identities': max_ids,
+        'train_samples': len(dataset),
+        'epoch_stats': epoch_stats,
+        'created_utc': datetime.now(timezone.utc).isoformat(),
     }
-    torch.save(ckpt_dict, ckpt_path)
+    torch.save(ckpt_dict, versioned)
+    torch.save(ckpt_dict, ckpt_path)  # stable "latest" alias
 
-    alt_path = Path("backend/runtime/checkpoints/finetuned_resnet50_arcface.pt").resolve()
-    alt_path.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(ckpt_dict, alt_path)
-
+    total_time = time.time() - start_time
+    file_size = versioned.stat().st_size
     print(f"\n=========================================================================")
     print(f"   FINE-TUNING COMPLETED IN {total_time:.2f} SECONDS                      ")
-    print(f"   CHECKPOINT SAVED AT PRIMARY: {ckpt_path.resolve()}")
-    print(f"   CHECKPOINT SAVED AT ALT:     {alt_path.resolve()}")
+    print(f"   VERSIONED CHECKPOINT: {versioned.resolve()}")
+    print(f"   LATEST ALIAS:         {ckpt_path.resolve()}")
+    print(f"   FILE SIZE: {file_size / 1e6:.2f} MB ({file_size:,} bytes)")
+    print(f"   NOTE: no accuracy is claimed for this checkpoint until it is")
+    print(f"         evaluated by backend/scripts/benchmark_verification.py")
     print(f"=========================================================================")
 
-    return model, ckpt_path
+    return model, versioned
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -145,6 +226,15 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=5, help="Number of training epochs")
     parser.add_argument("--batch-size", type=int, default=32, help="Batch size")
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
+    parser.add_argument("--sanity-steps", type=int, default=100, help="Steps for --sanity-check")
+    parser.add_argument("--run-tag", type=str, default="v1", help="Version tag for the checkpoint filename")
     args = parser.parse_args()
 
-    run_training(sanity_check=args.sanity_check, epochs=args.epochs, batch_size=args.batch_size, lr=args.lr)
+    run_training(
+        sanity_check=args.sanity_check,
+        epochs=args.epochs,
+        batch_size=args.batch_size,
+        lr=args.lr,
+        sanity_steps=args.sanity_steps,
+        run_tag=args.run_tag,
+    )

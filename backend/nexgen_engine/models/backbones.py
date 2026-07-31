@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import hashlib
 from dataclasses import dataclass
-from io import BytesIO
 
 import numpy as np
 from PIL import Image
 
-from ..config import BackboneConfig, EngineConfig
-from ..utils import deterministic_vector, l2_normalize
+from ..config import EngineConfig
+from ..utils import l2_normalize
 
 
 @dataclass(frozen=True)
@@ -18,20 +16,17 @@ class BackboneOutput:
     quality_weight: float
 
 
-class DeterministicBackbone:
-    def __init__(self, config: BackboneConfig) -> None:
-        self.config = config
-
-    def encode(self, image: Image.Image, quality_score: float = 1.0) -> BackboneOutput:
-        buffer = BytesIO()
-        image.convert("RGB").resize((self.config.image_size, self.config.image_size)).save(buffer, format="PNG")
-        seed = hashlib.sha256(self.config.name.encode("utf-8") + buffer.getvalue()).digest()
-        embedding = deterministic_vector(seed, self.config.embedding_dim)
-        return BackboneOutput(
-            name=self.config.name,
-            embedding=embedding,
-            quality_weight=max(0.01, self.config.weight * max(quality_score, 0.05)),
-        )
+# NOTE: DeterministicBackbone was removed here.
+#
+# It hashed the image bytes into a pseudo-random unit vector and returned it as
+# an "embedding". That kept the API returning 200s when no real weights were
+# loaded, at the cost of every similarity score being meaningless -- the same
+# fallback mode EngineConfig's docstring records as deliberately deleted.
+#
+# Its config type (BackboneConfig) had already been dropped from config.py, so
+# the module-level `from ..config import BackboneConfig` raised ImportError and
+# made this entire module -- including the real InsightFace ensemble below --
+# impossible to import. Nothing referenced the class.
 
 
 class BackboneEnsemble:

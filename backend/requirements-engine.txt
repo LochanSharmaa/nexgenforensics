@@ -12,11 +12,32 @@
 
 -r requirements.txt
 
-# RetinaFace detection + ArcFace r100 recognition (ONNX)
-insightface>=0.7.3,<0.8
-onnxruntime>=1.20.0,<2.0
-# Swap the line above for onnxruntime-gpu on a CUDA host:
-# onnxruntime-gpu>=1.20.0,<2.0
+# RetinaFace/SCRFD detection + ArcFace recognition (ONNX)
+#
+# insightface is pinned to the 1.x line, not the old <0.8 range that was here
+# before: 0.7.3 ships no Windows wheel for CPython 3.11 and falls back to a
+# source build that needs Cython plus an MSVC toolchain, which fails on a clean
+# Windows host. 1.x installs from a wheel.
+insightface>=1.0.1,<2.0
 
-opencv-python-headless>=4.10.0,<5.0
-scikit-image>=0.24.0,<1.0
+# onnx is needed by scripts/verify_gpu.py to build its provider-probe graph,
+# and insightface does not pull it in on its own.
+onnx>=1.16
+
+# ---------------------------------------------------------------------------
+# ONNX RUNTIME IS DELIBERATELY NOT PINNED HERE. Pick exactly one:
+#
+#   CPU-only host:  pip install -r requirements-engine.txt -r requirements-cpu.txt
+#   CUDA GPU host:  pip install -r requirements-engine.txt -r requirements-gpu.txt
+#
+# Never install plain `onnxruntime` alongside `onnxruntime-gpu`. Both packages
+# install into the same `onnxruntime/` namespace; whichever lands second wins,
+# and the usual result is the CPU build silently shadowing the GPU build --
+# no error, no crash, just CPU inference at ~20x the latency.
+# scripts/verify_gpu.py fails loudly if both are present.
+# ---------------------------------------------------------------------------
+
+# Upper bounds removed: the previous `<5.0` cap excluded the opencv 5.x line
+# that this project is actually running and tested against.
+opencv-python-headless>=4.10.0
+scikit-image>=0.24.0
