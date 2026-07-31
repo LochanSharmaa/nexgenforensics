@@ -746,6 +746,56 @@ identity-level rather than index-level recall.
 
 ---
 
+## 7e. FUSION METHOD BY CONDITION (item 35)
+
+```bash
+python backend/scripts/benchmark_fusion.py
+```
+
+Seven fusion methods scored from the cached embeddings, so these cannot
+disagree with §2 — same inputs, same harness.
+
+| Fusion method | LFW | AgeDB-30 | CFP-FP | CALFW | CPLFW | **Clean avg** |
+|---|---|---|---|---|---|---|
+| single `w600k_r50` *(deployed pack)* | 99.78 | 98.15 | 97.44 | 95.95 | 94.47 | 97.16 |
+| **single `glintr100`** *(default)* | 99.77 | **98.32** | **97.71** | **96.17** | **94.78** | **97.35** |
+| single `w600k_mbf` | 99.60 | 96.33 | 96.00 | 95.60 | 92.63 | 96.03 |
+| dual r50+r100 | **99.80** | 98.30 | 97.50 | 96.15 | 94.47 | 97.24 |
+| weighted .45/.45/.10 | **99.80** | 98.32 | 97.47 | 96.07 | 94.32 | 97.19 |
+| equal 1/3 | 99.77 | 98.07 | 97.21 | 96.08 | 93.92 | 97.01 |
+| concat 1536-d | 99.77 | 98.02 | 97.56 | 96.05 | 94.33 | 97.14 |
+
+**On clean protocols `single_glintr100` wins**, confirming the default. No
+ensemble beats the best single model — consistent with §3.
+
+### The winner is condition-dependent
+
+Combining with the TinyFace measurements in §4, for the single-model configs:
+
+| Config | Clean avg | TinyFace |
+|---|---|---|
+| `glintr100` *(fusion default)* | **97.35** | 79.68 |
+| `w600k_r50` *(deployed pack)* | 97.16 | **82.45** |
+
+**They disagree.** `glintr100` is better on clean imagery; `w600k_r50` is
+better by 2.8 points on degraded. A single static fusion default is therefore
+the wrong shape — the right selector is the probe's measured quality, which the
+pipeline already computes.
+
+**Not yet measured:** whether the *multi-model fusion* methods are also
+condition-dependent. `benchmark_tinyface.py` does not cache embeddings in the
+format `benchmark_fusion.py` reads, so only the single-model comparison above
+is evidenced. The script says so and refuses to guess rather than reporting a
+clean-only winner as if it were global.
+
+**Current state is coherent but not optimal:** the deployed *pack* is
+`w600k_r50` (degraded-optimised) while the fusion *default* names
+`single_glintr100`. Since the ensemble classes are not loaded unless selected,
+the service runs `w600k_r50` — the right choice for casework. The naming is
+confusing and worth reconciling.
+
+---
+
 ## 8. Reproducibility
 
 - Embeddings are cached per (dataset, backbone) under
