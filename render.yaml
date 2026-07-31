@@ -30,10 +30,35 @@
 #      A report can still be produced; the original image it references cannot
 #      be retrieved. Acceptable for a demo, NOT acceptable for casework.
 #
-#   2. COLD STARTS ARE SLOW. Free services spin down when idle. The first
-#      request afterwards restarts the process AND re-downloads the ~350 MB
-#      InsightFace model pack, because there is no disk to cache it on. Expect
-#      the first request after a quiet period to take minutes, not seconds.
+#   2. COLD STARTS ARE SLOW. Free services spin down when idle, and the first
+#      request afterwards restarts the process and reloads the weights. Expect
+#      50 s or more, which the Render dashboard also warns about.
+#
+#      It used to be worse: the pack was fetched inside the running service, so
+#      a cold start re-downloaded 275 MB before serving anything. That is what
+#      exhausted the 512 MB budget and produced
+#      `Out of memory (used over 512Mi)` on 2026-07-31. The pack is now fetched
+#      and trimmed at BUILD time by scripts/prefetch_models.py and read from
+#      NEXGEN_MODEL_ROOT, so the serving process never holds the archive.
+#
+#      MEMORY, MEASURED FROM THE PACK ON DISK. buffalo_l ships 341.3 MB of
+#      weights. InsightFace globs every *.onnx in the directory and builds an
+#      InferenceSession for each one BEFORE discarding those outside
+#      `allowed_modules`, so the unused 3D-landmark model (1k3d68.onnx,
+#      143.6 MB) was being loaded and thrown away on every startup. The build
+#      step deletes the three unused models, leaving 191.3 MB:
+#
+#        det_10g.onnx      16.9 MB  detection      KEPT
+#        w600k_r50.onnx   174.4 MB  recognition    KEPT  (the deployed model)
+#        1k3d68.onnx      143.6 MB  3D landmark    removed
+#        2d106det.onnx      5.0 MB  2D landmark    removed
+#        genderage.onnx     1.3 MB  age/gender     removed
+#
+#      No similarity score changes: the removed models are never consulted for
+#      one. 191.3 MB of weights plus the Python/ONNX-Runtime baseline still
+#      leaves little headroom in 512 MB. If this OOMs again, the fix is a
+#      larger instance, NOT a smaller recognition model -- swapping w600k_r50
+#      invalidates every figure in BENCHMARKS.md and CLAIMS.md.
 #
 # To remove both, move to a paid instance and add:
 #
@@ -82,6 +107,7 @@ services:
       pip install --upgrade pip
       pip install -r backend/requirements-deploy.txt
       pip install --no-deps "insightface>=1.0.1,<2.0"
+      python scripts/prefetch_models.py --root ./.insightface --pack buffalo_l
 
     startCommand: uvicorn imatch_api.main:app --host 0.0.0.0 --port $PORT --app-dir backend
 
@@ -118,7 +144,16 @@ services:
       - key: NEXGEN_STORAGE_ROOT
         value: /tmp/imatch-storage
 
-      # CORS: replace with the real Vercel origin once known. Never a wildcard
-      # -- these endpoints carry biometric data behind credentialed requests.
+      # CORS: the deployed Vercel origin. Never a wildcard -- these endpoints
+      # carry biometric data behind credentialed requests. This must stay in
+      # step with vercel.json's `connect-src`, which names this service in turn;
+      # both were shipped with REPLACE-WITH-... placeholders and the result was
+      # a login that failed with "Failed to fetch" before a request was sent.
       - key: NEXGEN_CORS_ORIGINS
-        value: https://REPLACE-WITH-YOUR-VERCEL-DOMAIN.vercel.app
+        value: https://nexgenforensics.vercel.app
+
+      # Where prefetch_models.py put the weights at build time. Must match the
+      # --root passed in buildCommand above, or the service re-downloads the
+      # pack at startup and OOMs again.
+      - key: NEXGEN_MODEL_ROOT
+        value: ./.insightface

@@ -1,6 +1,6 @@
 # A8 — API and Interface Specification
 
-**Generated:** 2026-07-31 19:42 UTC · **Repository state:** `cc96a43f62e1`
+**Generated:** 2026-07-31 20:32 UTC · **Repository state:** `da66fad0d7f1`
 
 The complete HTTP surface: 36 endpoints, their handlers, the request and response schemas, and the authentication and governance rules that apply to them.
 

@@ -1,6 +1,6 @@
 # A10 — Security Architecture and Controls
 
-**Generated:** 2026-07-31 19:42 UTC · **Repository state:** `cc96a43f62e1`
+**Generated:** 2026-07-31 20:32 UTC · **Repository state:** `da66fad0d7f1`
 
 Implemented controls, the reasoning behind each, and the threats this system does not defend against.
 

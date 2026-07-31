@@ -1,6 +1,6 @@
 # A6 — Dataset Provenance and Integrity
 
-**Generated:** 2026-07-31 19:42 UTC · **Repository state:** `cc96a43f62e1`
+**Generated:** 2026-07-31 20:32 UTC · **Repository state:** `da66fad0d7f1`
 
 Every corpus this system was trained or evaluated on: where it came from, what licence governs it, what was done to establish that training and evaluation data do not overlap, and what remains unverifiable.
 
