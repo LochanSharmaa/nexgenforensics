@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from .core.csrf import CSRF_COOKIE, CSRF_HEADER, request_is_exempt, tokens_match, validate_csrf_token
 from fastapi.responses import JSONResponse
 
 from .api.routes import account, admin, audit, auth, cases, health, reports, search, subjects
@@ -82,18 +83,6 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json" if not settings.is_production else None,
     )
 
-    app.add_middleware(
-        CORSMiddleware,
-        # Never "*": these endpoints carry biometric data behind credentialed
-        # requests, and a wildcard origin with credentials is both invalid and
-        # dangerous.
-        allow_origins=settings.cors_origin_list,
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "X-API-Key"],
-        max_age=600,
-    )
-
     @app.middleware("http")
     async def request_context(request: Request, call_next):  # noqa: ANN001, ANN202
         """Attach a correlation id and baseline security headers."""
@@ -109,9 +98,94 @@ def create_app() -> FastAPI:
         # API responses containing biometric findings must not sit in a shared
         # or browser cache.
         response.headers["Cache-Control"] = "no-store"
+        response.headers["Permissions-Policy"] = (
+            "camera=(), microphone=(), geolocation=(), payment=(), usb=(), "
+            "interest-cohort=()"
+        )
+        # Isolate the browsing context so a cross-origin opener cannot reach
+        # this window, and so no other site can embed a response as a resource.
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+        response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
+        response.headers["X-DNS-Prefetch-Control"] = "off"
+
+        # Content-Security-Policy.
+        #
+        # This service returns JSON, not markup, so the strictest possible
+        # policy is also the correct one: nothing should ever be loaded or
+        # executed from an API response. `frame-ancestors 'none'` is the
+        # modern form of X-Frame-Options and is kept alongside it because
+        # older browsers honour only the header.
+        #
+        # /docs is the exception and gets a relaxed policy rather than none:
+        # Swagger UI is served from a CDN and uses inline styles, so the strict
+        # policy would leave an interactive page that silently renders blank.
+        # It is unavailable in production anyway (docs_url is None there).
+        if request.url.path.startswith(("/docs", "/redoc", "/openapi.json")):
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; img-src 'self' data: https:; "
+                "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'"
+            )
+        else:
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; "
+                "form-action 'none'; sandbox"
+            )
+
         if settings.is_production:
             response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
         return response
+
+    @app.middleware("http")
+    async def csrf_guard(request: Request, call_next):  # noqa: ANN001, ANN202
+        """Reject state-changing requests that rely on cookies without a token.
+
+        Requests presenting Authorization or X-API-Key are exempt: a
+        cross-origin page cannot set those headers, so they are not forgeable
+        and demanding a token would break every API client to no benefit. What
+        remains is the unauthenticated auth endpoints, where this prevents
+        login CSRF -- an attacker forcing a victim into an account they control
+        so the victim's later searches are audited against the wrong person.
+        """
+        if settings.csrf_enabled:
+            has_auth_header = bool(
+                request.headers.get("authorization") or request.headers.get("x-api-key")
+            )
+            if not request_is_exempt(request.method, has_auth_header):
+                cookie = request.cookies.get(CSRF_COOKIE)
+                header = request.headers.get(CSRF_HEADER)
+                secret = settings.resolved_jwt_secret()
+                if not tokens_match(cookie, header) or not validate_csrf_token(header, secret):
+                    return JSONResponse(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        content={
+                            "detail": "Missing or invalid CSRF token.",
+                            "hint": f"GET /api/auth/csrf, then send {CSRF_HEADER}.",
+                        },
+                    )
+        return await call_next(request)
+
+    # Registered LAST so it is the OUTERMOST middleware.
+    #
+    # Starlette runs the most recently added middleware first, and that
+    # ordering is load-bearing here: with CORS on the inside, a 403 from the
+    # CSRF guard short-circuits before CORS can attach its headers, and the
+    # browser reports a legitimate rejection as an opaque "Failed to fetch"
+    # with no way for the client to see why. Outermost, every response —
+    # including refusals raised by middleware — carries the CORS headers.
+    app.add_middleware(
+        CORSMiddleware,
+        # Never "*": these endpoints carry biometric data behind credentialed
+        # requests, and a wildcard origin with credentials is both invalid and
+        # dangerous.
+        allow_origins=settings.cors_origin_list,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "X-API-Key", "X-CSRF-Token"],
+        max_age=600,
+    )
 
     @app.exception_handler(Exception)
     async def unhandled_exception(request: Request, exc: Exception) -> JSONResponse:

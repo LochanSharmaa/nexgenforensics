@@ -165,18 +165,43 @@ def engine_service(engine_runtime) -> EngineService:
     return get_engine_service()
 
 
+def prime_csrf(test_client: TestClient) -> TestClient:
+    """Give a client a CSRF token, exactly as the browser app does.
+
+    TestClient keeps a cookie jar, so the GET sets the cookie; the header is
+    pinned so every later request double-submits it. Without this, every
+    unauthenticated POST is correctly refused with 403 -- which is the point of
+    the guard, and is asserted directly in test_security_headers.py rather than
+    implied by unrelated tests failing.
+    """
+    from imatch_api.core.csrf import CSRF_HEADER
+
+    token = test_client.get("/api/auth/csrf").json()["csrf_token"]
+    test_client.headers.update({CSRF_HEADER: token})
+    return test_client
+
+
 @pytest.fixture
 def client(engine_runtime) -> TestClient:
     """API client backed by the real recognition engine."""
     from imatch_api.main import create_app
 
     with TestClient(create_app()) as test_client:
-        yield test_client
+        yield prime_csrf(test_client)
 
 
 @pytest.fixture
 def anon_client() -> TestClient:
     """Client for tests that never touch recognition (auth, cases, audit)."""
+    from imatch_api.main import create_app
+
+    with TestClient(create_app()) as test_client:
+        yield prime_csrf(test_client)
+
+
+@pytest.fixture
+def raw_client() -> TestClient:
+    """Client with NO CSRF token, for asserting the guard actually refuses."""
     from imatch_api.main import create_app
 
     with TestClient(create_app()) as test_client:

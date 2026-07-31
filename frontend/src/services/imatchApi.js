@@ -19,7 +19,21 @@
  *     validation arrays, rather than a generic "request failed".
  */
 
-const DEFAULT_BASE = "http://127.0.0.1:8443";
+/**
+ * Default API origin.
+ *
+ * Derived from the page's own hostname rather than hardcoding 127.0.0.1,
+ * because `localhost` and `127.0.0.1` are DIFFERENT SITES to a browser even
+ * though they are the same machine. With the page on localhost:5173 and the
+ * API pinned to 127.0.0.1:8443, a SameSite=Lax cookie is not sent on POST, so
+ * the CSRF double-submit check has nothing to compare and every form fails.
+ * Ports are irrelevant to SameSite, so matching the hostname is enough to make
+ * the two same-site.
+ */
+const DEFAULT_BASE =
+  typeof window !== "undefined" && window.location?.hostname
+    ? `${window.location.protocol}//${window.location.hostname}:8443`
+    : "http://127.0.0.1:8443";
 
 export const IMATCH_BASE =
   import.meta.env.VITE_IMATCH_BASE_URL?.trim() || DEFAULT_BASE;
@@ -122,12 +136,42 @@ function describeError(payload, status) {
 
 // --------------------------------------------------------------- request ---
 
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+let csrfToken = null;
+
+/**
+ * Fetch a CSRF token, once, and reuse it.
+ *
+ * Only needed for state-changing requests that carry no Authorization header.
+ * A request with a bearer token is exempt server-side, because a cross-origin
+ * page cannot set that header in the first place — so fetching a token for
+ * those would be a wasted round trip on every call.
+ *
+ * `credentials: "include"` matters: the API is on a different origin to the
+ * app in development, and without it the browser sends no cookie, so the
+ * server's double-submit check has nothing to compare the header against.
+ */
+async function ensureCsrfToken() {
+  if (csrfToken) return csrfToken;
+  const response = await fetch(`${IMATCH_BASE}/api/auth/csrf`, { credentials: "include" });
+  if (!response.ok) return null;
+  const payload = await response.json();
+  csrfToken = payload?.csrf_token ?? null;
+  return csrfToken;
+}
+
 async function request(path, { method = "GET", body, auth = true, signal } = {}) {
   const url = `${IMATCH_BASE}${path}`;
   const headers = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
-  if (auth && tokenStore.access) {
+  const bearer = auth && tokenStore.access;
+  if (bearer) {
     headers.Authorization = `Bearer ${tokenStore.access}`;
+  }
+
+  if (!SAFE_METHODS.has(method.toUpperCase()) && !bearer) {
+    const token = await ensureCsrfToken();
+    if (token) headers["X-CSRF-Token"] = token;
   }
 
   let response;
@@ -135,6 +179,7 @@ async function request(path, { method = "GET", body, auth = true, signal } = {})
     response = await fetch(url, {
       method,
       headers,
+      credentials: "include",
       body: body === undefined ? undefined : JSON.stringify(body),
       signal,
     });
@@ -163,6 +208,12 @@ async function request(path, { method = "GET", body, auth = true, signal } = {})
     // 401 means the stored token is dead. Clear it so the app stops presenting
     // the operator as signed in while every request fails.
     if (response.status === 401) tokenStore.clear();
+    // A stale CSRF token (expired, or minted against a restarted server) would
+    // otherwise wedge every form on the page permanently. Drop it so the next
+    // attempt fetches a fresh one.
+    if (response.status === 403 && /csrf/i.test(payload?.detail ?? "")) {
+      csrfToken = null;
+    }
     throw new ApiError(describeError(payload, response.status), {
       status: response.status,
       detail: payload?.detail ?? null,

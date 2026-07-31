@@ -14,6 +14,7 @@ from ...core.dependencies import (
     get_current_principal,
     require_admin,
 )
+from ...core.csrf import CSRF_COOKIE, CSRF_HEADER, DEFAULT_MAX_AGE as CSRF_MAX_AGE, issue_csrf_token
 from ...core.rate_limit import SlidingWindowRateLimiter, register_auth_limiter
 from ...core.security import (
     TokenError,
@@ -125,6 +126,33 @@ def _clear_auth_cookies(response: Response, settings: Settings) -> None:
 
 def get_audit_service(settings: Settings = Depends(get_settings)) -> AuditService:
     return AuditService(settings.audit_path)
+
+
+@router.get("/csrf")
+def csrf_token(
+    response: Response,
+    settings: Settings = Depends(get_settings),
+) -> dict[str, str]:
+    """Mint a CSRF token for this browser.
+
+    The cookie is deliberately NOT HTTPOnly, unlike the session cookies. That
+    is the whole mechanism: the page has to be able to read this value in order
+    to echo it back in a header, and an attacker's page cannot read it because
+    the same-origin policy stops them reading another origin's cookies. The
+    value is signed, so it also cannot simply be invented.
+    """
+    token = issue_csrf_token(settings.resolved_jwt_secret())
+    response.set_cookie(
+        CSRF_COOKIE,
+        token,
+        httponly=False,
+        secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite,
+        path="/",
+        max_age=CSRF_MAX_AGE,
+        domain=settings.cookie_domain or None,
+    )
+    return {"csrf_token": token, "header": CSRF_HEADER}
 
 
 @router.post("/login", response_model=TokenResponse)

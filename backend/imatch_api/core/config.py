@@ -90,6 +90,10 @@ class Settings(BaseSettings):
     # is unchanged, so a stolen access token is never long-lived.
     remember_me_refresh_days: int = 30
 
+    # CSRF is enforced only where it can actually apply -- see core/csrf.py.
+    # Requests bearing Authorization or X-API-Key are exempt by design, so
+    # existing programmatic clients are unaffected by this being on.
+    csrf_enabled: bool = True
     auth_cookies_enabled: bool = True
     cookie_secure: bool = False          # must be True behind HTTPS
     cookie_samesite: str = "lax"
