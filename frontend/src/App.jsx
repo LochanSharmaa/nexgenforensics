@@ -21,6 +21,8 @@ import { FaceSearchExperience } from "./components/sections/FaceSearchExperience
 import { FingerprintAIPage } from "./components/sections/FingerprintAIPage";
 import { NavigationPage } from "./components/pages/NavigationPages";
 import { LoginPage } from "./components/pages/LoginPage";
+import { ChooseRolePage } from "./components/pages/ChooseRolePage";
+import { IndividualComparePage } from "./components/pages/IndividualComparePage";
 
 import { WorkspaceLayout } from "./workspace/WorkspaceLayout";
 import { CaseListPage } from "./workspace/CaseListPage";
@@ -150,6 +152,28 @@ export default function App() {
               <MarketingShell>
                 <LoginPage />
               </MarketingShell>
+            }
+          />
+          {/* Post-login destination chooser. Sets a UI preference only -- it
+              grants nothing, so it sits behind the same auth gate as anything
+              else that assumes a signed-in user. */}
+          <Route
+            path="/choose-role"
+            element={
+              <MarketingShell>
+                <ChooseRolePage />
+              </MarketingShell>
+            }
+          />
+          {/* The "Individual" destination: 1:1 comparison only. */}
+          <Route
+            path="/compare"
+            element={
+              <RequireAuth>
+                <MarketingShell>
+                  <IndividualComparePage />
+                </MarketingShell>
+              </RequireAuth>
             }
           />
           <Route

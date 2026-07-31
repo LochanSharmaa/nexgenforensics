@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { destinationFor, getWorkspaceMode } from "../../context/workspaceMode";
 import "./LoginPage.css";
 
 const accessItems = [
@@ -22,7 +23,7 @@ export function LoginPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const destination = location.state?.from?.pathname || "/workspace";
+  const from = location.state?.from;
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -30,7 +31,15 @@ export function LoginPage() {
     setError("");
     try {
       await signIn({ email, password, tenant });
-      navigate(destination, { replace: true });
+      // First sign-in on this device: ask which experience they want before
+      // dropping them somewhere. Afterwards the stored preference decides, so
+      // the question is asked once and not on every login.
+      const mode = getWorkspaceMode();
+      if (!mode) {
+        navigate("/choose-role", { replace: true, state: { from } });
+      } else {
+        navigate(destinationFor(mode, from), { replace: true });
+      }
     } catch (signInError) {
       setError(signInError.message);
     } finally {

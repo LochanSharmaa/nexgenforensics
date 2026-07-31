@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./FaceSearchExperience.css";
 import faceSearchVideo from "../../assets/facesearch.mp4";
+import { useLoginGate } from "../../hooks/useLoginGate";
 import {
   imatchApiUrl,
   runSearch,
@@ -324,6 +325,7 @@ function ImatchUploadConsole({ step, hero = false }) {
 
 // ─── BatchPanel — real 1:N batch search UI ────────────────────────────────────
 function BatchPanel() {
+  const requireLogin = useLoginGate();
   const [batchFiles, setBatchFiles] = useState([]);
   const [referenceFile, setReferenceFile] = useState(null);
   const [mode, setMode] = useState("one_to_many");
@@ -340,6 +342,11 @@ function BatchPanel() {
   };
 
   const handleRunBatch = async () => {
+    // Sign-in gate FIRST, before any validation or any network call. This is a
+    // public page: an unauthenticated visitor must be sent to log in, never
+    // shown an API failure.
+    if (requireLogin({ panel: "batch", mode })) return;
+
     setError("");
     setBatchResult(null);
 
@@ -564,6 +571,7 @@ function BatchPanel() {
 
 // ─── ComparePanel — real 1:1 verification UI ──────────────────────────────────
 function ComparePanel() {
+  const requireLogin = useLoginGate();
   const [refFile, setRefFile] = useState(null);
   const [probeFile, setProbeFile] = useState(null);
   const [refPreview, setRefPreview] = useState("");
@@ -589,6 +597,8 @@ function ComparePanel() {
   }, [probeFile]);
 
   const handleRun = async () => {
+    if (requireLogin({ panel: "compare" })) return;
+
     setError("");
     setResult(null);
 
@@ -777,6 +787,7 @@ function FaceDropZone({ id, label, preview, onChange }) {
 
 // ─── SingleSearchPanel — original single-image logic ─────────────────────────
 function SingleSearchPanel({ step, activeMode }) {
+  const requireLogin = useLoginGate();
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState("");
   // Labels describe what the backend actually computes. See CLAIMS.md.
@@ -837,6 +848,8 @@ function SingleSearchPanel({ step, activeMode }) {
   };
 
   const handleLaunch = async () => {
+    if (requireLogin({ panel: "single", mode: activeMode })) return;
+
     setError("");
     setResult(null);
     setRunState("running");
