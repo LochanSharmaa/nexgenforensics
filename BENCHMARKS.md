@@ -60,6 +60,56 @@ Best per column in **bold**.
 | ensemble: dual r50+r100 | **99.80 ± 0.27** | 98.30 ± 0.71 | 97.50 ± 1.02 | 96.15 ± 1.14 | 94.47 ± 1.09 | 97.24 |
 | ensemble: concat 1536-d | 99.77 ± 0.27 | 98.02 ± 0.60 | 97.56 ± 0.99 | 96.05 ± 1.03 | 94.33 ± 1.17 | 97.15 |
 
+### 2b. PACK PROVENANCE — the CFP-FP result depends on which `.bin` you use
+
+**Resolved: the ~1.6-point CFP-FP shortfall was a dataset-provenance artifact,
+not an accuracy problem.** The `.bin` packs are NOT identical across the
+training bundles that ship them. Same model (`glintr100`), same code path, same
+7,000 pairs:
+
+| `cfp_fp.bin` source | sha256 (first 10) | Accuracy |
+|---|---|---|
+| `faces_webface_112x112` | `76306c783c` | **97.71 ± 0.93** |
+| `faces_megafacetrain` | `76306c783c` (identical) | — |
+| `faces_umd` | `d47cdcfe71` | **99.26 ± 0.49** |
+| `ms1m-retinaface-t1` | `a8754ddf97` | **99.21 ± 0.36** |
+
+Two independently-sourced packs agree at ~99.2%, matching published results for
+this architecture. The `faces_webface` variant is the outlier — most likely a
+differently-aligned or lower-quality re-crop.
+
+**Control:** CFP-**FF** (frontal-frontal) on the same `faces_webface` bundle
+scores **99.91 ± 0.15**, i.e. correctly saturated. That rules out a fault in the
+harness, the flip-TTA, or the model, and isolates the anomaly to the CFP-FP pack
+itself.
+
+**LFW cross-check** — the LFW packs also differ (`faces_webface` et al.
+`9b711dca71` vs `ms1m-retinaface` `2cdf024294`), but the result does not move
+materially: **99.77 ± 0.26** vs **99.80 ± 0.19**. So this is a CFP-FP-specific
+problem, not a systematic one.
+
+**Pack availability across bundles**
+
+| Pack | webface | megaface | umd | ms1m | Variants |
+|---|---|---|---|---|---|
+| lfw | ✓ | ✓ | ✓ | ✓ | **2** |
+| agedb_30 | ✓ | ✓ | ✓ | — | 1 |
+| cfp_fp | ✓ | ✓ | ✓ | ✓ | **3** |
+| cfp_ff | ✓ | ✓ | — | — | 1 |
+| calfw | ✓ | — | — | — | 1 |
+| cplfw | ✓ | — | — | — | 1 |
+
+**Consequence for §2:** the CFP-FP column in the table above was measured on the
+`faces_webface` variant and therefore **understates** every configuration by
+roughly 1.5 points. The relative ranking between configurations is unaffected
+(all were measured on the same pack), so the production choice in §3 still
+holds. The absolute CFP-FP figures should be re-run on the `ms1m-retinaface`
+pack before being quoted externally; this has **not** yet been done for all
+seven configurations.
+
+**Rule going forward:** every benchmark number must record which pack file
+produced it, by hash. A dataset named "CFP-FP" is not a unique object.
+
 ### TAR @ FAR = 0.1% (%)
 
 | Configuration | LFW | AgeDB-30 | CFP-FP | CALFW | CPLFW |
@@ -312,7 +362,7 @@ Stated explicitly rather than omitted:
 |---|---|---|
 | IJB-B / IJB-C | Not run | Datasets not present locally; not downloadable in this environment (see below) |
 | Fine-tuned model in-ensemble | Not run | Pointless — the standalone checkpoint is at chance (§6); fusing it can only degrade the result |
-| CFP-FF | Available, not reported | Frontal-frontal is easier than CFP-FP and adds no information the other five don't cover |
+| CFP-FF | Measured as a diagnostic control (99.91 ± 0.15), see §2b | Near-saturated as expected; used to confirm the CFP-FP anomaly was not a code fault |
 | Identification (rank-1/CMC) | Not re-measured | Out of scope here; this document is verification-only by design |
 
 **Environment note (resolved):** during most of this work, Windows Smart App

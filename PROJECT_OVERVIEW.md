@@ -411,8 +411,19 @@ following were found by inspection and testing.
 ### Unmeasured
 4. **No throughput or latency measurement anywhere.** `benchmarks/speed_benchmark.py`
    exists but has not been run.
-5. **CFP-FP is ~1.6 points below published** (97.71 vs ~99.3 expected for this
-   architecture). Unexplained. Investigate before quoting CFP-FP externally.
+5. ~~**CFP-FP is ~1.6 points below published.**~~ **RESOLVED — provenance, not
+   accuracy.** The `.bin` packs differ between the training bundles that ship
+   them. `cfp_fp.bin` has **three** distinct variants; the `faces_webface` copy
+   used for the original run scores 97.71%, while `faces_umd` (99.26%) and
+   `ms1m-retinaface` (99.21%) agree with published results. A CFP-FF control on
+   the same bundle scored 99.91%, ruling out a harness fault. LFW was
+   cross-checked and does not move materially (99.77 vs 99.80). See
+   BENCHMARKS.md §2b.
+
+   **Residual work:** the §2 CFP-FP column still reflects the outlier pack for
+   all seven configurations and understates them by ~1.5 points. Rankings are
+   unaffected (common pack), but the absolute numbers need re-running before
+   external use.
 6. **Demographic breakdown is stale.** Measured at threshold 0.42; thresholds are
    now 0.20. Lowering a threshold changes per-group FMR/FNMR balance.
 7. **FAISS: resolved as a deliberate choice, not a gap.** The earlier "imported
