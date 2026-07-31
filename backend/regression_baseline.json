@@ -1,0 +1,45 @@
+{
+  "model": "w600k_r50",
+  "note": "Regenerated deliberately. Only update this after reviewing WHY the numbers moved -- a baseline refreshed to make a failing gate pass defeats the gate.",
+  "config": {
+    "model_pack": "buffalo_l",
+    "threshold_match": 0.2871,
+    "threshold_review": 0.2153,
+    "threshold_verify": 0.2871,
+    "api_derives_from_engine": true,
+    "api_model_pack": "buffalo_l",
+    "use_flip_tta": true
+  },
+  "accuracy": {
+    "lfw": {
+      "accuracy": 99.7833,
+      "std": 0.2587,
+      "auc": 0.999428,
+      "pairs": 6000
+    },
+    "agedb_30": {
+      "accuracy": 98.15,
+      "std": 0.6076,
+      "auc": 0.991304,
+      "pairs": 6000
+    },
+    "cfp_fp": {
+      "accuracy": 97.4429,
+      "std": 1.0699,
+      "auc": 0.98023,
+      "pairs": 7000
+    },
+    "calfw": {
+      "accuracy": 95.95,
+      "std": 1.0905,
+      "auc": 0.977548,
+      "pairs": 6000
+    },
+    "cplfw": {
+      "accuracy": 94.4667,
+      "std": 1.005,
+      "auc": 0.964246,
+      "pairs": 6000
+    }
+  }
+}
