@@ -650,6 +650,24 @@ Nothing here says the dataset cannot be used. It says the terms are
 research-scoped and the provenance is not fully traceable from what was
 downloaded, and both facts would be discoverable under cross-examination.
 
+**LICENSING BASIS — DECIDED (2026-07-31).** The project owner reviewed the above
+and determined that QMUL-SurvFace's research-purposes terms are **consistent
+with this project's current use**. Training proceeded on that basis.
+
+Recorded precisely, because this is the part that would be examined:
+
+| | |
+|---|---|
+| Terms as published | "made available for research purposes" |
+| Upstream copyright | held by the original person re-identification datasets, not by QMUL, and not enumerated in the download |
+| Licence file in archive | **none** — `readme.txt` only |
+| Determination | research-purposes use, consistent with current project use |
+| Decided by | project owner, 2026-07-31 |
+| Scope of the decision | covers the *current* use. It is not a finding that the terms permit unrestricted commercial redistribution of a model trained on this data, and it does not resolve the untraceable upstream provenance. Both remain open if the use changes. |
+
+Any checkpoint trained on this data inherits the constraint and must carry it in
+its provenance record.
+
 ### 2. Identity-overlap audit — the raw result, and why it is wrong
 
 `audit_qmul_survface.py`, same method as §6c, against a gallery of **84,171
@@ -764,6 +782,96 @@ Reproduce:
 python backend/scripts/audit_qmul_survface.py
 python backend/scripts/qmul_overlap_control.py
 python backend/scripts/qmul_quality_stats.py
+```
+
+---
+
+## 6f. Putting the QMUL checkpoint to use — quality-routed selection
+
+**Date:** 2026-08-01 · **Script:** `backend/scripts/evaluate_routed_engine.py`
+**Status:** promising, **not yet adoptable** — the operating point is unvalidated.
+
+§6d/§6e recorded the QMUL fine-tune as "no accuracy improvement". True, but the
+accuracy column hides the shape of the result. At FAR=0.1%:
+
+| | deployed | QMUL checkpoint |
+|---|---|---|
+| TinyFace TAR | 33.13% | **38.10%** |
+| AgeDB-30 TAR | 96.03% | 88.10% |
+| CPLFW TAR | 87.40% | 81.73% |
+
+That is not a worse model, it is a **different** one: better on degraded
+capture, worse on clean-but-hard (age, pose). Picking one globally discards
+whichever advantage it does not choose. So the question became whether choosing
+**per probe** recovers both.
+
+### Two facts that make routing possible
+
+**The embedding spaces are compatible.** Same image through both models gives a
+median cosine of **+0.856**. Fine-tuning at lr 1e-5 refined the space rather
+than rotating it. This matters far beyond routing: a gallery enrolled under one
+model does **not** have to be re-enrolled to be searched with the other, so 1:N
+does not need two templates per subject. That was the assumption most likely to
+kill this idea, and it does not hold.
+
+**The pipeline's existing quality score separates the conditions.** No new model
+or inference is needed — it is already computed on every request:
+
+| | median | p10 | p90 |
+|---|---|---|---|
+| clean sets (6) | 0.781 | — | — |
+| **TinyFace** | **0.502** | 0.428 | 0.564 |
+
+### The tradeoff curve
+
+Routing a pair to the specialist when **either** image falls below the
+threshold (the weaker image limits the comparison):
+
+| threshold | TinyFace TAR@FAR0.1% | worst clean-set TAR change |
+|---|---|---|
+| **0.50** | **38.63%** (+5.50pp) | **−0.17pp** |
+| 0.54 | 37.43% | −0.13pp |
+| 0.56 | 37.67% | −1.13pp |
+| 0.58 | 37.93% | −1.10pp |
+| 0.60–0.64 | 38.13% | −1.03pp |
+| 0.68 | 38.10% | −2.00pp |
+
+At 0.50 the routed engine beats **both** single models — above the specialist's
+own 38.10% — because it sends only the *worst* imagery to the specialist and
+keeps the deployed model for moderately degraded faces. The specialist is not
+better at "degraded"; it is better at "very degraded", and routing finds that
+line.
+
+### Why this is NOT yet a result to quote
+
+**0.50 was identified by looking at the reporting benchmarks.** Choosing an
+operating point because it scores well on the sets it will then be reported
+against is fitting to the test set, and every number downstream becomes
+unfalsifiable — the same error class as the §6d proxy, in a new place.
+
+The threshold must be derived from data disjoint from the seven benchmarks
+(QMUL-SurvFace and CASIA quality distributions are the obvious source, and are
+already on disk), and only then measured here. Until that is done, the honest
+statement is: *routing looks capable of +5pp TinyFace TAR for ~0.2pp clean
+cost, and the operating point has not been independently established.*
+
+The script derives a threshold from the quality distributions by default
+(currently 0.581) rather than taking the best sweep value, so it cannot
+silently report a test-set-fitted number.
+
+### What would make it adoptable
+
+1. Choose the threshold on QMUL/CASIA quality distributions only, then re-run.
+2. If it holds, ship the specialist as an **opt-in** second pack with its own
+   version tag, never replacing `buffalo_l` as the default (item 13).
+3. 1:1 verification can route immediately. 1:N should stay single-model until
+   the +0.856 space compatibility is verified at gallery scale, since a
+   rank-ordering is more sensitive to small embedding drift than a single
+   threshold comparison is.
+
+Reproduce:
+```
+python backend/scripts/evaluate_routed_engine.py --sweep
 ```
 
 ---
