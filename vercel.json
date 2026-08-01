@@ -3,11 +3,6 @@
   "installCommand": "cd frontend && npm install",
   "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/dist",
-  "build": {
-    "env": {
-      "VITE_IMATCH_API_BASE": "https://nexgen-imatch-api.onrender.com"
-    }
-  },
   "headers": [
     {
       "source": "/(.*)",

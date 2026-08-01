@@ -14,8 +14,13 @@
 /coverage
 
 # Environment. The example is committed; anything with real values is not.
+# .env.production is the exception: Vite inlines VITE_* into the shipped bundle,
+# so its contents are public by construction and it holds only the API origin.
+# It is committed so a clean clone builds a working production bundle without
+# depending on hosting-dashboard state -- see the file's own header.
 .env*
 !.env.example
+!.env.production
 
 # Misc
 .DS_Store

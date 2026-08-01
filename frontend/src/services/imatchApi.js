@@ -20,7 +20,7 @@
  */
 
 /**
- * Default API origin.
+ * Development API origin.
  *
  * Derived from the page's own hostname rather than hardcoding 127.0.0.1,
  * because `localhost` and `127.0.0.1` are DIFFERENT SITES to a browser even
@@ -29,14 +29,43 @@
  * the CSRF double-submit check has nothing to compare and every form fails.
  * Ports are irrelevant to SameSite, so matching the hostname is enough to make
  * the two same-site.
+ *
+ * DEVELOPMENT ONLY. This used to be the fallback in every environment, and on
+ * the deployed site it resolved to https://<the-vercel-domain>:8443 — a port
+ * nothing listens on, at an origin the Content-Security-Policy does not allow.
+ * That was the "Failed to fetch" every login returned.
  */
-const DEFAULT_BASE =
+const DEV_BASE =
   typeof window !== "undefined" && window.location?.hostname
     ? `${window.location.protocol}//${window.location.hostname}:8443`
     : "http://127.0.0.1:8443";
 
-export const IMATCH_BASE =
-  import.meta.env.VITE_IMATCH_BASE_URL?.trim() || DEFAULT_BASE;
+/**
+ * VITE_IMATCH_API_BASE is the documented name — it is what frontend/.env.example
+ * describes and what frontend/.env.production sets. This module previously read
+ * only VITE_IMATCH_BASE_URL, a name nothing set and no example mentioned, so
+ * configuring the documented variable had no effect on the client every page
+ * actually imports. Both are accepted now; the documented one wins.
+ */
+const configuredBase = (
+  import.meta.env.VITE_IMATCH_API_BASE ||
+  import.meta.env.VITE_IMATCH_BASE_URL ||
+  ""
+)
+  .trim()
+  .replace(/\/$/, "");
+
+// Guessing an origin in production is what produced a bundle that pointed at a
+// port on the static host. Refuse to guess: fail at load, where the message
+// names the cause, rather than at the first login with "Failed to fetch".
+if (import.meta.env.PROD && !configuredBase) {
+  throw new Error(
+    "VITE_IMATCH_API_BASE is not set in this production build, so the bundle " +
+      "has no API origin. Set it in frontend/.env.production and rebuild.",
+  );
+}
+
+export const IMATCH_BASE = configuredBase || DEV_BASE;
 
 /** Shown in the UI so an operator can see which backend they are hitting. */
 export const imatchApiUrl = `${IMATCH_BASE}/api/imatch`;
