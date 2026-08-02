@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { listCases, runVerification } from "../services/imatchApi";
+import { fetchCaseReport, listCases, runVerification } from "../services/imatchApi";
 import { ImageDropZone } from "./components/ImageDropZone";
 import { ProbeReport } from "./components/ProbeReport";
 
@@ -78,6 +78,30 @@ export function VerifyPage() {
     setProbePreview(url);
     return () => URL.revokeObjectURL(url);
   }, [probeFile]);
+
+  const [generatingReport, setGeneratingReport] = useState(false);
+
+  // Comparisons run under a case are written to that case's audit trail, so
+  // the case report is the document that carries them. Generated server-side
+  // from persisted rows — never from what this page happens to display.
+  async function generateReport() {
+    setError("");
+    setGeneratingReport(true);
+    try {
+      const pdf = await fetchCaseReport(caseId, "pdf");
+      const caseRecord = cases.find((item) => item.id === caseId);
+      const url = URL.createObjectURL(pdf);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `case-${caseRecord?.reference || caseId}.pdf`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (reportError) {
+      setError(reportError.message);
+    } finally {
+      setGeneratingReport(false);
+    }
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -217,6 +241,28 @@ export function VerifyPage() {
           </div>
         </>
       )}
+
+      <section className="wk-card">
+        <h2>Forensic report generator</h2>
+        <p style={{ fontSize: 15, lineHeight: 1.65 }}>
+          Comparisons run under a case are recorded in that case&rsquo;s audit trail. Generate
+          the case&rsquo;s forensic report as a PDF — it documents every search, comparison and
+          examiner decision on record for the case.
+        </p>
+        <button
+          type="button"
+          className="wk-button"
+          disabled={!caseId || generatingReport}
+          onClick={generateReport}
+        >
+          {generatingReport ? "Generating…" : "Generate PDF report"}
+        </button>
+        {!caseId && (
+          <p className="wk-notice" style={{ marginTop: 12 }}>
+            Select a case above (and run the comparison under it) to generate its report.
+          </p>
+        )}
+      </section>
     </>
   );
 }

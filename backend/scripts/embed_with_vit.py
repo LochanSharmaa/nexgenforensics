@@ -54,15 +54,16 @@ QMUL_ID = Path("C:/Users/hello/Downloads/QMUL-SurvFace-v1/QMUL-SurvFace/Face_Ide
 TF_RE = re.compile(r"^(\d+)_\d+\.jpg$", re.IGNORECASE)
 QM_RE = re.compile(r"^(\d+)_cam", re.IGNORECASE)
 
-#: Canonical keypoints for a horizontally mirrored 112x112 crop: x -> 111 - x,
-#: and left/right eye and mouth-corner labels swap.
+#: Canonical keypoints for a horizontally mirrored crop, in the same [0, 1]
+#: normalised units as ARCFACE_5PTS: x -> 1 - x, and the left/right eye and
+#: mouth-corner labels swap.
 MIRROR_5PTS = np.array(
     [
-        [111.0 - ARCFACE_5PTS[1][0], ARCFACE_5PTS[1][1]],
-        [111.0 - ARCFACE_5PTS[0][0], ARCFACE_5PTS[0][1]],
-        [111.0 - ARCFACE_5PTS[2][0], ARCFACE_5PTS[2][1]],
-        [111.0 - ARCFACE_5PTS[4][0], ARCFACE_5PTS[4][1]],
-        [111.0 - ARCFACE_5PTS[3][0], ARCFACE_5PTS[3][1]],
+        [1.0 - ARCFACE_5PTS[1][0], ARCFACE_5PTS[1][1]],
+        [1.0 - ARCFACE_5PTS[0][0], ARCFACE_5PTS[0][1]],
+        [1.0 - ARCFACE_5PTS[2][0], ARCFACE_5PTS[2][1]],
+        [1.0 - ARCFACE_5PTS[4][0], ARCFACE_5PTS[4][1]],
+        [1.0 - ARCFACE_5PTS[3][0], ARCFACE_5PTS[3][1]],
     ],
     dtype=np.float32,
 )

@@ -271,6 +271,38 @@
   text-transform: uppercase;
 }
 
+/* Same-size stand-in for the drop zone when a signed-out visitor clicks it.
+   Solid border instead of dashed: this is a message, not a target. */
+.im-login-first {
+  cursor: default;
+  border-style: solid;
+  border-color: rgba(91, 23, 36, 0.45);
+}
+
+.im-login-cta {
+  min-height: 40px;
+  margin-top: 16px;
+  padding: 0 28px;
+  border: 1px solid rgba(37, 17, 19, 0.85);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #5b1724 0%, #3a1119 100%);
+  color: #fffdf8;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 253, 248, 0.14),
+    0 1px 2px rgba(37, 17, 19, 0.35);
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: transform 180ms ease, background 180ms ease;
+}
+
+.im-login-cta:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(180deg, #67192a 0%, #40131c 100%);
+}
+
 .im-photo-preview {
   width: 100%;
   height: 100%;
@@ -533,30 +565,54 @@
   line-height: 1.45;
 }
 
-.im-launch {
+/* Selectors carry the `button.` qualifier deliberately: the shared motion
+   stylesheet also targets .im-launch:hover with a -3px lift, and this quieter
+   treatment must win the cascade. */
+button.im-launch {
   min-height: 56px;
-  border: 0;
+  border: 1px solid rgba(37, 17, 19, 0.85);
   border-radius: 999px;
-  background: linear-gradient(135deg, #251113, #5b1724);
+  background: linear-gradient(180deg, #5b1724 0%, #3a1119 100%);
   color: #fffdf8;
   cursor: pointer;
-  box-shadow: 0 18px 34px rgba(91, 23, 36, 0.22);
-  font-size: 0.78rem;
-  font-weight: 900;
-  letter-spacing: 0.14em;
+  /* Machined edge: hairline top highlight inside, tight key shadow outside —
+     no floating blob. */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 253, 248, 0.14),
+    0 1px 2px rgba(37, 17, 19, 0.35),
+    0 6px 16px rgba(91, 23, 36, 0.18);
+  font-size: 0.8rem;
+  font-weight: 750;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  transition: transform 220ms ease, box-shadow 220ms ease;
+  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
 }
 
-.im-launch:disabled {
+button.im-launch:disabled {
   cursor: wait;
   opacity: 0.72;
   transform: none;
 }
 
-.im-launch:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 23px 42px rgba(91, 23, 36, 0.28);
+button.im-launch:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(180deg, #67192a 0%, #40131c 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 253, 248, 0.18),
+    0 2px 4px rgba(37, 17, 19, 0.35),
+    0 10px 22px rgba(91, 23, 36, 0.24);
+}
+
+button.im-launch:active {
+  transform: translateY(0);
+  box-shadow:
+    inset 0 2px 4px rgba(37, 17, 19, 0.4),
+    0 1px 2px rgba(37, 17, 19, 0.3);
+}
+
+button.im-launch:focus-visible {
+  outline: 2px solid rgba(91, 23, 36, 0.55);
+  outline-offset: 3px;
 }
 
 .im-secure-line {

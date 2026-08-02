@@ -197,3 +197,49 @@ known ground truth before they are trusted.** Both are now enforced in code
    decomposition, capacity bits, open-set TPIR). The next accuracy move is the
    backbone swap (ViT-B + KP-RPE + AdaFace; published TinyFace R1 76.10 — *uncited, see caveat in §1* — vs our
    protocol-corrected 32.93 rank-1), not more evidence-layer work.
+
+## 6. Condition leakage (S0.4) — the lambda_5 baseline
+
+Artifact: `runtime/forensics/condition_leakage.json`, script
+`backend/scripts/measure_condition_leakage.py`. Definition:
+`E[sim | same condition, diff identity] − E[sim | diff condition, diff identity]`.
+
+| level | leakage | detail |
+|---|---|---|
+| camera-to-camera, within QMUL | **+0.0039** [CI +0.0025, +0.0042] | FAR at the fixed 0.1% threshold rises only 1.3× for same-camera impostors |
+| **corpus-to-corpus** (QMUL×QMUL vs QMUL×TinyFace, all cross-identity, both native-LR surveillance) | **+0.1088** | mean cross-identity similarity 0.194 within QMUL vs 0.085 across corpora |
+
+**Reading:** the embedding's condition signature is dominated by *acquisition
+regime* (collection campaign, optics class, processing chain), not by the
+individual camera — the corpus-level term is ~28× the camera-level term. This
+is the measured form of the July QMUL-overlap artefact, and the concrete
+warning it carries: **an impostor pool drawn from a different acquisition
+regime than the probe understates within-regime FAR**, so reference populations
+must be regime-matched, not merely resolution-matched. It is also the baseline
+any future backbone or fine-tune must not inflate.
+
+## 7. Backbone candidate: CVLface ViT-B KP-RPE AdaFace (WebFace12M)
+
+Checkpoint `minchul/cvlface_adaface_vit_base_kprpe_webface12m` (public,
+ungated, 880 MB), wrapped in
+`backend/nexgen_engine/models/cvlface_backbone.py` with the insightface
+`get_feat` interface. Two integration defects were found by the validation
+gate and fixed:
+
+| defect | observed | fix |
+|---|---|---|
+| Upstream `rpe_ops/setup.py` strands the process cwd on its no-CUDA_HOME failure path | `FileNotFoundError` on a file that exists | bypass the repo wrapper; absolute paths; cwd restored in `finally` |
+| KP-RPE keypoints are **[0, 1]-normalised**, not pixel units | pixel units: LFW **56.70%** (near chance, silently); [-1,1]: 98.30% — plausible and still wrong | canonical template / 112; measured 3-way comparison recorded in the module docstring |
+
+**Preprocessing gate (required before any evaluation): PASSED.**
+LFW 10-fold **99.75% ± 0.23**, TAR@FAR=0.1% 99.70%, against the CVLface
+board's ~99.8 (uncited caveat as §1). Artifact:
+`runtime/forensics/lfw_validation_vit_kprpe_wf12m.json`. The gate exists
+because the first run failed it at 56.70% — an error that would otherwise have
+silently capped every downstream number.
+
+TinyFace and QMUL embeddings under model key `vit_kprpe_wf12m` are in
+progress; the head-to-head against `w600k_r50` (same protocols, same reference
+populations, one variable) is the test of §5's central claim that
+discrimination, not calibration, is the binding constraint.
+

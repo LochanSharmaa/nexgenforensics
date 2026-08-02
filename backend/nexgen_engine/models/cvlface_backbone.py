@@ -25,13 +25,14 @@ TWO WINDOWS/PACKAGING LANDMINES, both hit on first load and worked around here:
    snapshot root, then construct the model -- and restore the caller's cwd in a
    finally block so the corruption cannot escape this module.
 
-2. KEYPOINTS ARE REQUIRED, NOT OPTIONAL. KP-RPE conditions attention on 5
-   landmarks in 112x112 pixel coordinates, shape (N, 5, 2). For pre-aligned
-   crops (every protocol pack, TinyFace, QMUL resized crops) the canonical
-   ArcFace template positions are the correct input by construction -- that is
-   what alignment aligned TO. For raw imagery, detector landmarks must be
-   passed through instead; using canonical points there would quietly disable
-   the mechanism KP-RPE exists for.
+2. KEYPOINTS ARE REQUIRED, IN [0, 1] UNITS. KP-RPE conditions attention on 5
+   landmarks of shape (N, 5, 2), normalised to the unit square -- see the
+   ARCFACE_5PTS docstring for the measured cost of getting the units wrong.
+   For pre-aligned crops (every protocol pack, TinyFace, QMUL resized crops)
+   the canonical template positions are correct by construction -- they are
+   what alignment aligned TO. For raw imagery, detector landmarks (divided by
+   crop size) must be passed instead; canonical points there would quietly
+   disable the mechanism KP-RPE exists for.
 """
 
 from __future__ import annotations
@@ -48,18 +49,34 @@ _SNAPSHOT = (
     / "snapshots"
 )
 
-#: Canonical ArcFace 5-point template for a 112x112 crop: left eye, right eye,
-#: nose tip, left mouth corner, right mouth corner. The alignment target of
-#: every pre-aligned crop in this project.
-ARCFACE_5PTS = np.array(
-    [
-        [38.2946, 51.6963],
-        [73.5318, 51.5014],
-        [56.0252, 71.7366],
-        [41.5493, 92.3655],
-        [70.7299, 92.2041],
-    ],
-    dtype=np.float32,
+#: Canonical ArcFace 5-point template for a 112x112 crop -- left eye, right eye,
+#: nose tip, left mouth corner, right mouth corner -- in **[0, 1] normalised
+#: coordinates** (pixel positions / 112).
+#:
+#: THE UNITS ARE LOAD-BEARING. KP-RPE's relative_keypoints.py builds its patch
+#: grid on torch.linspace(0, 1, ...), so keypoints must live on the same [0, 1]
+#: square. Measured on 1,000 LFW pairs with this exact checkpoint:
+#:
+#:     pixel units (0..112)   60.40%  -- near chance, silently
+#:     [0, 1]                 99.90%  <- correct
+#:     [-1, 1]                98.30%  -- close enough to be dangerously wrong
+#:
+#: The first draft of this module used pixel units and failed the LFW gate at
+#: 56.70%. Note the [-1,1] row: a plausible-but-wrong convention costs only 1.6
+#: points on easy data, which is exactly the kind of error that survives without
+#: a validation gate and quietly caps every downstream measurement.
+ARCFACE_5PTS = (
+    np.array(
+        [
+            [38.2946, 51.6963],
+            [73.5318, 51.5014],
+            [56.0252, 71.7366],
+            [41.5493, 92.3655],
+            [70.7299, 92.2041],
+        ],
+        dtype=np.float32,
+    )
+    / 112.0
 )
 
 
@@ -122,9 +139,10 @@ class CvlfaceViTKprpe:
     def get_feat(self, images: list[np.ndarray], keypoints: np.ndarray | None = None) -> np.ndarray:
         """Embed BGR uint8 112x112 crops (insightface convention) -> (N, 512).
 
-        ``keypoints``: optional (N, 5, 2) landmark array in 112x112 pixel space.
-        Omitted => canonical ArcFace template positions, which is correct for
-        pre-aligned crops and WRONG for raw un-aligned imagery (landmine 2).
+        ``keypoints``: optional (N, 5, 2) landmark array in [0, 1] normalised
+        coordinates (landmine 2 -- pixel units silently cost ~40 points).
+        Omitted => canonical ArcFace template positions, correct for
+        pre-aligned crops and WRONG for raw un-aligned imagery.
         """
         torch = self._torch
         out = np.empty((len(images), 512), dtype=np.float32)
