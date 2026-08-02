@@ -4,8 +4,10 @@ Written to the same standard as BENCHMARKS.md: plain, factual, no promotional
 language. Every "verified" line names the check that produced it. Anything not
 verified is listed as a limitation, not omitted.
 
-**As of 2026-07-31.** Deployed model `buffalo_l` / `w600k_r50` on CUDA,
-thresholds 0.2871 / 0.2153 / 0.2871.
+**As of 2026-07-31, with limitations L3/L3a/L3b/L9/L11/L12 and item 8 revised
+2026-08-02** after the GPU measurement campaign (`docs/MEASUREMENT_RECORD.md`).
+Deployed model `buffalo_l` / `w600k_r50` on CUDA, thresholds 0.2871 / 0.2153 /
+0.2871.
 
 ---
 
@@ -13,7 +15,7 @@ thresholds 0.2871 / 0.2153 / 0.2871.
 
 | Check | Command | Result |
 |---|---|---|
-| Engine + API tests | `pytest backend/tests_engine/ backend/tests/` | **161 passed** |
+| Engine tests | `pytest backend/tests_engine/` | **136 passed** (was 112; +24 regression tests added 2026-08-02) |
 | Accuracy + config regression | `python backend/scripts/regression_check.py` | **PASS** (5 datasets) |
 | GPU binding | `python scripts/verify_gpu.py` | **PASS** (12/12, genuinely CUDA) |
 
@@ -32,7 +34,7 @@ thresholds 0.2871 / 0.2153 / 0.2871.
 | 5 | CFP-FP ~1.6 points below published | **Resolved — pack provenance, not accuracy.** Three distinct `cfp_fp.bin` variants (§2b) |
 | 6 | Demographic data stale | **Fixed.** Re-measured on the deployed model at the deployed threshold (§5a) |
 | 7 | FAISS imported but unused | **Resolved.** Measured; exact `IndexFlatIP` adopted, approximate rejected on recall (§7d) |
-| 8 | IJB-B/IJB-C not run | **Still not run.** Corrected label: a 1.57 GB *partial download* exists, not "absent" |
+| 8 | IJB-B/IJB-C not run | **RUN (2026-08-02).** The "partial download" label was stale — the complete 8.6 GB suite was in `Downloads/`. Official protocol: **IJB-B 95.44%, IJB-C 96.91% TAR@FAR=1e-4**, at published-ArcFace level, validating the harness |
 | 9 | Liveness is a heuristic | **Correctly labelled** at API, report and UI layers |
 | 10 | Deepfake is a heuristic | **Correctly labelled.** Both self-report `certified: false` |
 | 11 | `frontend/dist` stale | **Rebuilt.** See limitation L4 below |
@@ -85,13 +87,17 @@ thresholds 0.2871 / 0.2153 / 0.2871.
 |---|---|
 | **L1** | **Not deployed and cannot be, as configured.** No hosted backend; `vercel.json`'s catch-all rewrite returns 405 on POST and its CSP blocks `http://`. Everything above is verified locally only. |
 | **L2** | **No independent validation.** Every number was produced by the same person and tooling that built the system, on public academic datasets. |
-| **L3** | **Degraded-footage performance is weak.** TinyFace 82.45%, and only **33.13% TAR@FAR=0.1%** — about one genuine match in three at a defensible operating point. Leads for human review, never identifications. |
+| **L3** | **Degraded-footage performance is weak — and worse than this row previously said.** The 82.45% / 33.13% figures came from a self-constructed pair list. On TinyFace's **official** Gallery_Match × Probe split against a 153,428-image protocol reference population: **TAR@FAR=0.1% = 20.59%**, rank-1 **32.93%** on a 155,997-entry gallery. On QMUL-SurvFace's official open-set protocol it collapses further: **TAR@FAR=0.1% = 2.31%**, rank-1 2.68%, and **TPIR = 0.00% at 1% FPIR** against 1,844 true unmated probes. Leads for human review, never identifications. See `docs/MEASUREMENT_RECORD.md` §2. |
+| **L3a** | **The system cannot reject strangers on real surveillance imagery.** TPIR 0.00% @ 1% FPIR (QMUL, measured with genuine non-mates) is the operationally decisive number and had never been measured before 2026-08-02. TinyFace *structurally cannot* measure it — every one of its probe identities is enrolled. |
+| **L3b** | **Identity information is the binding constraint, confirmed three independent ways.** Cllr decomposition (Cllr_cal ≤ 0.6% of loss on both corpora — calibration is exhausted), capacity in bits (TinyFace median 4.73, QMUL 2.21; supportable gallery at 80% rank-1 ≈ 2 and ≈ 1 respectively), and open-set TPIR. No evidence-layer work moves these; only a better recognition model does. |
 | **L4** | `frontend/dist` is force-added to a gitignored path — tracked copy drifts from source. Decide: untrack and build on deploy, or keep force-adding. |
 | **L5** | **Demographic differentials persist.** Women 1.7× the FNMR of men, under-25s 3.8× the 41–55 band. Raising the threshold relocated the errors; it did not remove the gap. |
 | **L6** | **CFP-FP absolute figures** in §2 were measured on the outlier pack and understate all configurations by ~1.5 points. Rankings unaffected. |
 | **L7** | ~~Concurrency unmeasured.~~ **MEASURED (item 29).** Threading saturates at 4 workers (1.86×, 131.9/s); 8 workers gains nothing and degrades p99 2.3× to 100 ms. Request batching reaches 2.82× (551/s) without the latency cost. If throughput becomes a constraint the fix is a request-collecting queue, not more workers. Engine-level figures only — the full HTTP stack is still unmeasured. See BENCHMARKS.md §7b-i. |
 | **L8** | **Fine-tuning attempted properly and it did not work.** Contamination was removed (692 of 10,572 CASIA identities excluded, BENCHMARKS.md §6c) and the model was fine-tuned from ArcFace weights on degraded data. It scored **worse on every benchmark**, worst on TinyFace (82.45% → 79.38%, TAR@FAR0.1% 33.13% → 22.23%). Deployed model unchanged. §6d. |
-| **L9** | **Stranger test (item 45) not run** — blocked by L1. |
+| **L9** | ~~**Stranger test (item 45) not run** — blocked by L1.~~ **RUN as a protocol measurement (2026-08-02).** QMUL's official unmated_probe split provides 1,844 genuine strangers; result is L3a. The deployment-blocked browser variant remains outstanding, but the scientific question it was meant to answer is now measured. |
+| **L11** | **The forward-operator hypothesis is refuted for surveillance-to-surveillance and unresolved for the asymmetric case.** S0.3, decision rule registered before the run: residual-operator modelling scores **+0.13 pts** on both TinyFace and QMUL (CI spanning zero) — coherent but a no-op where both sides share an imaging chain. The single PASS is on synthetically degraded LFW (+3.44 pts, CI excluding zero), where the operator being estimated is the one we applied. **SCface is the decisive test** — see `DATA_ACQUISITION_REQUEST.md`. |
+| **L12** | **Eight defects in our own measurement code were found and fixed on 2026-08-02**, four of which had produced published numbers (TinyFace rank-1 37.43%→32.93%, QMUL rank-1 0.53%→2.68%, and two capacity tables withdrawn entirely). Regression coverage is split and was itself audited: defects 1–6 in `test_degradation_regressions.py` (19 tests), defects 7–8 in `test_protocol_invariants.py` (6 tests). The first defect-8 test was found to be non-asserting and was rewritten against the correct module. The pattern — comparison sets built by convenience rather than protocol, estimated quantities trusted without ground-truth validation — is now enforced in code rather than by discipline. `docs/MEASUREMENT_RECORD.md` §4. |
 | **L10** | **`IndexFlatIP` measured but not enabled in production**; installing faiss activates the existing guarded branch, which needs a deliberate verification run. |
 
 ### What would be needed next, in order

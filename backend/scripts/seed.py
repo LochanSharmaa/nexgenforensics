@@ -7,8 +7,9 @@ Run once against a fresh database::
 
 Reads NEXGEN_SEED_TENANT, NEXGEN_SEED_ADMIN_EMAIL, and NEXGEN_SEED_ADMIN_PASSWORD.
 If no password is set, a strong one is generated and printed -- it is shown once
-and never stored in recoverable form. Re-running is safe: existing records are
-left alone.
+and never stored in recoverable form, and re-running leaves existing records
+alone. If a password IS set, re-running resets the account to that password, so
+the configured credential always works.
 """
 
 from __future__ import annotations
@@ -71,7 +72,16 @@ def main() -> int:
             select(User).where(User.tenant_id == tenant.id, User.email == email)
         ).first()
         if existing is not None:
-            print(f"User {email!r} already exists; leaving it untouched.")
+            if generated:
+                print(f"User {email!r} already exists; leaving it untouched.")
+                return 0
+            # An explicitly configured password is a statement of intent: this
+            # account must be reachable with exactly this credential (e.g. a
+            # demo login that has to survive re-deploys). Converge to it.
+            existing.password_hash = hash_password(password)
+            existing.email_verified = True
+            session.add(existing)
+            print(f"User {email!r} already exists; reset to the configured password.")
             return 0
 
         session.add(
@@ -81,6 +91,11 @@ def main() -> int:
                 full_name="Platform Administrator",
                 password_hash=hash_password(password),
                 role=Role.ADMIN,
+                # The operator running this script is vouching for the address,
+                # same as a supervisor using POST /auth/users. Without this the
+                # seeded admin is rejected at login with "verify your email" --
+                # and there is no verified account that could approve it.
+                email_verified=True,
             )
         )
 

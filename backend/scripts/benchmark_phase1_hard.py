@@ -40,7 +40,7 @@ def build_200_identity_hard_dataset():
         })
 
     # 2. LFW (50 identities)
-    lfw_dir = Path("src_extracted/archive (1)/lfw-deepfunneled/lfw-deepfunneled")
+    lfw_dir = Path("src_extracted/lfw_deepfunneled/lfw-deepfunneled/lfw-deepfunneled")
     lfw_subjs = {}
     for d in sorted(list(lfw_dir.iterdir())):
         if d.is_dir():
@@ -56,7 +56,7 @@ def build_200_identity_hard_dataset():
         })
 
     # 3. CFP (50 identities - Frontal vs Profile Poses)
-    cfp_dir = Path("src_extracted/archive (4)/cfp-dataset/Data/Images")
+    cfp_dir = Path("src_extracted/cfp_dataset/cfp-dataset/Data/Images")
     cfp_subjs = {}
     for d in sorted(list(cfp_dir.iterdir())):
         if d.is_dir():

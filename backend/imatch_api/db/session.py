@@ -9,7 +9,7 @@ from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from sqlmodel import Session, SQLModel, create_engine
 
-from ..core.config import Settings, get_settings
+from ..core.config import REPO_ROOT, Settings, get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,14 @@ def _sqlite_path(url: str) -> Path | None:
     if not url.startswith("sqlite"):
         return None
     _, _, tail = url.partition("///")
-    return Path(tail) if tail and tail != ":memory:" else None
+    if not tail or tail == ":memory:":
+        return None
+    path = Path(tail)
+    # Anchor relative paths to the repository root. A cwd-relative path means
+    # `uvicorn` started from the repo root and from backend/ silently open TWO
+    # different databases, each with its own users -- and a login that works in
+    # one launch style fails with "Incorrect email or password" in the other.
+    return path if path.is_absolute() else (REPO_ROOT / path).resolve()
 
 
 def normalise_database_url(url: str) -> str:
@@ -55,6 +62,9 @@ def build_engine(settings: Settings | None = None) -> Engine:
         target = _sqlite_path(url)
         if target is not None:
             target.parent.mkdir(parents=True, exist_ok=True)
+            # Re-issue the URL with the anchored absolute path, otherwise the
+            # engine still opens the file relative to whatever cwd happens to be.
+            url = f"sqlite:///{target.as_posix()}"
 
     engine = create_engine(
         url,

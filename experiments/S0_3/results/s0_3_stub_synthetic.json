@@ -1,0 +1,95 @@
+{
+  "provenance": {
+    "embedder": "stub (CPU, not a recogniser)",
+    "dataset": "synthetic",
+    "n_pairs": 40,
+    "gpu_used": false,
+    "warning": "Synthetic data with a stub embedder. These numbers measure PLUMBING, not recognition, and must never be quoted as a result."
+  },
+  "decision_rule": {
+    "pass_threshold": 2.0,
+    "fail_threshold": 0.5,
+    "metric": "TAR@FAR=0.1% (points)"
+  },
+  "arms": {
+    "A": {
+      "tar_at_far_1e3": 0.0,
+      "auc": 0.5425,
+      "score_mean_genuine": 0.996523,
+      "score_mean_impostor": 0.996486,
+      "example_report": {
+        "arm": "A",
+        "transform": "none"
+      }
+    },
+    "B1": {
+      "tar_at_far_1e3": 0.0,
+      "auc": 0.2775,
+      "score_mean_genuine": 0.991642,
+      "score_mean_impostor": 0.992454,
+      "example_report": {
+        "arm": "B1",
+        "downsample": 4.0
+      }
+    },
+    "B2": {
+      "tar_at_far_1e3": 0.3,
+      "auc": 0.6625,
+      "score_mean_genuine": 0.998221,
+      "score_mean_impostor": 0.997858,
+      "example_report": {
+        "arm": "B2",
+        "estimated": {
+          "blur_sigma": 0.5536,
+          "blur_confidence_r2": 0.5416,
+          "noise_sigma": 0.001112,
+          "jpeg_quality": 40,
+          "jpeg_confidence": 1.0,
+          "jpeg_applied": true,
+          "spectral_cutoff_cycles_per_pixel": 0.011719,
+          "psf_mtf50": 0.369194,
+          "trustworthy": true,
+          "caveat": "Estimated, not measured. Blur recovery on flat facial content is unreliable; prefer a measured camera response when the device is available."
+        },
+        "applied": {
+          "blur_sigma": 0.5536144659343954,
+          "motion_length": 0.0,
+          "motion_angle_deg": 0.0,
+          "downsample": 4.0,
+          "noise_sigma": 0.0011115703267928897,
+          "jpeg_quality": 40,
+          "origin": "estimated",
+          "mtf50_cycles_per_pixel": 0.369194
+        }
+      }
+    },
+    "B3": {
+      "tar_at_far_1e3": 0.0,
+      "auc": 0.6275,
+      "score_mean_genuine": 1.0,
+      "score_mean_impostor": 1.0,
+      "example_report": {
+        "arm": "B3",
+        "cutoff_gallery": 0.5,
+        "cutoff_probe": 0.011719,
+        "common_band": 0.011719,
+        "scale": 4.0
+      }
+    },
+    "C": {
+      "tar_at_far_1e3": 0.0,
+      "auc": 0.7525,
+      "note": "pixel-space log-likelihood; rank metrics only, scale not comparable"
+    }
+  },
+  "decision": {
+    "b2_minus_b1_points": 30.0,
+    "ci95": [
+      9.0909,
+      52.1739
+    ],
+    "verdict": "PASS",
+    "binding": false,
+    "note": "Not binding: stub embedder."
+  }
+}

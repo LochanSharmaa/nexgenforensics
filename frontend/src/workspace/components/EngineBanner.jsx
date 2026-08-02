@@ -40,25 +40,9 @@ export function EngineBanner({ onStatus }) {
     );
   }
 
-  if (!status) return null;
-
-  const { recognizer, device, gallery } = status;
-
   // The service cannot start without real weights, so there is no "running
   // without a model" state to warn about any more — that failure now happens at
-  // startup rather than silently at search time.
-  return (
-    <div className="wk-banner info">
-      <div>
-        <strong>
-          Engine ready — {recognizer.model_pack} ({recognizer.recognition_network}),{" "}
-          {recognizer.embedding_dim}-d templates on {device.effective}
-        </strong>
-        Match threshold {status.thresholds.match}, review threshold {status.thresholds.review}.
-        Gallery: {gallery.subjects} subjects across {gallery.templates} templates. Thresholds
-        are operating points, not accuracy guarantees — recalibrate them against your own
-        imagery before relying on them.
-      </div>
-    </div>
-  );
+  // startup rather than silently at search time. A healthy engine needs no
+  // banner; the details remain available via onStatus and the status endpoint.
+  return null;
 }

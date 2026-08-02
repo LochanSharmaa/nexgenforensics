@@ -47,25 +47,36 @@ const DEV_BASE =
  * configuring the documented variable had no effect on the client every page
  * actually imports. Both are accepted now; the documented one wins.
  */
-const configuredBase = (
+const rawBase = (
   import.meta.env.VITE_IMATCH_API_BASE ||
   import.meta.env.VITE_IMATCH_BASE_URL ||
   ""
-)
-  .trim()
-  .replace(/\/$/, "");
+).trim();
+
+/**
+ * "same-origin" (or "/") is the self-hosted deployment: the same server that
+ * serves this bundle proxies /api to the backend (deployment/nginx). Requests
+ * then use relative paths — same origin, so no CORS grant is needed and the
+ * CSRF cookie is first-party. This is the recommended mode on a personal
+ * server; an absolute https:// origin is only for split hosting (e.g. the
+ * frontend on a CDN with the API elsewhere).
+ */
+const sameOrigin = rawBase === "/" || rawBase.toLowerCase() === "same-origin";
+
+const configuredBase = sameOrigin ? "" : rawBase.replace(/\/$/, "");
 
 // Guessing an origin in production is what produced a bundle that pointed at a
 // port on the static host. Refuse to guess: fail at load, where the message
 // names the cause, rather than at the first login with "Failed to fetch".
-if (import.meta.env.PROD && !configuredBase) {
+if (import.meta.env.PROD && !rawBase) {
   throw new Error(
     "VITE_IMATCH_API_BASE is not set in this production build, so the bundle " +
-      "has no API origin. Set it in frontend/.env.production and rebuild.",
+      "has no API origin. Set it to 'same-origin' for a single-server deploy, " +
+      "or to the API's https:// origin for split hosting, and rebuild.",
   );
 }
 
-export const IMATCH_BASE = configuredBase || DEV_BASE;
+export const IMATCH_BASE = sameOrigin ? "" : configuredBase || DEV_BASE;
 
 /** Shown in the UI so an operator can see which backend they are hitting. */
 export const imatchApiUrl = `${IMATCH_BASE}/api/imatch`;

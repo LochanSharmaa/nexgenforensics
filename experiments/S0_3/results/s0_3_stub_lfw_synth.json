@@ -1,0 +1,87 @@
+{
+  "dataset": "lfw_synth",
+  "embedder": "stub (CPU, not a recogniser)",
+  "n_pairs": 20,
+  "decision_rule": {
+    "pass_threshold": 2.0,
+    "fail_threshold": 0.5,
+    "metric": "TAR@FAR=0.1% (points)"
+  },
+  "arms": {
+    "A": {
+      "tar_at_far_1e3": 0.1,
+      "tar_at_far_1e2": 0.1,
+      "auc": 0.45
+    },
+    "B1": {
+      "tar_at_far_1e3": 0.1,
+      "tar_at_far_1e2": 0.1,
+      "auc": 0.52
+    },
+    "B2": {
+      "tar_at_far_1e3": 0.1,
+      "tar_at_far_1e2": 0.1,
+      "auc": 0.52
+    },
+    "B3": {
+      "tar_at_far_1e3": 0.0,
+      "tar_at_far_1e2": 0.0,
+      "auc": 0.43
+    },
+    "C": {
+      "tar_at_far_1e3": 0.0,
+      "tar_at_far_1e2": 0.0,
+      "auc": 0.47
+    }
+  },
+  "B2_minus_B1": {
+    "points": 0.0,
+    "ci95": [
+      0.0,
+      25.0
+    ],
+    "verdict": "FAIL"
+  },
+  "arm_reports": {
+    "A": {
+      "arm": "A",
+      "transform": "none"
+    },
+    "B1": {
+      "arm": "B1",
+      "downsample": 8.0645
+    },
+    "B2": {
+      "arm": "B2",
+      "estimated": {
+        "blur_sigma": 0.8048,
+        "blur_confidence_r2": 0.8566,
+        "noise_sigma": 0.010317,
+        "jpeg_quality": 95,
+        "jpeg_confidence": 0.4842,
+        "jpeg_applied": true,
+        "spectral_cutoff_cycles_per_pixel": 0.300781,
+        "psf_mtf50": 0.229928,
+        "trustworthy": true,
+        "caveat": "Estimated, not measured. Blur recovery on flat facial content is unreliable; prefer a measured camera response when the device is available."
+      },
+      "applied": {
+        "blur_sigma": 0.8047759352017908,
+        "motion_length": 0.0,
+        "motion_angle_deg": 0.0,
+        "downsample": 8.064516129032258,
+        "noise_sigma": 0.01031656728345678,
+        "jpeg_quality": 95,
+        "origin": "estimated",
+        "mtf50_cycles_per_pixel": 0.229928
+      }
+    },
+    "B3": {
+      "arm": "B3",
+      "cutoff_gallery": 0.019531,
+      "cutoff_probe": 0.300781,
+      "common_band": 0.019531,
+      "scale": 8.0645
+    }
+  }
+}

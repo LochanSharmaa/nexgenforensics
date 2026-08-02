@@ -1,0 +1,102 @@
+# NexGen iMATCH — single-server, single-origin stack for a personal server.
+#
+#   docker compose -f docker-compose.selfhost.yml up -d --build
+#
+# Three containers:
+#
+#   web       nginx: serves the built SPA and proxies /api -> api:8443.
+#             The browser only ever talks to THIS container, so frontend and
+#             API share one origin: no CORS, no cross-site cookies, none of
+#             the CSRF-cookie rejection that broke login on split hosting.
+#   api       FastAPI + the recognition engine (CPU by default).
+#   postgres  durable store for tenants, users, cases, templates, audit.
+#
+# REQUIRED before first start — put these in a .env file next to this compose
+# file (docker compose reads it automatically), or export them:
+#
+#   POSTGRES_PASSWORD=<any strong password>
+#   NEXGEN_JWT_SECRET=<64+ random chars>      python -c "import secrets; print(secrets.token_urlsafe(64))"
+#   NEXGEN_TEMPLATE_KEY=<base64 of 32 bytes>  python -c "import base64,os; print(base64.b64encode(os.urandom(32)).decode())"
+#
+# BACK UP NEXGEN_TEMPLATE_KEY. Losing it makes every stored biometric template
+# permanently undecryptable. There is no recovery path.
+#
+# First start downloads the ~280 MB model pack once into the model_cache
+# volume; subsequent starts reuse it. Then create the first admin:
+#
+#   docker compose -f docker-compose.selfhost.yml exec api python scripts/seed.py
+#
+# TLS: put your usual reverse proxy (Caddy, Traefik, nginx+certbot) in front of
+# web:8080, or change the port mapping. Once HTTPS terminates in front, set
+# NEXGEN_COOKIE_SECURE=true below. Leave it false on plain-HTTP LAN testing:
+# browsers refuse Secure cookies over http on non-localhost hosts, which would
+# break the CSRF cookie and with it every login.
+
+services:
+  web:
+    build: ./frontend
+    container_name: nexgen-imatch-web
+    ports:
+      - "8080:8080"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: deployment/Dockerfile
+    container_name: nexgen-imatch-api
+    # Not exposed to the host: the browser reaches the API only through web's
+    # /api proxy. Uncomment for direct debugging.
+    # ports:
+    #   - "8443:8443"
+    environment:
+      NEXGEN_ENV: production
+      NEXGEN_DATABASE_URL: postgresql+psycopg://imatch:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/imatch
+      NEXGEN_JWT_SECRET: ${NEXGEN_JWT_SECRET:?set NEXGEN_JWT_SECRET}
+      NEXGEN_TEMPLATE_KEY: ${NEXGEN_TEMPLATE_KEY:?set NEXGEN_TEMPLATE_KEY}
+      # Same-origin serving: no cross-origin caller exists, so no CORS grant is
+      # needed. The default (localhost dev origins) is harmless and this keeps
+      # the variable overridable if a second origin ever appears.
+      NEXGEN_CORS_ORIGINS: ${NEXGEN_CORS_ORIGINS:-http://localhost:5173}
+      NEXGEN_ENGINE_DEVICE: ${NEXGEN_ENGINE_DEVICE:-cpu}
+      NEXGEN_COOKIE_SECURE: ${NEXGEN_COOKIE_SECURE:-false}
+      NEXGEN_MODEL_ROOT: /models
+      NEXGEN_STORAGE_ROOT: /data/storage
+      NEXGEN_AUDIT_LOG_PATH: /data/audit.jsonl
+      # First admin, created by `exec api python scripts/seed.py` (see header).
+      NEXGEN_SEED_ADMIN_EMAIL: ${NEXGEN_SEED_ADMIN_EMAIL:-admin@example.com}
+      NEXGEN_SEED_ADMIN_PASSWORD: ${NEXGEN_SEED_ADMIN_PASSWORD:-}
+      # Optional: real e-mail delivery for OTP/reset flows. Without it, mail is
+      # written to /data/mail_outbox.jsonl instead of being sent.
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      NEXGEN_MAIL_OUTBOX_PATH: /data/mail_outbox.jsonl
+    volumes:
+      - model_cache:/models
+      - api_data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: nexgen-imatch-postgres
+    environment:
+      POSTGRES_USER: imatch
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: imatch
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U imatch -d imatch"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  model_cache:
+  api_data:

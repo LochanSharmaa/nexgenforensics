@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" font-family="Inter, -apple-system, 'Segoe UI', sans-serif">
+<defs><filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="6" stdDeviation="14" flood-color="#221e19" flood-opacity="0.05"/></filter></defs>
+<rect width="1600" height="900" fill="#f8f8f8"/>
+<rect width="1600" height="64" fill="#ffffff"/><line x1="0" y1="64" x2="1600" y2="64" stroke="#e7e3dc"/>
+<rect x="28" y="20" width="24" height="24" rx="7" fill="#6e2c2c"/>
+<text x="64" y="37" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="800" fill="#221e19" text-anchor="start" letter-spacing="0.14em">NEXGEN</text>
+<text x="148" y="37" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="500" fill="#8a8177" text-anchor="start">CaseGPT — Case Intelligence</text>
+<rect x="620" y="16" width="360" height="32" rx="16" fill="#f8f8f8" stroke="#e7e3dc"/>
+<text x="644" y="36" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="12.5" font-weight="500" fill="#b5aca1" text-anchor="start">Search cases, people, evidence…</text>
+<rect x="1268" y="19" width="122" height="26" rx="13" fill="#f1efe9"/><text x="1329.0" y="36" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="10" font-weight="700" fill="#8a8177" text-anchor="middle" letter-spacing="0.08em">EVIDENCE-GRADE</text>
+<circle cx="1436" cy="32" r="14" fill="#f4e9eb"/><text x="1436" y="37" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#9a4e5b" text-anchor="middle">DK</text>
+<text x="1560" y="37" font-family="'JetBrains Mono', Consolas, monospace" font-size="12" font-weight="600" fill="#b5aca1" text-anchor="end">CASE NX-0429</text>
+<rect x="0" y="64" width="216" height="836" fill="#ffffff"/>
+<line x1="216" y1="64" x2="216" y2="900" stroke="#e7e3dc"/>
+<text x="38" y="110" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="13.5" font-weight="500" fill="#8a8177" text-anchor="start">Cases</text>
+<text x="38" y="162" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="13.5" font-weight="500" fill="#8a8177" text-anchor="start">Search</text>
+<text x="38" y="214" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="13.5" font-weight="500" fill="#8a8177" text-anchor="start">Analyse</text>
+<text x="38" y="266" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="13.5" font-weight="500" fill="#8a8177" text-anchor="start">Graph</text>
+<rect x="14" y="294" width="188" height="38" rx="10" fill="#f4e9eb"/>
+<rect x="14" y="294" width="3.5" height="38" rx="1.75" fill="#9a4e5b"/>
+<text x="38" y="318" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="13.5" font-weight="700" fill="#6e2c2c" text-anchor="start">Reports</text>
+<text x="38" y="370" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="13.5" font-weight="500" fill="#8a8177" text-anchor="start">Audit</text>
+<text x="38" y="856" font-family="'JetBrains Mono', Consolas, monospace" font-size="11" font-weight="500" fill="#b5aca1" text-anchor="start">v2.4 · audit on</text>
+<text x="252" y="118" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="26" font-weight="750" fill="#221e19" text-anchor="start">Case Intelligence</text>
+<text x="252" y="144" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="13" font-weight="500" fill="#8a8177" text-anchor="start">report drafting and evidence summarisation · human approval required</text>
+<rect x="1463" y="100" width="101" height="26" rx="13" fill="#e9f1ea"/><text x="1513.5" y="117" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="10" font-weight="700" fill="#3e7d4f" text-anchor="middle" letter-spacing="0.08em">DRAFT READY</text>
+<rect x="252" y="170" width="760" height="668" rx="14" fill="#ffffff" stroke="#e7e3dc" filter="url(#soft)"/>
+<text x="280" y="208" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="17" font-weight="750" fill="#221e19" text-anchor="start">Incident Report — Draft 3</text>
+<rect x="872" y="190" width="108" height="26" rx="13" fill="#f4e9eb"/><text x="926.0" y="207" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="10" font-weight="700" fill="#6e2c2c" text-anchor="middle" letter-spacing="0.08em">CONFIDENTIAL</text>
+<text x="280" y="240" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="13" font-weight="750" fill="#6e2c2c" text-anchor="start">1 · Executive summary</text>
+<rect x="280" y="256" width="541" height="9" rx="4.5" fill="#e9e4dc"/>
+<rect x="280" y="278" width="486" height="9" rx="4.5" fill="#e9e4dc"/>
+<rect x="280" y="300" width="609" height="9" rx="4.5" fill="#e9e4dc"/>
+<rect x="280" y="322" width="662" height="9" rx="4.5" fill="#e9e4dc"/>
+<rect x="280" y="344" width="453" height="9" rx="4.5" fill="#e9e4dc"/>
+<text x="280" y="388" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="13" font-weight="750" fill="#6e2c2c" text-anchor="start">2 · Incident overview</text>
+<rect x="280" y="404" width="426" height="9" rx="4.5" fill="#e9e4dc"/>
+<rect x="280" y="426" width="660" height="9" rx="4.5" fill="#e9e4dc"/>
+<rect x="280" y="448" width="552" height="9" rx="4.5" fill="#e9e4dc"/>
+<rect x="280" y="470" width="539" height="9" rx="4.5" fill="#e9e4dc"/>
+<text x="280" y="514" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="13" font-weight="750" fill="#6e2c2c" text-anchor="start">3 · Evidence summary</text>
+<rect x="280" y="530" width="518" height="9" rx="4.5" fill="#e9e4dc"/>
+<rect x="280" y="552" width="660" height="9" rx="4.5" fill="#e9e4dc"/>
+<rect x="280" y="574" width="663" height="9" rx="4.5" fill="#e9e4dc"/>
+<rect x="280" y="596" width="623" height="9" rx="4.5" fill="#e9e4dc"/>
+<rect x="280" y="618" width="497" height="9" rx="4.5" fill="#e9e4dc"/>
+<rect x="280" y="640" width="538" height="9" rx="4.5" fill="#e9e4dc"/>
+<line x1="280" y1="770" x2="984" y2="770" stroke="#e7e3dc"/>
+<text x="280" y="800" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="12.5" font-weight="500" fill="#8a8177" text-anchor="start">Drafted from 18 timeline events · every claim links to its source item</text>
+<rect x="280" y="814" width="73" height="26" rx="13" fill="#e9f1ea"/><text x="316.5" y="831" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="10" font-weight="700" fill="#3e7d4f" text-anchor="middle" letter-spacing="0.08em">APPROVE</text>
+<rect x="388" y="814" width="129" height="26" rx="13" fill="#f1efe9"/><text x="452.5" y="831" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="10" font-weight="700" fill="#8a8177" text-anchor="middle" letter-spacing="0.08em">REQUEST CHANGES</text>
+<rect x="1036" y="170" width="528" height="300" rx="14" fill="#ffffff" stroke="#e7e3dc" filter="url(#soft)"/>
+<text x="1064" y="206" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#8a8177" text-anchor="start" letter-spacing="0.12em">DRAFT COMPLETENESS</text>
+<circle cx="1160" cy="330" r="74" fill="none" stroke="#e7e3dc" stroke-width="12"/>
+<circle cx="1160" cy="330" r="74" fill="none" stroke="#9a4e5b" stroke-width="12" stroke-linecap="round" stroke-dasharray="450 465" transform="rotate(-90 1160 330)"/>
+<text x="1160" y="326" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="26" font-weight="800" fill="#221e19" text-anchor="middle">96.8%</text>
+<text x="1160" y="352" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="11.5" font-weight="500" fill="#8a8177" text-anchor="middle">complete</text>
+<circle cx="1300" cy="245" r="8" fill="#e9f1ea"/>
+<text x="1300" y="249" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="10" font-weight="800" fill="#3e7d4f" text-anchor="middle">✓</text>
+<text x="1322" y="250" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="13.5" font-weight="600" fill="#221e19" text-anchor="start">Report drafting</text>
+<circle cx="1300" cy="291" r="8" fill="#e9f1ea"/>
+<text x="1300" y="295" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="10" font-weight="800" fill="#3e7d4f" text-anchor="middle">✓</text>
+<text x="1322" y="296" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="13.5" font-weight="600" fill="#221e19" text-anchor="start">Evidence summary</text>
+<circle cx="1300" cy="337" r="8" fill="#e9f1ea"/>
+<text x="1300" y="341" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="10" font-weight="800" fill="#3e7d4f" text-anchor="middle">✓</text>
+<text x="1322" y="342" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="13.5" font-weight="600" fill="#221e19" text-anchor="start">Timeline extraction</text>
+<circle cx="1300" cy="383" r="8" fill="#e7e3dc"/>
+<text x="1300" y="387" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="10" font-weight="800" fill="#8a8177" text-anchor="middle">…</text>
+<text x="1322" y="388" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="13.5" font-weight="600" fill="#8a8177" text-anchor="start">Key findings</text>
+<rect x="1036" y="494" width="528" height="344" rx="14" fill="#ffffff" stroke="#e7e3dc" filter="url(#soft)"/>
+<text x="1064" y="530" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#8a8177" text-anchor="start" letter-spacing="0.12em">EVENT TIMELINE · 18 EVENTS</text>
+<line x1="1080" y1="556" x2="1080" y2="796" stroke="#e7e3dc" stroke-width="2"/>
+<circle cx="1080" cy="568" r="6" fill="#ffffff" stroke="#9a4e5b" stroke-width="2"/>
+<text x="1102" y="566" font-family="'JetBrains Mono', Consolas, monospace" font-size="12" font-weight="750" fill="#221e19" text-anchor="start">09:42:14</text>
+<text x="1102" y="584" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="500" fill="#8a8177" text-anchor="start">device seized</text>
+<circle cx="1080" cy="618" r="6" fill="#ffffff" stroke="#9a4e5b" stroke-width="2"/>
+<text x="1102" y="616" font-family="'JetBrains Mono', Consolas, monospace" font-size="12" font-weight="750" fill="#221e19" text-anchor="start">10:05:22</text>
+<text x="1102" y="634" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="500" fill="#8a8177" text-anchor="start">cctv reviewed</text>
+<circle cx="1080" cy="668" r="6" fill="#ffffff" stroke="#9a4e5b" stroke-width="2"/>
+<text x="1102" y="666" font-family="'JetBrains Mono', Consolas, monospace" font-size="12" font-weight="750" fill="#221e19" text-anchor="start">10:28:41</text>
+<text x="1102" y="684" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="500" fill="#8a8177" text-anchor="start">witness statement</text>
+<circle cx="1080" cy="718" r="6" fill="#ffffff" stroke="#9a4e5b" stroke-width="2"/>
+<text x="1102" y="716" font-family="'JetBrains Mono', Consolas, monospace" font-size="12" font-weight="750" fill="#221e19" text-anchor="start">11:16:09</text>
+<text x="1102" y="734" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="500" fill="#8a8177" text-anchor="start">evidence linked</text>
+<circle cx="1080" cy="768" r="6" fill="#9a4e5b" stroke="#9a4e5b" stroke-width="2"/>
+<text x="1102" y="766" font-family="'JetBrains Mono', Consolas, monospace" font-size="12" font-weight="750" fill="#221e19" text-anchor="start">11:48:30</text>
+<text x="1102" y="784" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="500" fill="#8a8177" text-anchor="start">draft generated</text>
+<rect x="1400" y="752" width="45" height="26" rx="13" fill="#f4e9eb"/><text x="1422.5" y="769" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="10" font-weight="700" fill="#9a4e5b" text-anchor="middle" letter-spacing="0.08em">NEW</text>
+</svg>
