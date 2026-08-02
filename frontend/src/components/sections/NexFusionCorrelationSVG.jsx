@@ -14,16 +14,16 @@ export function NexFusionCorrelationSVG() {
     offset: ["start end", "end start"],
   });
 
-  const pathLength = useTransform(scrollYProgress, [0.25, 0.72], [0, 1]);
-  const modelOpacity = useTransform(scrollYProgress, [0.55, 0.75], [0, 1]);
-  const modelScale = useTransform(scrollYProgress, [0.55, 0.75], [0.92, 1]);
-  const copyY = useTransform(scrollYProgress, [0.15, 0.72], [80, -40]);
+  const pathLength = useTransform(scrollYProgress, [0.16, 0.46], [0, 1]);
+  const modelOpacity = useTransform(scrollYProgress, [0.34, 0.5], [0, 1]);
+  const modelScale = useTransform(scrollYProgress, [0.34, 0.5], [0.92, 1]);
+  const copyY = useTransform(scrollYProgress, [0.08, 0.5], [80, -40]);
 
   return (
     <section className="nx-correlation-scene" ref={containerRef}>
       <div className="nx-correlation-stage">
         <motion.div className="nx-correlation-copy" style={{ y: copyY }}>
-          <p className="nx-kicker">Chapter Two</p>
+          <p className="nx-kicker">Chapter One</p>
           <h2>Intelligence is not collected. It is connected.</h2>
           <p>
             NexFusion turns isolated findings into a single operational model built for

@@ -15,63 +15,57 @@
 
 .nx-masked-text {
   position: relative;
-  transform: translate3d(0, var(--kinetic-y, 0), 0);
-  opacity: var(--kinetic-opacity, 1);
-  transition: opacity 400ms ease;
-  will-change: transform, opacity;
 }
 
 .nx-word-mask {
   display: inline-block;
   overflow: hidden;
   vertical-align: bottom;
-  padding-bottom: 0.06em;
-  margin-bottom: -0.06em;
+  /* Horizontal breathing room (cancelled by negative margins) so serif and
+     italic glyph overhangs are not clipped at the edges of each word. */
+  padding: 0 0.1em 0.06em 0.06em;
+  margin: 0 -0.1em -0.06em -0.06em;
 }
 
+/* Words animate with transform + opacity only: both run on the compositor, so
+   the reveal stays at full frame rate even while the page is scrolling. Filter
+   blur re-rasterizes text every frame and permanent will-change on dozens of
+   words forces a layer per word — both were dropped deliberately. */
 .nx-word {
   display: inline-block;
   opacity: 0;
   transform: translate3d(0, 0.62em, 0);
-  filter: blur(6px);
   transition:
-    opacity 980ms var(--motion-ease),
-    transform 980ms var(--motion-ease),
-    filter 980ms var(--motion-ease);
-  transition-delay: calc(var(--word-index, 0) * 72ms);
-  will-change: transform, opacity, filter;
+    opacity 640ms var(--motion-ease),
+    transform 640ms var(--motion-ease);
+  transition-delay: calc(var(--word-index, 0) * 42ms);
 }
 
 .nx-masked-text.is-visible .nx-word {
   opacity: 1;
   transform: translate3d(0, 0, 0);
-  filter: blur(0);
 }
 
 .nx-reveal-text,
 .nx-stagger-item {
   opacity: 0;
-  transform: translate3d(0, 24px, 0);
-  filter: blur(4px);
+  transform: translate3d(0, 18px, 0);
   transition:
-    opacity 820ms var(--motion-soft),
-    transform 820ms var(--motion-soft),
-    filter 820ms var(--motion-soft),
+    opacity 560ms var(--motion-soft),
+    transform 560ms var(--motion-soft),
     border-color 240ms ease,
     box-shadow 240ms ease,
     background 240ms ease;
-  will-change: transform, opacity, filter;
 }
 
 .nx-stagger-item {
-  transition-delay: calc(var(--stagger-index, 0) * 84ms);
+  transition-delay: calc(var(--stagger-index, 0) * 56ms);
 }
 
 .nx-reveal-text.is-visible,
 .nx-stagger-item.is-visible {
   opacity: 1;
   transform: translate3d(0, 0, 0);
-  filter: blur(0);
 }
 
 .nx-hero-main h1,
@@ -181,29 +175,23 @@
   from {
     opacity: 0;
     transform: translate3d(0, -18px, 0);
-    filter: blur(5px);
   }
   to {
     opacity: 1;
     transform: translate3d(0, 0, 0);
-    filter: blur(0);
   }
 }
 
 @media (max-width: 760px) {
-  .nx-masked-text {
-    transform: none;
-  }
-
   .nx-word {
-    transition-duration: 740ms;
-    transition-delay: calc(var(--word-index, 0) * 38ms);
+    transition-duration: 520ms;
+    transition-delay: calc(var(--word-index, 0) * 28ms);
   }
 
   .nx-reveal-text,
   .nx-stagger-item {
-    transform: translate3d(0, 16px, 0);
-    transition-duration: 680ms;
+    transform: translate3d(0, 14px, 0);
+    transition-duration: 480ms;
   }
 }
 

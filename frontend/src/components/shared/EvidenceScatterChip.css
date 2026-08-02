@@ -4,14 +4,15 @@
   padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: 18px;
-  background: rgba(255, 253, 248, 0.84);
+  /* No backdrop-filter here: these chips move on every scroll frame, and a
+     moving backdrop blur forces an expensive re-sample per chip per frame. */
+  background: rgba(255, 253, 248, 0.94);
   box-shadow: 0 18px 44px rgba(25, 22, 18, 0.07);
   font-size: 14px;
   font-weight: 700;
   z-index: 4;
   will-change: transform, opacity;
   transform-origin: center;
-  backdrop-filter: blur(18px);
 }
 
 .nx-evidence-chip span {

@@ -1,5 +1,12 @@
 import { useRef, useState } from "react";
-import { motion, useScroll, useTransform, useMotionValueEvent } from "framer-motion";
+import {
+  motion,
+  useScroll,
+  useTransform,
+  useSpring,
+  useMotionTemplate,
+  useMotionValueEvent,
+} from "framer-motion";
 import { divisions } from "../../constants/data";
 import "./SevenDivisionsHorizontalScroll.css";
 
@@ -33,17 +40,25 @@ export function SevenDivisionsHorizontalScroll() {
     offset: ["start start", "end end"],
   });
 
-  // Slide track translation based on page scrolling progress
-  const x = useTransform(scrollYProgress, [0, 1], ["0%", `-${(divisions.length - 1) * 100}%`]);
+  // Scroll position picks a slide; a spring carries the track there. Snapping
+  // to whole slides means the deck never rests half-way with an image cut off
+  // at the viewport edge, and every transition plays as one fluid glide
+  // instead of tracking the scrollbar 1:1.
+  const targetX = useTransform(scrollYProgress, (progress) => {
+    const index = Math.min(
+      divisions.length - 1,
+      Math.max(0, Math.round(progress * (divisions.length - 1)))
+    );
+    return -index * 100;
+  });
+  const springX = useSpring(targetX, { stiffness: 115, damping: 26, mass: 0.75 });
+  const x = useMotionTemplate`${springX}%`;
+
   const [active, setActive] = useState(0);
 
   // Sync current slide index with active dots indicator
-  useMotionValueEvent(scrollYProgress, "change", (latest) => {
-    const next = Math.min(
-      divisions.length - 1,
-      Math.max(0, Math.round(latest * (divisions.length - 1)))
-    );
-    setActive(next);
+  useMotionValueEvent(targetX, "change", (latest) => {
+    setActive(Math.round(-latest / 100));
   });
 
 
@@ -67,15 +82,21 @@ export function SevenDivisionsHorizontalScroll() {
           </div>
         </div>
         <motion.div className="nx-platform-track" style={{ x }}>
-          {divisions.map((division) => (
+          {divisions.map((division, index) => (
             <article className="nx-division-panel" key={division.id}>
-              <div className="nx-image-container">
+              <a
+                className="nx-image-container"
+                href={division.href}
+                aria-label={`Open the ${division.title} product page`}
+              >
                 <img
                   src={divisionImages[division.id]}
                   alt={division.title}
                   className="nx-division-image"
+                  loading={index === 0 ? "eager" : "lazy"}
+                  decoding="async"
                 />
-              </div>
+              </a>
             </article>
           ))}
         </motion.div>

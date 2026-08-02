@@ -48,7 +48,9 @@
 
 .nx-hero-main h1 {
   max-width: 1180px;
-  font-size: clamp(50px, 7.45vw, 118px);
+  /* Track viewport HEIGHT: the contained orb scales with height on wide
+     screens, so the title keeps the same title-to-orb ratio everywhere. */
+  font-size: clamp(50px, min(10.5vh, 8vw), 140px);
 }
 
 .nx-hero-main > p {
@@ -98,7 +100,7 @@
 
 /* Evidence assembly */
 .nx-evidence-scene {
-  height: 145vh;
+  height: 110vh;
 }
 
 .nx-case-core {
@@ -140,7 +142,7 @@
 
 /* Correlation scene */
 .nx-correlation-scene {
-  height: 200vh;
+  height: 105vh;
 }
 
 .nx-correlation-stage {
@@ -157,9 +159,10 @@
   height: min(60vh, 590px);
 }
 
-/* Seven product divisions */
+/* Seven product divisions — slides snap with a spring, so each transition
+   only needs a short stretch of scroll. */
 .nx-platform-scroll {
-  height: 560vh;
+  height: 220vh;
 }
 
 .nx-platform-sticky {
@@ -576,7 +579,7 @@
   }
 
   .nx-evidence-scene {
-    height: 135vh;
+    height: 105vh;
   }
 
   .nx-case-core {
@@ -590,11 +593,11 @@
   }
 
   .nx-correlation-scene {
-    height: 180vh;
+    height: 100vh;
   }
 
   .nx-platform-scroll {
-    height: 520vh;
+    height: 215vh;
   }
 
   .nx-platform-index {

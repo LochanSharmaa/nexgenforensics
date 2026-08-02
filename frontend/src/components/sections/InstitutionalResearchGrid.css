@@ -1,5 +1,6 @@
 .nx-research {
   padding: 11vw 7vw;
+  background: radial-gradient(circle at 14% 18%, rgba(154, 78, 91, 0.05), transparent 36rem);
 }
 
 .nx-section-heading {
@@ -30,7 +31,7 @@
 }
 
 .nx-research-card span {
-  color: var(--blue);
+  color: var(--rose);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.14em;

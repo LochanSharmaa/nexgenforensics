@@ -3,19 +3,33 @@
   min-height: 100vh;
   overflow: hidden;
   isolation: isolate;
-  background: #f8f6f4;
+  background: var(--cream);
   color: #211719;
 }
 
 .nx-hero-video,
 .nx-hero-blur {
   position: absolute;
+  object-position: center;
+  pointer-events: none;
+}
+
+/* The ambient blur layer still covers the full bleed. */
+.nx-hero-blur {
   inset: -4%;
   width: 108%;
   height: 108%;
   object-fit: cover;
-  object-position: center;
-  pointer-events: none;
+}
+
+/* The sharp video is CONTAINED, not cropped: the orb is always fully visible
+   and framed identically on every screen shape at 100% zoom. Its backdrop is
+   the same creme as the page, so the letterbox edges are invisible. */
+.nx-hero-video {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .nx-hero-blur {
@@ -28,7 +42,20 @@
 .nx-hero-video {
   z-index: -2;
   filter: saturate(1.04) contrast(1.02);
-  transform: scale(1.035);
+}
+
+/* Melt the hero's imagery into the paper below so Chapter One feels like a
+   continuation of the same scene, not a new page. */
+.nx-hero::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 16vh;
+  z-index: -1;
+  background: linear-gradient(180deg, transparent, var(--cream));
+  pointer-events: none;
 }
 
 .nx-hero-shade {
@@ -69,12 +96,30 @@
   left: 50%;
   width: 100%;
   transform: translate(-50%, -62px);
+  animation: nx-hero-main-enter 1100ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes nx-hero-main-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -38px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -62px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nx-hero-main {
+    animation: none;
+  }
 }
 
 .nx-hero-main h1 {
   max-width: 1280px;
   margin: 0 auto;
-  font: 400 clamp(54px, 8.2vw, 132px)/0.9 Georgia, "Times New Roman", serif;
+  font: 400 clamp(54px, min(10.5vh, 8vw), 140px)/0.9 Georgia, "Times New Roman", serif;
   letter-spacing: -0.052em;
   color: #211719;
   text-shadow: 0 2px 30px rgba(255, 255, 255, 0.72);
