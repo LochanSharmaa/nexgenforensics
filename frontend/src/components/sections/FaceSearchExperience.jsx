@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./FaceSearchExperience.css";
 import faceSearchVideo from "../../assets/facesearch.mp4";
 import { useLoginGate } from "../../hooks/useLoginGate";
 import {
   imatchApiUrl,
-  runSearch,
   runVerification,
   normalizeVerifyResult,
   runBatch,
@@ -787,7 +787,7 @@ function FaceDropZone({ id, label, preview, onChange }) {
 
 // ─── SingleSearchPanel — original single-image logic ─────────────────────────
 function SingleSearchPanel({ step, activeMode }) {
-  const requireLogin = useLoginGate();
+  const navigate = useNavigate();
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState("");
   // Labels describe what the backend actually computes. See CLAIMS.md.
@@ -804,7 +804,9 @@ function SingleSearchPanel({ step, activeMode }) {
     "Synthetic-Media Artifact Screen": true,
     "Quality Assessment": true,
   });
-  const [runState, setRunState] = useState("idle");
+  // This panel previews the search; it no longer runs one. The button below
+  // opens the chooser, and the comparison happens in the product.
+  const runState = "idle";
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const options = [
@@ -847,26 +849,11 @@ function SingleSearchPanel({ step, activeMode }) {
     }));
   };
 
-  const handleLaunch = async () => {
-    if (requireLogin({ panel: "single", mode: activeMode })) return;
-
-    setError("");
-    setResult(null);
-    setRunState("running");
-    try {
-      const response = await runImatchSearch({
-        file: selectedFile,
-        mode: activeMode,
-        checks: Object.entries(selectedChecks)
-          .filter(([, enabled]) => enabled)
-          .map(([label]) => label),
-      });
-      setResult(response);
-      setRunState("complete");
-    } catch (launchError) {
-      setError(launchError.message);
-      setRunState("error");
-    }
+  // "Launch Face Search" is the way into the product, not a demo run: it opens
+  // the Individual-vs-Investigator chooser, which is where the real single
+  // comparison and the full workspace both start.
+  const handleLaunch = () => {
+    navigate("/choose-role", { state: { intent: { panel: "single", mode: activeMode } } });
   };
 
   return (

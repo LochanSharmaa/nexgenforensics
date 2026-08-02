@@ -167,6 +167,7 @@ function describeError(payload, status) {
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 let csrfToken = null;
+let csrfInFlight = null;
 
 /**
  * Fetch a CSRF token, once, and reuse it.
@@ -179,14 +180,28 @@ let csrfToken = null;
  * `credentials: "include"` matters: the API is on a different origin to the
  * app in development, and without it the browser sends no cookie, so the
  * server's double-submit check has nothing to compare the header against.
+ *
+ * Concurrent callers share one request. Letting two run means two tokens are
+ * minted and the second overwrites the first's cookie, so whichever request
+ * carries the older header fails the double-submit check -- a 403 on a form the
+ * user filled in correctly, and one that only shows up when two actions start
+ * together.
  */
 async function ensureCsrfToken() {
   if (csrfToken) return csrfToken;
-  const response = await fetch(`${IMATCH_BASE}/api/auth/csrf`, { credentials: "include" });
-  if (!response.ok) return null;
-  const payload = await response.json();
-  csrfToken = payload?.csrf_token ?? null;
-  return csrfToken;
+  if (csrfInFlight) return csrfInFlight;
+
+  csrfInFlight = (async () => {
+    const response = await fetch(`${IMATCH_BASE}/api/auth/csrf`, { credentials: "include" });
+    if (!response.ok) return null;
+    const payload = await response.json();
+    csrfToken = payload?.csrf_token ?? null;
+    return csrfToken;
+  })().finally(() => {
+    csrfInFlight = null;
+  });
+
+  return csrfInFlight;
 }
 
 async function request(path, { method = "GET", body, auth = true, signal } = {}) {

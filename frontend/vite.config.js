@@ -5,7 +5,8 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5173,
+    // Honour PORT so a second checkout can run alongside one already on 5173.
+    port: Number(process.env.PORT) || 5173,
     // Forward API calls to the iMATCH backend so local dev needs no CORS grant
     // and the browser never sees a cross-origin biometric request.
     proxy: {

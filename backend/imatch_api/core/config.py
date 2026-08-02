@@ -244,6 +244,28 @@ class Settings(BaseSettings):
     def audit_path(self) -> Path:
         return self._resolve(self.audit_log_path)
 
+    def resolved_database_url(self) -> str:
+        """The database URL with a relative SQLite file anchored to the repo.
+
+        The default is `sqlite:///./runtime/imatch.db`, which SQLAlchemy reads
+        relative to the *current working directory*. Starting the API from
+        `backend/` therefore opens a different, empty file than starting it from
+        the repo root -- so the seeded administrator appears to vanish depending
+        on where the process was launched. Anchoring to REPO_ROOT makes one
+        checkout mean one database. Absolute paths, `:memory:`, and non-SQLite
+        URLs (every deployment sets one) are returned untouched.
+        """
+        url = self.database_url
+        if not url.startswith("sqlite"):
+            return url
+        prefix, sep, tail = url.partition("///")
+        if not sep or not tail or tail == ":memory:":
+            return url
+        path = Path(tail)
+        if path.is_absolute():
+            return url
+        return f"{prefix}///{(REPO_ROOT / path).resolve().as_posix()}"
+
     def resolved_jwt_secret(self) -> str:
         """The signing secret, generating an ephemeral one only outside production.
 

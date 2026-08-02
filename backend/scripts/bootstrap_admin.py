@@ -19,7 +19,10 @@ environment silently provisions a privileged account in production. Running it
 is an explicit, auditable act.
 
 Idempotent: re-running with an existing email updates nothing and reports the
-account already exists. Use --reset-password to rotate the credential.
+account already exists. Use --reset-password to rotate the credential, or
+--ensure to restore a login that has stopped working -- it resets the password
+and clears the three states that block a correct one (unverified address,
+deactivated account, brute-force lockout).
 """
 
 from __future__ import annotations
@@ -51,6 +54,9 @@ def main() -> int:
     ap.add_argument("--role", default="admin", choices=[r.value for r in Role])
     ap.add_argument("--reset-password", action="store_true",
                     help="rotate the password of an existing account")
+    ap.add_argument("--ensure", action="store_true",
+                    help="restore this login: set the password, mark the address "
+                         "verified, reactivate, and clear any lockout")
     args = ap.parse_args()
 
     if not args.password:
@@ -78,15 +84,23 @@ def main() -> int:
         ).first()
 
         if user is not None:
-            if not args.reset_password:
+            if not (args.reset_password or args.ensure):
                 print(f"user exists     {email} (role={user.role}); "
-                      "pass --reset-password to rotate the credential")
+                      "pass --ensure to restore this login")
                 return 0
             user.password_hash = hash_password(args.password)
             user.active = True
+            # The three states that silently block a correct password: an
+            # unconfirmed address, a deactivated account, and a brute-force
+            # lockout. --ensure exists to clear all of them in one go, so
+            # restoring access never needs a hand-written UPDATE.
+            if args.ensure:
+                user.email_verified = True
+                user.locked_until = None
+                user.failed_login_attempts = 0
             session.add(user)
             session.commit()
-            print(f"password reset  {email}")
+            print(f"restored login  {email} (role={user.role})")
             return 0
 
         user = User(

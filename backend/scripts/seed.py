@@ -81,6 +81,7 @@ def main() -> int:
                 full_name="Platform Administrator",
                 password_hash=hash_password(password),
                 role=Role.ADMIN,
+                email_verified=True,
             )
         )
 

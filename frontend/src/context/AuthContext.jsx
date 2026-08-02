@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { fetchCurrentUser, login as apiLogin, logout as apiLogout, tokenStore } from "../services/imatchApi";
+import { ownerSession } from "../config/ownerSession";
 
 const AuthContext = createContext(null);
 
@@ -13,8 +14,28 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let cancelled = false;
 
+    // Development convenience: sign in as the operator account so the owner is
+    // not asked for credentials on every reload. See config/ownerSession.js --
+    // this is compiled out of production builds.
+    async function signInAsOwner() {
+      if (!ownerSession.enabled) return;
+      try {
+        const profile = await apiLogin({
+          email: ownerSession.email,
+          password: ownerSession.password,
+          tenant: ownerSession.tenant,
+        });
+        if (!cancelled) setUser(profile);
+      } catch (error) {
+        // Left signed out rather than retried: a wrong password here would
+        // otherwise walk the account into its brute-force lockout.
+        console.warn("Owner auto-session failed; sign in manually.", error);
+      }
+    }
+
     async function restore() {
       if (!tokenStore.access) {
+        await signInAsOwner();
         if (!cancelled) setLoading(false);
         return;
       }
@@ -23,6 +44,7 @@ export function AuthProvider({ children }) {
         if (!cancelled) setUser(profile);
       } catch {
         tokenStore.clear();
+        await signInAsOwner();
       } finally {
         if (!cancelled) setLoading(false);
       }

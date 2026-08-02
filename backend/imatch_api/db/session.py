@@ -45,7 +45,7 @@ def normalise_database_url(url: str) -> str:
 
 def build_engine(settings: Settings | None = None) -> Engine:
     settings = settings or get_settings()
-    url = normalise_database_url(settings.database_url)
+    url = normalise_database_url(settings.resolved_database_url())
 
     connect_args: dict[str, object] = {}
     if url.startswith("sqlite"):
