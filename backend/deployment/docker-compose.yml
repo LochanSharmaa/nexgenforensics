@@ -6,7 +6,14 @@ services:
     ports:
       - "8443:8443"
     environment:
-      - NEXGEN_ENV=local
+      # "local" is not an accepted value — Settings validates NEXGEN_ENV against
+      # {development, staging, production, test} and the container exits at
+      # startup with a validation error.
+      - NEXGEN_ENV=development
+      # Absolute on purpose (note the four slashes). Relative sqlite paths are
+      # anchored to the repository root, which inside this image resolves to /,
+      # a directory the unprivileged user cannot create /runtime under.
+      - NEXGEN_DATABASE_URL=sqlite:////app/runtime/imatch.db
     volumes:
       - nexgen-runtime:/app/runtime
 

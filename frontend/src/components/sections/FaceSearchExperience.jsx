@@ -1,27 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./FaceSearchExperience.css";
 import faceSearchVideo from "../../assets/facesearch.mp4";
 import { useLoginGate } from "../../hooks/useLoginGate";
+import { useAuth } from "../../context/AuthContext";
 import {
   imatchApiUrl,
+  runSearch,
   runVerification,
   normalizeVerifyResult,
   runBatch,
 } from "../../services/imatchApi";
-
-// Each item must correspond to something implemented and tested. See CLAIMS.md.
-// "99.99% Benchmark Target" was a placeholder with no measurement behind it and
-// is replaced by a real, dataset-qualified number from BENCHMARKS.md. Accuracy
-// must never be quoted without naming the dataset and the task (1:1
-// verification vs. rank-1 identification).
-const trustItems = [
-  "Commercial Face Matching",
-  "Image Quality & Capture Check",
-  "Synthetic-Media Artifact Screen",
-  "Tenant-Isolated Gallery",
-  "99.78% 1:1 verification — LFW, 6,000 pairs",
-];
 
 const storySteps = [
   {
@@ -66,40 +55,6 @@ const storySteps = [
   },
 ];
 
-const tabs = [
-  {
-    id: "console",
-    label: "Web Console",
-    title: "Recognition workflow dashboard",
-    lines: ["Single search intake", "Quality score 94/100", "Liveness passed", "Candidate confidence 96.8%"],
-  },
-  {
-    id: "api",
-    label: "REST API",
-    title: "Premium API request",
-    lines: [
-      "POST /api/biometrics/verify",
-      "{",
-      '  "reference": "face-a.jpg",',
-      '  "probe": "face-b.jpg",',
-      '  "operator_id": "demo_operator"',
-      "}",
-    ],
-  },
-  {
-    id: "batch",
-    label: "Batch Processing",
-    title: "File queue and results table",
-    lines: ["batch-017.csv queued", "1,248 images normalized", "37 candidates flagged", "audit export ready"],
-  },
-  {
-    id: "secure",
-    label: "Secure Integrations",
-    title: "Connected enterprise systems",
-    lines: ["KYC system", "Access control", "Identity records", "Review workflow"],
-  },
-];
-
 const searchModes = [
   {
     id: "single",
@@ -133,6 +88,40 @@ const searchModes = [
   // See CLAIMS.md for the SSRF requirements before reinstating it.
 ];
 
+// ─── Login-first gate for the demo drop zones ────────────────────────────────
+
+/**
+ * Same-size stand-in for a drop zone, shown when a signed-out visitor clicks
+ * one: opening a file picker for an upload that can only end in a 401 helps
+ * nobody. Signed-in users never see this — their click opens the picker.
+ */
+function LoginFirstZone({ className = "im-drop-zone", onLogin }) {
+  return (
+    <div className={`${className} im-login-first`} role="alert">
+      <span className="im-upload-mark" aria-hidden="true">→</span>
+      <strong>Login first</strong>
+      <small>Sign in to run a live face search</small>
+      <button type="button" className="im-login-cta" onClick={onLogin}>
+        Log in
+      </button>
+    </div>
+  );
+}
+
+/** Click gate shared by the three demo panels. */
+function useDropGate() {
+  const requireLogin = useLoginGate();
+  const { isAuthenticated } = useAuth();
+  const [prompted, setPrompted] = useState(false);
+  const gateClick = (event) => {
+    if (!isAuthenticated) {
+      event.preventDefault();
+      setPrompted(true);
+    }
+  };
+  return { gated: prompted && !isAuthenticated, gateClick, requireLogin };
+}
+
 // ─── Label → display config ──────────────────────────────────────────────────
 const LABEL_CONFIG = {
   same_person: { text: "Same Person", color: "#1a7a4a", bg: "rgba(26,122,74,0.10)", icon: "✓" },
@@ -143,7 +132,6 @@ const LABEL_CONFIG = {
 
 export function FaceSearchExperience() {
   const [activeStep, setActiveStep] = useState(0);
-  const [activeTab, setActiveTab] = useState("console");
   const stepRefs = useRef([]);
 
   useEffect(() => {
@@ -161,22 +149,18 @@ export function FaceSearchExperience() {
     return () => observer.disconnect();
   }, []);
 
-  const activeTabData = useMemo(
-    () => tabs.find((tab) => tab.id === activeTab) ?? tabs[0],
-    [activeTab]
-  );
-
   return (
     <>
       <section id="top" className="im-hero im-section" aria-labelledby="imatch-title">
         <div className="im-orb im-orb-one" aria-hidden="true" />
         <div className="im-hero-copy">
           <p className="im-eyebrow">NexGen Identity Product Suite</p>
-          {/* Real measured number, dataset-qualified. See BENCHMARKS.md section 2.
+          {/* Real measured number — 99.78% 1:1 verification on LFW (6,000
+              pairs); dataset and protocol documented in BENCHMARKS.md section 2.
               The previous "validation target 99.99%" was an aspiration with no
               measurement behind it, presented as a capability. */}
           <p className="im-badge">
-            Enterprise biometric engine - 99.78% 1:1 verification (LFW, 6,000 pairs)
+            Enterprise biometric engine - 99.78% 1:1 verification
           </p>
           <h1 id="imatch-title">NexGen iMatch</h1>
           <h2>Enterprise Facial Recognition System</h2>
@@ -190,11 +174,6 @@ export function FaceSearchExperience() {
             <a href="#story">Start Face Search</a>
             <a href="#briefing">Request Access</a>
           </div>
-          <ul className="im-trust-row" aria-label="iMatch trust signals">
-            {trustItems.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
         </div>
         <ImatchUploadConsole step={storySteps[0]} hero />
       </section>
@@ -232,37 +211,6 @@ export function FaceSearchExperience() {
               aria-label="Facial recognition workflow preview"
             />
           </figure>
-        </div>
-      </section>
-
-      <section id="research" className="im-interface im-section" aria-labelledby="interface-title">
-        <div className="im-section-heading">
-          <p className="im-eyebrow">Interfaces</p>
-          <h2 id="interface-title">Flexible Interfaces for Every Recognition Workflow</h2>
-        </div>
-        <div className="im-interface-shell">
-          <div className="im-tabs" role="tablist" aria-label="iMatch interfaces">
-            {tabs.map((tab) => (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === tab.id}
-                className={activeTab === tab.id ? "active" : ""}
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-          <article className="im-tab-panel" key={activeTabData.id}>
-            <h3>{activeTabData.title}</h3>
-            <div className={activeTabData.id === "api" ? "im-code-card" : "im-preview-card"}>
-              {activeTabData.lines.map((line) => (
-                <span key={line}>{line}</span>
-              ))}
-            </div>
-          </article>
         </div>
       </section>
 
@@ -325,7 +273,7 @@ function ImatchUploadConsole({ step, hero = false }) {
 
 // ─── BatchPanel — real 1:N batch search UI ────────────────────────────────────
 function BatchPanel() {
-  const requireLogin = useLoginGate();
+  const { gated, gateClick, requireLogin } = useDropGate();
   const [batchFiles, setBatchFiles] = useState([]);
   const [referenceFile, setReferenceFile] = useState(null);
   const [mode, setMode] = useState("one_to_many");
@@ -414,44 +362,53 @@ function BatchPanel() {
         ))}
       </div>
 
-      {mode === "one_to_many" && (
-        <label className="im-batch-drop im-batch-reference">
-          <input
-            type="file"
-            accept="image/*"
-            aria-label="Reference image compared against every upload"
-            onChange={(e) => {
-              setReferenceFile(e.target.files?.[0] || null);
-              setBatchResult(null);
-              setError("");
-            }}
-          />
-          <span className="im-upload-mark">1</span>
-          <strong>Reference image</strong>
-          <small>
-            {referenceFile
-              ? `${referenceFile.name} — compared against every upload below`
-              : "The one face every uploaded image is compared against"}
-          </small>
-        </label>
-      )}
-
-      <label className="im-batch-drop">
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          aria-label="Upload multiple face images for batch search"
-          onChange={handleFilesChange}
+      {gated ? (
+        <LoginFirstZone
+          className="im-batch-drop"
+          onLogin={() => requireLogin({ panel: "batch", mode })}
         />
-        <span className="im-upload-mark">+</span>
-        <strong>{mode === "one_to_many" ? "Images to compare" : "Probe images"}</strong>
-        <small>
-          {batchFiles.length > 0
-            ? `${batchFiles.length} images selected${batchFiles.length > 50 ? " — over the 50 limit" : ""}`
-            : "Select up to 50 JPG / PNG files"}
-        </small>
-      </label>
+      ) : (
+        <>
+          {mode === "one_to_many" && (
+            <label className="im-batch-drop im-batch-reference" onClick={gateClick}>
+              <input
+                type="file"
+                accept="image/*"
+                aria-label="Reference image compared against every upload"
+                onChange={(e) => {
+                  setReferenceFile(e.target.files?.[0] || null);
+                  setBatchResult(null);
+                  setError("");
+                }}
+              />
+              <span className="im-upload-mark">1</span>
+              <strong>Reference image</strong>
+              <small>
+                {referenceFile
+                  ? `${referenceFile.name} — compared against every upload below`
+                  : "The one face every uploaded image is compared against"}
+              </small>
+            </label>
+          )}
+
+          <label className="im-batch-drop" onClick={gateClick}>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              aria-label="Upload multiple face images for batch search"
+              onChange={handleFilesChange}
+            />
+            <span className="im-upload-mark">+</span>
+            <strong>{mode === "one_to_many" ? "Images to compare" : "Probe images"}</strong>
+            <small>
+              {batchFiles.length > 0
+                ? `${batchFiles.length} images selected${batchFiles.length > 50 ? " — over the 50 limit" : ""}`
+                : "Select up to 50 JPG / PNG files"}
+            </small>
+          </label>
+        </>
+      )}
 
       {/* Recorded verbatim against EVERY item, not once per batch. */}
       <label className="im-lawful-field">
@@ -460,7 +417,6 @@ function BatchPanel() {
           type="text"
           value={lawfulBasis}
           maxLength={500}
-          placeholder="e.g. Operation Redwood, warrant ref 2026/114"
           onChange={(e) => setLawfulBasis(e.target.value)}
         />
       </label>
@@ -571,7 +527,7 @@ function BatchPanel() {
 
 // ─── ComparePanel — real 1:1 verification UI ──────────────────────────────────
 function ComparePanel() {
-  const requireLogin = useLoginGate();
+  const { gated, gateClick, requireLogin } = useDropGate();
   const [refFile, setRefFile] = useState(null);
   const [probeFile, setProbeFile] = useState(null);
   const [refPreview, setRefPreview] = useState("");
@@ -648,22 +604,29 @@ function ComparePanel() {
 
   return (
     <div className="im-compare-panel">
-      {/* Dual upload zone */}
-      <div className="im-compare-uploads">
-        <FaceDropZone
-          id="compare-ref"
-          label="Reference Image"
-          preview={refPreview}
-          onChange={(f) => { setRefFile(f); setResult(null); setError(""); }}
-        />
-        <div className="im-compare-vs" aria-hidden="true">VS</div>
-        <FaceDropZone
-          id="compare-probe"
-          label="Probe Image"
-          preview={probePreview}
-          onChange={(f) => { setProbeFile(f); setResult(null); setError(""); }}
-        />
-      </div>
+      {/* Dual upload zone — collapses to one full-width "login first" panel
+          when a signed-out visitor clicks either side. */}
+      {gated ? (
+        <LoginFirstZone onLogin={() => requireLogin({ panel: "compare" })} />
+      ) : (
+        <div className="im-compare-uploads">
+          <FaceDropZone
+            id="compare-ref"
+            label="Reference Image"
+            preview={refPreview}
+            onClick={gateClick}
+            onChange={(f) => { setRefFile(f); setResult(null); setError(""); }}
+          />
+          <div className="im-compare-vs" aria-hidden="true">VS</div>
+          <FaceDropZone
+            id="compare-probe"
+            label="Probe Image"
+            preview={probePreview}
+            onClick={gateClick}
+            onChange={(f) => { setProbeFile(f); setResult(null); setError(""); }}
+          />
+        </div>
+      )}
 
       {/* Lawful basis - required by the API, recorded verbatim in the audit chain */}
       <label className="im-lawful-field">
@@ -672,7 +635,6 @@ function ComparePanel() {
           type="text"
           value={lawfulBasis}
           maxLength={500}
-          placeholder="e.g. Operation Redwood, warrant ref 2026/114"
           onChange={(event) => setLawfulBasis(event.target.value)}
         />
       </label>
@@ -762,9 +724,9 @@ function ComparePanel() {
 }
 
 // ─── FaceDropZone ─────────────────────────────────────────────────────────────
-function FaceDropZone({ id, label, preview, onChange }) {
+function FaceDropZone({ id, label, preview, onChange, onClick }) {
   return (
-    <label className="im-compare-drop" htmlFor={id}>
+    <label className="im-compare-drop" htmlFor={id} onClick={onClick}>
       <input
         id={id}
         type="file"
@@ -787,6 +749,7 @@ function FaceDropZone({ id, label, preview, onChange }) {
 
 // ─── SingleSearchPanel — original single-image logic ─────────────────────────
 function SingleSearchPanel({ step, activeMode }) {
+  const { gated, gateClick, requireLogin } = useDropGate();
   const navigate = useNavigate();
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState("");
@@ -804,8 +767,6 @@ function SingleSearchPanel({ step, activeMode }) {
     "Synthetic-Media Artifact Screen": true,
     "Quality Assessment": true,
   });
-  // This panel previews the search; it no longer runs one. The button below
-  // opens the chooser, and the comparison happens in the product.
   const runState = "idle";
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
@@ -849,11 +810,15 @@ function SingleSearchPanel({ step, activeMode }) {
     }));
   };
 
-  // "Launch Face Search" is the way into the product, not a demo run: it opens
-  // the Individual-vs-Investigator chooser, which is where the real single
-  // comparison and the full workspace both start.
+  // This panel previews the workflow; the search itself happens in the product.
+  // "Launch Face Search" therefore opens the Individual/Investigator chooser,
+  // which is where both the single comparison and the full workspace start.
+  //
+  // It previously called runImatchSearch, which is defined nowhere -- the API
+  // module exports runSearch -- so every click threw a ReferenceError that the
+  // catch below rendered to the visitor as an error message.
   const handleLaunch = () => {
-    navigate("/choose-role", { state: { intent: { panel: "single", mode: activeMode } } });
+    navigate("/choose-role");
   };
 
   return (
@@ -863,18 +828,22 @@ function SingleSearchPanel({ step, activeMode }) {
       onSubmit={(event) => event.preventDefault()}
     >
       <div className="im-console-main">
-        <label className="im-drop-zone">
-          <input type="file" accept="image/*" aria-label="Upload face image" onChange={handleFileChange} />
-          {previewUrl ? (
-            <img className="im-photo-preview" src={previewUrl} alt="Selected face search input" />
-          ) : (
-            <>
-              <span className="im-upload-mark" aria-hidden="true">+</span>
-              <strong>{mode.title}</strong>
-              <small>{mode.formats}</small>
-            </>
-          )}
-        </label>
+        {gated ? (
+          <LoginFirstZone onLogin={() => requireLogin({ panel: "single", mode: activeMode })} />
+        ) : (
+          <label className="im-drop-zone" onClick={gateClick}>
+            <input type="file" accept="image/*" aria-label="Upload face image" onChange={handleFileChange} />
+            {previewUrl ? (
+              <img className="im-photo-preview" src={previewUrl} alt="Selected face search input" />
+            ) : (
+              <>
+                <span className="im-upload-mark" aria-hidden="true">+</span>
+                <strong>{mode.title}</strong>
+                <small>{mode.formats}</small>
+              </>
+            )}
+          </label>
+        )}
 
         <div className="im-preview-stack" aria-hidden={!previewUrl}>
           {previewUrl ? (

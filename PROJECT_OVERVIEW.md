@@ -444,12 +444,14 @@ following were found by inspection and testing.
    inner-product index. Enabling faiss would buy a constant-factor SIMD speedup,
    **not** a complexity change — 100k would still scale linearly. Real scaling
    needs an approximate index (IVF-PQ / HNSW) plus measured recall loss.
-8. **IJB-B / IJB-C not run.** Corrected label: the dataset is **not absent** — an
-   abandoned 1.57 GB partial download exists at
-   `src/Unconfirmed 459859.crdownload`, identified by its tar header as the IJB
-   pack (`./ijb/`, `./ijb/IJB_11.py`, `./recognition`). It is incomplete and
-   therefore unusable; no IJB number can be produced from it. Not re-downloaded.
-   Two other abandoned partials sit alongside it:
+8. ~~**IJB-B / IJB-C not run.**~~ **RUN (2026-08-02).** The earlier "1.57 GB
+   partial download" label was itself stale — the complete 8.6 GB suite was at
+   `Downloads/ijb-testsuite.tar` all along. Extracted and run on the official
+   protocol (5-pt `norm_crop`, media-aware template pooling, per `IJB_11.py`):
+   **IJB-B 95.44%, IJB-C 96.91% TAR@FAR=1e-4** with `w600k_r50` + flip-TTA —
+   at published-ArcFace level, which validates the whole measurement harness.
+   `backend/scripts/benchmark_ijb.py`, results in `runtime/forensics/ijb_*.json`.
+   Two other abandoned partials sit alongside the original crdownload:
    `Unconfirmed 676476` (3.33 GB, MegaFace tar) and `Unconfirmed 668013`
    (332 MB, a redundant partial of `faces_megafacetrain_112x112`, whose complete
    9.7 GB zip is already present).

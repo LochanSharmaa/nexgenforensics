@@ -300,9 +300,19 @@ compatibility is verified at gallery scale. See [ROADMAP.md](ROADMAP.md) §9.
 
 Stated plainly because they change how results should be used.
 
-- **Degraded footage is weak.** At FAR=0.1% on surveillance-resolution imagery
-  the system finds roughly **one genuine match in three**. Results from such
-  imagery are investigative leads for human review, never identifications.
+- **Degraded footage is weak, and measurably worse than earlier drafts of this
+  file said.** Re-measured on official protocol splits against protocol-defined
+  reference populations (2026-08-02): at FAR=0.1% the system finds **one genuine
+  match in five** on TinyFace (20.59%) and **one in forty-three** on
+  QMUL-SurvFace (2.31%). The earlier "one in three" came from a self-constructed
+  pair list, 39.4% of which paired near-duplicate frames from the same
+  surveillance track.
+- **On real surveillance imagery it cannot reject strangers.** Against 1,844
+  genuinely unenrolled probes from QMUL's official open-set split, true-positive
+  identification rate at a 1% false-alarm rate is **0.00%**. This is the number
+  that matters operationally, and nothing in the evidence layer improves it —
+  calibration is already within 0.6% of optimal. See
+  [docs/MEASUREMENT_RECORD.md](docs/MEASUREMENT_RECORD.md).
 - **Not independently validated.** Not submitted to NIST FRTE. Every number
   here is internal. This is the single largest credibility gap and no internal
   work closes it — see [ROADMAP.md](ROADMAP.md).
@@ -360,6 +370,19 @@ irrevocable — a person cannot reissue their face.
 
 ## Documentation
 
+### Next-generation architecture programme
+
+| Document | What it is |
+|---|---|
+| [NEXTGEN-ARCHITECTURE.md](NEXTGEN-ARCHITECTURE.md) | The proposed successor architecture and the assumptions it challenges |
+| [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md) | Stage-by-stage execution plan with success and failure criteria |
+| [docs/METHODOLOGY.md](docs/METHODOLOGY.md) | **Proven / hypothesis / unknown**, with the commands that reproduce each figure |
+| [docs/CAPACITY_VALIDATION.md](docs/CAPACITY_VALIDATION.md) | Which capacity measurements are valid, which are invalid, and why |
+| [docs/DATASET_INVENTORY.md](docs/DATASET_INVENTORY.md) | Every dataset held, with protocol compatibility and missing metadata |
+| [DATA_REQUIREMENTS.md](DATA_REQUIREMENTS.md) | Datasets requested for download, ranked by what they unblock |
+| [GPU_EXECUTION_REQUEST.md](GPU_EXECUTION_REQUEST.md) | GPU tasks awaiting approval, with runtimes and the decisions they enable |
+
+
 ### Core records
 
 | Document | Contents |
@@ -400,24 +423,38 @@ DELIVERABLE** with the reason, rather than filled with plausible text.
 ## Testing and verification
 
 ```bash
-pytest backend/tests_engine/ backend/tests/     # 161 tests
+pytest backend/tests_engine/ backend/tests/     # 288 tests
 python backend/scripts/regression_check.py      # accuracy + config regression gate
 python scripts/verify_gpu.py                    # GPU binding, 12 checks
 ```
+
+### Forensic evidence layer (CPU only, no model load)
+
+```bash
+python backend/scripts/audit_assets.py              # dataset inventory
+python backend/scripts/evaluate_baseline.py         # ROC/DET/CMC/Cllr/open-set
+python backend/scripts/validate_capacity.py         # which capacity numbers are valid
+python experiments/S0_3/run.py --embedder stub      # S0.3 pipeline check
+```
+
+These run entirely from cached embeddings — no GPU, no inference. They produce
+[docs/METHODOLOGY.md](docs/METHODOLOGY.md)'s measured figures, and
+[docs/CAPACITY_VALIDATION.md](docs/CAPACITY_VALIDATION.md) records which
+measurements are trustworthy and which the system refuses to produce.
 
 The regression gate compares measured accuracy against a recorded baseline
 *and* asserts configuration invariants — deployed model pack, thresholds, and
 that the API still derives its thresholds from the engine rather than holding a
 copy. It exits non-zero on regression.
 
-**What the CI badge attests.** CI runs 145 of the 161 tests — everything that
+**What the CI badge attests.** CI runs the subset of the 288 tests — everything that
 does not need the InsightFace model pack — plus the configuration half of the
 regression gate. It verifies that the code imports, the logic is sound, and the
 decision thresholds have not drifted. It does **not** re-measure accuracy: that
 needs a ~350 MB model pack and a ~595 MB embedding cache, neither of which is in
 the repository. The accuracy badges are static values reproduced by the commands
-in [Benchmarks](#benchmarks). The remaining 16 tests exercise the real
-recognition pipeline and must be run locally before release.
+in [Benchmarks](#benchmarks). The tests that exercise the real recognition
+pipeline must be run locally before release.
 
 Test-by-test inventory: [A9 — Test Suite Catalogue](delivery/A9-TEST-SUITE-CATALOGUE.md).
 

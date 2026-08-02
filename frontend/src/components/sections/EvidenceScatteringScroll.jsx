@@ -10,20 +10,22 @@ import "./EvidenceScatteringScroll.css";
  */
 export function EvidenceScatteringScroll() {
   const containerRef = useRef(null);
+  // Lenis already smooths the scroll itself, so the raw progress is smooth —
+  // adding a spring on top made animations chase a moving target and wobble.
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ["start end", "end start"],
   });
 
-  const density = useTransform(scrollYProgress, [0.04, 0.34], [0, 1]);
+  const density = useTransform(scrollYProgress, [0.04, 0.26], [0, 1]);
   const fieldOpacity = useTransform(
     density,
     [0, 1],
     [0.45, 1]
   );
-  
-  const centerScale = useTransform(scrollYProgress, [0.38, 0.56, 0.78], [0.86, 1.05, 1]);
-  const centerOpacity = useTransform(scrollYProgress, [0.34, 0.46], [0, 1]);
+
+  const centerScale = useTransform(scrollYProgress, [0.3, 0.44, 0.62], [0.86, 1.05, 1]);
+  const centerOpacity = useTransform(scrollYProgress, [0.26, 0.38], [0, 1]);
 
   return (
     <section className="nx-evidence-scene" ref={containerRef}>

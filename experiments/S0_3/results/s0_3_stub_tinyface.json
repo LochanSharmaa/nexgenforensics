@@ -1,0 +1,162 @@
+{
+  "dataset": "tinyface",
+  "embedder": "stub (CPU, not a recogniser)",
+  "n_pairs": 40,
+  "decision_rule": {
+    "pass_threshold": 2.0,
+    "fail_threshold": 0.5,
+    "metric": "TAR@FAR=0.1% (points)"
+  },
+  "arms": {
+    "A": {
+      "tar_at_far_1e3": 0.3,
+      "tar_at_far_1e2": 0.3,
+      "auc": 0.7475
+    },
+    "B1": {
+      "tar_at_far_1e3": 0.3,
+      "tar_at_far_1e2": 0.3,
+      "auc": 0.7475
+    },
+    "B2": {
+      "tar_at_far_1e3": 0.3,
+      "tar_at_far_1e2": 0.3,
+      "auc": 0.735
+    },
+    "B2r": {
+      "tar_at_far_1e3": 0.3,
+      "tar_at_far_1e2": 0.3,
+      "auc": 0.7475
+    },
+    "B3": {
+      "tar_at_far_1e3": 0.3,
+      "tar_at_far_1e2": 0.3,
+      "auc": 0.715
+    },
+    "C": {
+      "tar_at_far_1e3": 0.15,
+      "tar_at_far_1e2": 0.15,
+      "auc": 0.4925
+    }
+  },
+  "B2_minus_B1": {
+    "points": 0.0,
+    "ci95": [
+      -20.0,
+      12.012499999999932
+    ],
+    "verdict": "FAIL"
+  },
+  "B2r_minus_B1": {
+    "points": 0.0,
+    "ci95": [
+      0.0,
+      0.0
+    ],
+    "verdict": "FAIL"
+  },
+  "decision_arm": "B2r",
+  "arm_reports": {
+    "A": {
+      "arm": "A",
+      "transform": "none"
+    },
+    "B1": {
+      "arm": "B1",
+      "downsample": 1.0
+    },
+    "B2": {
+      "arm": "B2",
+      "estimated": {
+        "blur_sigma": 0.9782,
+        "blur_confidence_r2": 0.8633,
+        "noise_sigma": 0.002584,
+        "jpeg_quality": 75,
+        "jpeg_confidence": 0.545,
+        "jpeg_applied": true,
+        "jpeg_method": "DCT lattice fit",
+        "spectral_cutoff_cycles_per_pixel": 0.230469,
+        "psf_mtf50": 0.188776,
+        "trustworthy": true,
+        "trust_components": {
+          "blur_fit_ok": true,
+          "jpeg_decisive": true,
+          "size_ok": true
+        },
+        "caveat": "Estimated, not measured. Blur recovery on flat facial content is unreliable; prefer a measured camera response when the device is available."
+      },
+      "downsample_first": 1.0,
+      "applied_in_probe_space": {
+        "blur_sigma": 0.9781731987449228,
+        "motion_length": 0.0,
+        "motion_angle_deg": 0.0,
+        "downsample": 1.0,
+        "noise_sigma": 0.0025840524403999477,
+        "jpeg_quality": 75,
+        "origin": "estimated",
+        "mtf50_cycles_per_pixel": 0.188776
+      }
+    },
+    "B2r": {
+      "arm": "B2r",
+      "probe_estimate": {
+        "blur_sigma": 0.9782,
+        "blur_confidence_r2": 0.8633,
+        "noise_sigma": 0.002584,
+        "jpeg_quality": 75,
+        "jpeg_confidence": 0.545,
+        "jpeg_applied": true,
+        "jpeg_method": "DCT lattice fit",
+        "spectral_cutoff_cycles_per_pixel": 0.230469,
+        "psf_mtf50": 0.188776,
+        "trustworthy": true,
+        "trust_components": {
+          "blur_fit_ok": true,
+          "jpeg_decisive": true,
+          "size_ok": true
+        },
+        "caveat": "Estimated, not measured. Blur recovery on flat facial content is unreliable; prefer a measured camera response when the device is available."
+      },
+      "gallery_estimate": {
+        "blur_sigma": 0.8828,
+        "blur_confidence_r2": 0.8433,
+        "noise_sigma": 0.003553,
+        "jpeg_quality": 75,
+        "jpeg_confidence": 0.5653,
+        "jpeg_applied": true,
+        "jpeg_method": "DCT lattice fit",
+        "spectral_cutoff_cycles_per_pixel": 0.246094,
+        "psf_mtf50": 0.208873,
+        "trustworthy": true,
+        "trust_components": {
+          "blur_fit_ok": true,
+          "jpeg_decisive": true,
+          "size_ok": true
+        },
+        "caveat": "Estimated, not measured. Blur recovery on flat facial content is unreliable; prefer a measured camera response when the device is available."
+      },
+      "downsample_first": 1.0,
+      "residual_applied": {
+        "blur_sigma": 0.42138384760927167,
+        "motion_length": 0.0,
+        "motion_angle_deg": 0.0,
+        "downsample": 1.0,
+        "noise_sigma": 0.0,
+        "jpeg_quality": null,
+        "origin": "estimated_residual",
+        "mtf50_cycles_per_pixel": 0.492188
+      }
+    },
+    "B3": {
+      "arm": "B3",
+      "cutoff_hi_cycles_per_pixel": 0.246094,
+      "cutoff_lo_cycles_per_pixel": 0.230469,
+      "scale_hi": 32.0,
+      "scale_lo": 32.0,
+      "common_passband_cycles_per_face": 7.375,
+      "applied_cutoff_hi": 0.23046875,
+      "applied_cutoff_lo": 0.23046875,
+      "psf_origin": "estimated_from_spectrum"
+    }
+  }
+}

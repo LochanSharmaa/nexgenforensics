@@ -1,6 +1,7 @@
 .nx-correlation-scene {
-  height: 240vh;
+  height: 105vh;
   position: relative;
+  background: radial-gradient(circle at 18% 55%, rgba(154, 78, 91, 0.055), transparent 36rem);
 }
 
 .nx-correlation-stage {
@@ -52,7 +53,7 @@
 }
 
 .nx-svg-core {
-  fill: #1d3557;
+  fill: #6e2c2c;
 }
 
 .nx-svg-label {

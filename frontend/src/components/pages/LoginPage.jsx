@@ -20,7 +20,6 @@ export function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [tenant, setTenant] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -35,7 +34,7 @@ export function LoginPage() {
     setBusy(true);
     setError("");
     try {
-      await signIn({ email, password, tenant, rememberMe });
+      await signIn({ email, password, rememberMe });
       // First sign-in on this device: ask which experience they want before
       // dropping them somewhere. Afterwards the stored preference decides, so
       // the question is asked once and not on every login.
@@ -113,18 +112,6 @@ export function LoginPage() {
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Enter password"
               autoComplete="current-password"
-            />
-          </label>
-
-          <label>
-            <span>Organisation (only if prompted)</span>
-            <input
-              type="text"
-              name="tenant"
-              value={tenant}
-              onChange={(event) => setTenant(event.target.value)}
-              placeholder="tenant-slug"
-              autoComplete="organization"
             />
           </label>
 

@@ -28,25 +28,25 @@ export function EvidenceScatterChip({ item, index, total, scrollYProgress }) {
 
   const itemOpacity = useTransform(
     scrollYProgress,
-    [0.04, 0.1, 0.56, 0.68],
+    [0.04, 0.1, 0.46, 0.56],
     [0, 1, 1, 0]
   );
 
   const itemX = useTransform(
     scrollYProgress,
-    [0.06, 0.3, 0.5, 0.64],
+    [0.06, 0.24, 0.4, 0.52],
     [`${farX}vw`, `${orbitX}vw`, "0vw", "0vw"]
   );
 
   const itemY = useTransform(
     scrollYProgress,
-    [0.06, 0.3, 0.5, 0.64],
+    [0.06, 0.24, 0.4, 0.52],
     [`${farY}vh`, `${orbitY}vh`, "0vh", "0vh"]
   );
 
   const itemScale = useTransform(
     scrollYProgress,
-    [0.04, 0.3, 0.5, 0.64],
+    [0.04, 0.24, 0.4, 0.52],
     [0.88, 1, 0.62, 0.16]
   );
 

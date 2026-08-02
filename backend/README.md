@@ -206,8 +206,11 @@ python scripts/dataset_cli.py --help       # dataset manifest utilities
   figure. Any number you need must come from your own evaluation.
 - **Liveness, deepfake, and morphing screens are heuristics.** Not evaluated
   against ISO/IEC 30107-3. A determined attacker defeats all three.
-- **Demographic performance is unmeasured.** Error rates vary across demographic
-  groups; measure this on your own population before deployment.
+- **Demographic differentials are measured and unresolved.** At the deployed
+  threshold women are falsely rejected ~1.7× as often as men, and under-25s
+  ~3.8× as often as the 41–55 band (BENCHMARKS.md §5a). Raising the threshold
+  relocated these errors without removing them. Measure on your own population
+  before deployment; do not assume a single threshold behaves uniformly.
 - **Rate limiting is per process.** Behind multiple workers the effective limit
   multiplies. Put a shared store or an edge limiter in front.
 - **Access tokens are stateless.** Revocation waits for expiry. Keep

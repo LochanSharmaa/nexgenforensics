@@ -57,7 +57,7 @@ def load_dataset_identities():
     dataset_records["AgeDB"] = {f"AgeDB_{k}": agedb_subjs[k] for k in agedb_keys}
 
     # 2. LFW (50 identities, >=3 photos each)
-    lfw_root = r"src_extracted/archive (1)/lfw-deepfunneled/lfw-deepfunneled"
+    lfw_root = r"src_extracted/lfw_deepfunneled/lfw-deepfunneled/lfw-deepfunneled"
     if os.path.exists(lfw_root):
         lfw_subjs = [d for d in os.listdir(lfw_root) if os.path.isdir(os.path.join(lfw_root, d))]
         lfw_selected = {}
@@ -71,7 +71,7 @@ def load_dataset_identities():
         dataset_records["LFW"] = lfw_selected
 
     # 3. CFP (50 identities, frontal gallery + profile probes)
-    cfp_root = r"src_extracted/archive (4)/cfp-dataset/Data/Images"
+    cfp_root = r"src_extracted/cfp_dataset/cfp-dataset/Data/Images"
     if os.path.exists(cfp_root):
         cfp_subjs = sorted([d for d in os.listdir(cfp_root) if os.path.isdir(os.path.join(cfp_root, d))])[:50]
         cfp_selected = {}

@@ -109,7 +109,11 @@ services:
       pip install --no-deps "insightface>=1.0.1,<2.0"
       python scripts/prefetch_models.py --root ./.insightface --pack buffalo_l
 
-    startCommand: uvicorn imatch_api.main:app --host 0.0.0.0 --port $PORT --app-dir backend
+    # The seed runs first so the demo credential below works on every boot:
+    # seed.py creates the tenant/admin if missing and, because the password is
+    # configured explicitly, resets the account to that password if it exists.
+    # `;` not `&&` — a seeding hiccup must not take the whole API down.
+    startCommand: python backend/scripts/seed.py; uvicorn imatch_api.main:app --host 0.0.0.0 --port $PORT --app-dir backend
 
     # Render polls this to decide the service is live. /api/health needs no
     # auth and does not touch the model, so it answers during warm-up.
@@ -121,6 +125,19 @@ services:
         sync: false
       - key: NEXGEN_TEMPLATE_KEY
         sync: false
+
+      # --- demo login, re-applied by seed.py on every boot (see startCommand).
+      # DEMO ONLY: this password is deliberately committed so the hosted demo
+      # always accepts one known credential. Anyone reading this repo can log
+      # in as this tenant's admin. Never reuse this pattern for real casework;
+      # switch NEXGEN_SEED_ADMIN_PASSWORD to `sync: false` the moment this
+      # deployment holds anything worth protecting.
+      - key: NEXGEN_SEED_TENANT
+        value: nexgen-demo
+      - key: NEXGEN_SEED_ADMIN_EMAIL
+        value: admin@nexgen.local
+      - key: NEXGEN_SEED_ADMIN_PASSWORD
+        value: Admin@123456
 
       # --- database: wired automatically from the instance declared above ---
       # Render supplies a postgres:// URL. session.py rewrites the scheme to
@@ -157,3 +174,14 @@ services:
       # pack at startup and OOMs again.
       - key: NEXGEN_MODEL_ROOT
         value: ./.insightface
+
+      # The frontend (vercel.app) and this API (onrender.com) are DIFFERENT
+      # SITES to a browser. A SameSite=Lax cookie is rejected when set by a
+      # cross-site fetch, so the nx_csrf cookie was never stored and the CSRF
+      # double-submit check failed every login with 403 "Missing or invalid
+      # CSRF token". Cross-site cookies require SameSite=None, and browsers
+      # only accept SameSite=None together with Secure.
+      - key: NEXGEN_COOKIE_SAMESITE
+        value: none
+      - key: NEXGEN_COOKIE_SECURE
+        value: "true"

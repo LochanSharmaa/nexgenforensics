@@ -1,13 +1,16 @@
 import { useEffect } from "react";
 import "./TypographyMotionProvider.css";
 
+// Note: .nx-hero-main h1 is deliberately NOT split — word-splitting flattens
+// its inner <span>, losing the black-roman "NexGen" / rose-italic
+// "Forensics" pairing. It gets its own CSS entrance instead.
 const maskedSelectors = [
-  ".nx-hero-main h1",
   ".nx-scene-copy h2",
   ".nx-correlation-copy h2",
   ".nx-platform-header h2",
   ".nx-command-copy h2",
   ".nx-trust-header h2",
+  ".nx-trust-quote blockquote",
   ".nx-section-heading h2",
   ".nx-future h2",
   ".nx-pricing-header h2",
@@ -16,7 +19,6 @@ const maskedSelectors = [
   ".im-final-cta h2",
   ".fp-copy h1",
   ".fp-hand-title",
-  ".nx-home-fingerprint-slide h2",
   ".fp-heading h2",
   ".fp-final h2",
 ].join(",");
@@ -101,11 +103,6 @@ export function TypographyMotionProvider() {
     const masked = Array.from(document.querySelectorAll(maskedSelectors));
     const reveal = Array.from(document.querySelectorAll(revealSelectors));
     const stagger = Array.from(document.querySelectorAll(staggerSelectors));
-    const kinetic = Array.from(
-      document.querySelectorAll(
-        ".nx-hero-main h1, .im-hero-copy h1, .fp-copy h1, .fp-hand-title, .nx-home-fingerprint-slide h2, .nx-future h2, .nx-platform-header h2"
-      )
-    );
 
     masked.forEach((element) => {
       splitTextElement(element);
@@ -117,7 +114,6 @@ export function TypographyMotionProvider() {
       element.classList.add("nx-stagger-item");
       element.style.setProperty("--stagger-index", index % 8);
     });
-    kinetic.forEach((element) => element.classList.add("nx-kinetic-text"));
 
     const animated = [...masked, ...reveal, ...stagger];
 
@@ -140,33 +136,10 @@ export function TypographyMotionProvider() {
 
     animated.forEach((element) => observer.observe(element));
 
-    let frame = 0;
-    const updateKineticText = () => {
-      frame = 0;
-      const viewport = window.innerHeight || 1;
-
-      kinetic.forEach((element) => {
-        const rect = element.getBoundingClientRect();
-        const center = rect.top + rect.height / 2;
-        const progress = Math.max(-1, Math.min(1, (center - viewport / 2) / viewport));
-        element.style.setProperty("--kinetic-y", `${progress * -34}px`);
-        element.style.setProperty("--kinetic-opacity", String(1 - Math.abs(progress) * 0.12));
-      });
-    };
-
-    const onScroll = () => {
-      if (!frame) frame = window.requestAnimationFrame(updateKineticText);
-    };
-
-    updateKineticText();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-
+    // No per-frame scroll work at all: every remaining text effect is driven
+    // by IntersectionObserver + CSS transitions, so scrolling costs nothing.
     return () => {
       observer.disconnect();
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-      if (frame) window.cancelAnimationFrame(frame);
       root.classList.remove("nx-typography-motion");
     };
   }, []);

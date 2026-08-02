@@ -1,7 +1,46 @@
 import { useEffect, useState } from "react";
-import { listCases, runVerification } from "../services/imatchApi";
+import { fetchCaseReport, listCases, runVerification } from "../services/imatchApi";
 import { ImageDropZone } from "./components/ImageDropZone";
 import { ProbeReport } from "./components/ProbeReport";
+
+/**
+ * Translate the raw comparison into the language an investigator acts on.
+ *
+ * The cosine value and threshold stay visible in a technical footnote — they
+ * are what the audit record holds — but the headline states the finding the
+ * way it would be spoken: match, no match, or inconclusive.
+ */
+function describeVerdict(result) {
+  const similarity = Number(result.similarity);
+  const threshold = Number(result.threshold);
+  if (result.verified) {
+    return {
+      label: "Match",
+      chip: "good",
+      detail: "Same person indicated",
+      summary:
+        "The two faces are similar enough for the engine to treat them as the same person. Confirm by visual examination before relying on this.",
+    };
+  }
+  if (result.morphing?.in_morph_band) {
+    return {
+      label: "Inconclusive",
+      chip: "neutral",
+      detail: "Expert review needed",
+      summary:
+        "The score falls just short of a match — in a range where the algorithm alone cannot make the call.",
+    };
+  }
+  const farBelow = similarity < threshold - 0.15;
+  return {
+    label: "No match",
+    chip: "neutral",
+    detail: "Different people indicated",
+    summary: farBelow
+      ? "The faces show no meaningful similarity. These images are unlikely to show the same person."
+      : "The similarity falls short of the level needed to treat these as the same person.",
+  };
+}
 
 /**
  * One-to-one comparison. No gallery is involved and nothing is enrolled, so
@@ -24,6 +63,7 @@ export function VerifyPage() {
 
   const [referencePreview, setReferencePreview] = useState("");
   const [probePreview, setProbePreview] = useState("");
+  const verdict = result ? describeVerdict(result) : null;
 
   useEffect(() => {
     if (!referenceFile) return setReferencePreview("");
@@ -38,6 +78,30 @@ export function VerifyPage() {
     setProbePreview(url);
     return () => URL.revokeObjectURL(url);
   }, [probeFile]);
+
+  const [generatingReport, setGeneratingReport] = useState(false);
+
+  // Comparisons run under a case are written to that case's audit trail, so
+  // the case report is the document that carries them. Generated server-side
+  // from persisted rows — never from what this page happens to display.
+  async function generateReport() {
+    setError("");
+    setGeneratingReport(true);
+    try {
+      const pdf = await fetchCaseReport(caseId, "pdf");
+      const caseRecord = cases.find((item) => item.id === caseId);
+      const url = URL.createObjectURL(pdf);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `case-${caseRecord?.reference || caseId}.pdf`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (reportError) {
+      setError(reportError.message);
+    } finally {
+      setGeneratingReport(false);
+    }
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -131,13 +195,15 @@ export function VerifyPage() {
               </figure>
 
               <div className="wk-compare-score">
-                <b>{result.similarity.toFixed(4)}</b>
-                <span>cosine similarity</span>
+                <b>{verdict.label}</b>
+                <span>{verdict.summary}</span>
                 <div style={{ marginTop: 12 }}>
-                  <span className={`wk-chip ${result.verified ? "good" : "neutral"}`}>
-                    {result.verified ? "Above threshold" : "Below threshold"}
-                  </span>
+                  <span className={`wk-chip ${verdict.chip}`}>{verdict.detail}</span>
                 </div>
+                <small style={{ display: "block", marginTop: 12, opacity: 0.65 }}>
+                  Technical record: cosine similarity {result.similarity.toFixed(4)}, decision
+                  threshold {result.threshold.toFixed(4)}
+                </small>
               </div>
 
               <figure>
@@ -175,6 +241,28 @@ export function VerifyPage() {
           </div>
         </>
       )}
+
+      <section className="wk-card">
+        <h2>Forensic report generator</h2>
+        <p style={{ fontSize: 15, lineHeight: 1.65 }}>
+          Comparisons run under a case are recorded in that case&rsquo;s audit trail. Generate
+          the case&rsquo;s forensic report as a PDF — it documents every search, comparison and
+          examiner decision on record for the case.
+        </p>
+        <button
+          type="button"
+          className="wk-button"
+          disabled={!caseId || generatingReport}
+          onClick={generateReport}
+        >
+          {generatingReport ? "Generating…" : "Generate PDF report"}
+        </button>
+        {!caseId && (
+          <p className="wk-notice" style={{ marginTop: 12 }}>
+            Select a case above (and run the comparison under it) to generate its report.
+          </p>
+        )}
+      </section>
     </>
   );
 }

@@ -1,6 +1,9 @@
 .nx-evidence-scene {
-  height: 165vh;
+  height: 110vh;
   position: relative;
+  /* Faint blush glow echoing the hero orb, so Chapter One inherits the
+     hero's atmosphere. */
+  background: radial-gradient(circle at 76% 26%, rgba(154, 78, 91, 0.06), transparent 38rem);
 }
 
 .nx-sticky {
@@ -23,7 +26,7 @@
   width: 270px;
   height: 154px;
   border-radius: 30px;
-  background: var(--blue);
+  background: linear-gradient(155deg, #8a4350, #5e2530);
   color: white;
   display: grid;
   place-items: center;

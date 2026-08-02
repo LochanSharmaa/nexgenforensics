@@ -1,6 +1,7 @@
 .nx-command {
   min-height: 120vh;
   padding: 12vw 7vw;
+  background: radial-gradient(circle at 84% 30%, rgba(154, 78, 91, 0.055), transparent 38rem);
 }
 
 .nx-command-grid {
@@ -93,7 +94,7 @@
 
 .nx-ui-main-header strong {
   font: 750 72px/1 var(--serif);
-  color: var(--blue);
+  color: var(--rose);
 }
 
 .nx-ui-row {

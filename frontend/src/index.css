@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,500;8..60,650;8..60,750&display=swap');
+/* Fonts are loaded from index.html with preconnect so they never block CSS parsing. */
 
 :root {
   --paper: #f7f4ee;
@@ -8,6 +8,10 @@
   --line: rgba(22, 21, 16, 0.12);
   --blue: #1d3557;
   --burgundy: #6e2c2c;
+  --rose: #9a4e5b;
+  /* Sampled from the hero video's backdrop (rgb 248,248,248) — the home page
+     uses this exact tone so every chapter matches the first screen. */
+  --cream: #f8f8f8;
   --white: #fffdf8;
   --shadow: 0 28px 80px rgba(25, 22, 18, 0.09);
   --serif: 'Source Serif 4', Georgia, serif;
@@ -22,6 +26,13 @@ html {
   scroll-behavior: smooth;
   scroll-padding-top: 86px;
   scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(22, 21, 16, 0.3) transparent;
+}
+
+::selection {
+  background: rgba(29, 53, 87, 0.9);
+  color: var(--white);
 }
 
 body {
@@ -47,12 +58,36 @@ button {
 }
 
 /* Global layout backgrounds and wrappers */
+/* One flat base tone for the whole page: every section sits on the same
+   paper so the background never shifts colour while scrolling. */
 .nexgen-home {
   min-height: 100vh;
   overflow-x: clip;
-  background:
-    radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.78), transparent 34rem),
-    linear-gradient(180deg, var(--paper), #faf8f3 40%, var(--paper));
+  background: var(--paper);
+}
+
+/* Only the home page (the only page with .nx-hero) uses the hero's exact
+   creme-white, so every chapter continues the first screen's backdrop.
+   Product pages keep the standard paper base. */
+.nexgen-home:has(.nx-hero) {
+  background: var(--cream);
+}
+
+/* The nav strip blends into the hero's creme instead of sitting on it as a
+   beige band. */
+.nexgen-home:has(.nx-hero) .nx-nav {
+  background: rgba(248, 248, 248, 0.88);
+  border-bottom-color: rgba(60, 45, 35, 0.08);
+}
+
+.nexgen-home:has(.nx-hero) .nx-nav.scrolled {
+  background: rgba(248, 248, 248, 0.94);
+}
+
+/* Full-page placeholder while a lazy route chunk downloads */
+.nx-route-loading {
+  min-height: 100vh;
+  background: var(--paper);
 }
 
 /* Global kicker typography utility */
@@ -63,6 +98,20 @@ button {
   text-transform: uppercase;
   color: var(--blue);
   font-weight: 800;
+}
+
+/* Home-page chapters carry the hero's rose accent so the whole scroll feels
+   like one composition. Scoped to home sections only — product pages keep
+   their own palettes. */
+.nx-evidence-scene .nx-kicker,
+.nx-correlation-scene .nx-kicker,
+.nx-platform-scroll .nx-kicker,
+.nx-command .nx-kicker,
+.nx-trust .nx-kicker,
+.nx-research .nx-kicker,
+.nx-future .nx-kicker,
+.nx-engage .nx-kicker {
+  color: var(--rose);
 }
 
 /* Accessibility and prefers-reduced-motion reset */

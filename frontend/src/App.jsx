@@ -1,3 +1,4 @@
+import { Suspense, lazy } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
@@ -7,38 +8,90 @@ import { TypographyMotionProvider } from "./components/shared/TypographyMotionPr
 import { HeaderNavigationBar } from "./components/layout/HeaderNavigationBar";
 import { FooterNavigationGrid } from "./components/layout/FooterNavigationGrid";
 import { HeroForensicsIntro } from "./components/sections/HeroForensicsIntro";
-import { EvidenceScatteringScroll } from "./components/sections/EvidenceScatteringScroll";
 import { NexFusionCorrelationSVG } from "./components/sections/NexFusionCorrelationSVG";
 import { SevenDivisionsHorizontalScroll } from "./components/sections/SevenDivisionsHorizontalScroll";
 import { HomeNavigationLinkSections } from "./components/sections/HomeNavigationLinkSections";
-import { EnterprisePlatformOverview } from "./components/sections/EnterprisePlatformOverview";
 import { NexCaseCommandDashboard } from "./components/sections/NexCaseCommandDashboard";
 import { RigorTrustStatements } from "./components/sections/RigorTrustStatements";
-import { InstitutionalResearchGrid } from "./components/sections/InstitutionalResearchGrid";
 import { FutureOfForensicsQuote } from "./components/sections/FutureOfForensicsQuote";
 import { ExecutiveBriefingCallToAction } from "./components/sections/ExecutiveBriefingCallToAction";
-import { FaceSearchExperience } from "./components/sections/FaceSearchExperience";
-import { FingerprintAIPage } from "./components/sections/FingerprintAIPage";
 import { NavigationPage } from "./components/pages/NavigationPages";
 import { LoginPage } from "./components/pages/LoginPage";
 import { ChooseRolePage } from "./components/pages/ChooseRolePage";
-import {
-  ForgotPasswordPage,
-  RegisterPage,
-  ResetPasswordPage,
-  VerifyEmailPage,
-} from "./components/pages/AuthFlowPages";
-import { IndividualComparePage } from "./components/pages/IndividualComparePage";
-
-import { WorkspaceLayout } from "./workspace/WorkspaceLayout";
-import { CaseListPage } from "./workspace/CaseListPage";
-import { CaseDetailPage } from "./workspace/CaseDetailPage";
-import { SearchPage } from "./workspace/SearchPage";
-import { VerifyPage } from "./workspace/VerifyPage";
-import { EnrolPage } from "./workspace/EnrolPage";
-import { AuditPage } from "./workspace/AuditPage";
 
 import "./responsive-scale.css";
+
+/* Everything below is code-split: the landing page ships without the product
+   showcases, auth flows, or the investigator workspace, and each chunk is
+   fetched the first time its route is visited. */
+const FaceSearchExperience = lazy(() =>
+  import("./components/sections/FaceSearchExperience").then((m) => ({ default: m.FaceSearchExperience }))
+);
+const FingerprintAIPage = lazy(() =>
+  import("./components/sections/FingerprintAIPage").then((m) => ({ default: m.FingerprintAIPage }))
+);
+const OsintProductPage = lazy(() =>
+  import("./components/pages/ProductShowcasePages").then((m) => ({ default: m.OsintProductPage }))
+);
+const DeepfakeProductPage = lazy(() =>
+  import("./components/pages/ProductShowcasePages").then((m) => ({ default: m.DeepfakeProductPage }))
+);
+const CrimeScene3DProductPage = lazy(() =>
+  import("./components/pages/ProductShowcasePages").then((m) => ({ default: m.CrimeScene3DProductPage }))
+);
+const EvidenceGraphProductPage = lazy(() =>
+  import("./components/pages/ProductShowcasePages").then((m) => ({ default: m.EvidenceGraphProductPage }))
+);
+const VideoAnalysisProductPage = lazy(() =>
+  import("./components/pages/ProductShowcasePages").then((m) => ({ default: m.VideoAnalysisProductPage }))
+);
+const CaseIntelligenceProductPage = lazy(() =>
+  import("./components/pages/ProductShowcasePages").then((m) => ({ default: m.CaseIntelligenceProductPage }))
+);
+const RegisterPage = lazy(() =>
+  import("./components/pages/AuthFlowPages").then((m) => ({ default: m.RegisterPage }))
+);
+const VerifyEmailPage = lazy(() =>
+  import("./components/pages/AuthFlowPages").then((m) => ({ default: m.VerifyEmailPage }))
+);
+const ForgotPasswordPage = lazy(() =>
+  import("./components/pages/AuthFlowPages").then((m) => ({ default: m.ForgotPasswordPage }))
+);
+const ResetPasswordPage = lazy(() =>
+  import("./components/pages/AuthFlowPages").then((m) => ({ default: m.ResetPasswordPage }))
+);
+const IndividualComparePage = lazy(() =>
+  import("./components/pages/IndividualComparePage").then((m) => ({ default: m.IndividualComparePage }))
+);
+const WorkspaceLayout = lazy(() =>
+  import("./workspace/WorkspaceLayout").then((m) => ({ default: m.WorkspaceLayout }))
+);
+const CaseListPage = lazy(() =>
+  import("./workspace/CaseListPage").then((m) => ({ default: m.CaseListPage }))
+);
+const CaseDetailPage = lazy(() =>
+  import("./workspace/CaseDetailPage").then((m) => ({ default: m.CaseDetailPage }))
+);
+const SearchPage = lazy(() =>
+  import("./workspace/SearchPage").then((m) => ({ default: m.SearchPage }))
+);
+const VerifyPage = lazy(() =>
+  import("./workspace/VerifyPage").then((m) => ({ default: m.VerifyPage }))
+);
+const BatchComparePage = lazy(() =>
+  import("./workspace/BatchComparePage").then((m) => ({ default: m.BatchComparePage }))
+);
+const EnrolPage = lazy(() =>
+  import("./workspace/EnrolPage").then((m) => ({ default: m.EnrolPage }))
+);
+const AuditPage = lazy(() =>
+  import("./workspace/AuditPage").then((m) => ({ default: m.AuditPage }))
+);
+
+/** Quiet full-page placeholder shown while a route chunk downloads. */
+function RouteFallback() {
+  return <div className="nx-route-loading" aria-busy="true" />;
+}
 
 /** The public marketing site. */
 function MarketingShell({ children }) {
@@ -58,19 +111,14 @@ function HomePage() {
   return (
     <>
       <HeroForensicsIntro />
-      <EvidenceScatteringScroll />
       <NexFusionCorrelationSVG />
       <div id="platform">
         <SevenDivisionsHorizontalScroll />
       </div>
       <HomeNavigationLinkSections />
-      <EnterprisePlatformOverview />
       <NexCaseCommandDashboard />
       <div id="validation">
         <RigorTrustStatements />
-      </div>
-      <div id="research">
-        <InstitutionalResearchGrid />
       </div>
       <FutureOfForensicsQuote />
       <div id="briefing">
@@ -126,6 +174,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <Suspense fallback={<RouteFallback />}>
         <Routes>
           {/* Investigator workspace */}
           <Route
@@ -140,6 +189,7 @@ export default function App() {
             <Route path="cases/:caseId" element={<CaseDetailPage />} />
             <Route path="search" element={<SearchPage />} />
             <Route path="verify" element={<VerifyPage />} />
+            <Route path="batch-compare" element={<BatchComparePage />} />
             <Route
               path="enrol"
               element={
@@ -237,6 +287,21 @@ export default function App() {
               </MarketingShell>
             }
           />
+          {/* Showcase pages for the home-page product deck. */}
+          {[
+            ["/products/osint", <OsintProductPage />],
+            ["/products/deepfake-detection", <DeepfakeProductPage />],
+            ["/products/3d-crime-scene", <CrimeScene3DProductPage />],
+            ["/products/evidence-graph", <EvidenceGraphProductPage />],
+            ["/products/video-analysis", <VideoAnalysisProductPage />],
+            ["/products/case-intelligence", <CaseIntelligenceProductPage />],
+          ].map(([path, element]) => (
+            <Route
+              key={path}
+              path={path}
+              element={<MarketingShell>{element}</MarketingShell>}
+            />
+          ))}
           {["/products/*", "/solutions/*", "/resources/*", "/demo/*", "/about", "/contact"].map((path) => (
             <Route
               key={path}
@@ -251,6 +316,7 @@ export default function App() {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
       </AuthProvider>
     </BrowserRouter>
   );

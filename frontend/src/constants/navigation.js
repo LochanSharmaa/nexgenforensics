@@ -21,27 +21,6 @@ export const productLinks = [
       "Detect manipulated facial media, synthetic images, AI-generated videos, and authenticity risk signals.",
   },
   {
-    title: "Identity Intelligence",
-    category: "Enterprise Identity Platform",
-    href: "/products/osint",
-    description:
-      "Organize identity signals, workspace records, and permitted metadata for verification workflows.",
-  },
-  {
-    title: "Tenant Graph",
-    category: "Workspace Relationship Analysis",
-    href: "/products/evidence-graph",
-    description:
-      "Visualize relationships between customers, accounts, devices, locations, and permissioned identity signals.",
-  },
-  {
-    title: "Review Intelligence",
-    category: "AI Review Management",
-    href: "/products/case-intelligence",
-    description:
-      "Summarize review materials, structure analyst notes, manage decision context, and support human approval workflows.",
-  },
-  {
     title: "API Platform",
     category: "Biometric AI API",
     href: "/products/api",
@@ -120,8 +99,8 @@ export const demoLinks = [
   { title: "iMatch Face Recognition Demo", href: "/demo/imatch" },
   { title: "Biometric Quality Demo", href: "/demo/fingerprint-ai" },
   { title: "Deepfake Detection Demo", href: "/demo/deepfake-detection" },
-  { title: "Identity Intelligence Demo", href: "/demo/osint" },
-  { title: "Tenant Graph Demo", href: "/demo/evidence-graph" },
+  { title: "OSINT Investigation Demo", href: "/demo/osint" },
+  { title: "Evidence Graph Demo", href: "/demo/evidence-graph" },
 ];
 
 export const navGroups = {

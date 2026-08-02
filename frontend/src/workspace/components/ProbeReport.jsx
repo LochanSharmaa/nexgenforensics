@@ -59,29 +59,6 @@ export function ProbeReport({ probe, reasons = [] }) {
         />
       </div>
 
-      <p className="wk-notice">
-        Liveness and synthetic-media screening here are heuristics, not certified detection.
-        They have not been evaluated against ISO/IEC 30107-3 and will not stop a determined
-        attacker. A pass means nothing obvious was wrong, not that the media is authentic.
-      </p>
-
-      <dl className="wk-detail-list">
-        <div>
-          <dt>Detector</dt>
-          <dd>{probe.detector}</dd>
-        </div>
-        <div>
-          <dt>Faces found</dt>
-          <dd>{probe.faces_detected}</dd>
-        </div>
-        <div>
-          <dt>Head pose</dt>
-          <dd>
-            yaw {probe.pose.yaw}&deg;, pitch {probe.pose.pitch}&deg;, roll {probe.pose.roll}&deg;
-          </dd>
-        </div>
-      </dl>
-
       {reasons.length > 0 && (
         <>
           <h3 className="wk-subhead">Flags raised</h3>

@@ -1,5 +1,5 @@
 .nx-platform-scroll {
-  height: 700vh;
+  height: 220vh;
   position: relative;
 }
 
@@ -9,6 +9,7 @@
   height: 100vh;
   overflow: hidden;
   padding: 60px 0 0;
+  background: radial-gradient(circle at 50% 18%, rgba(154, 78, 91, 0.05), transparent 40rem);
 }
 
 .nx-platform-header {
@@ -18,7 +19,7 @@
   z-index: 3;
   pointer-events: none;
   padding-bottom: 24px;
-  background: linear-gradient(to bottom, var(--paper) 60%, transparent);
+  background: linear-gradient(to bottom, var(--cream) 60%, transparent);
   padding-right: 7vw;
   right: 0;
 }
@@ -63,7 +64,7 @@
   color: var(--muted);
   font-size: 9px;
   font-weight: 800;
-  transition: all 0.25s ease;
+  transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
   cursor: pointer;
 }
 
@@ -90,6 +91,7 @@
 }
 
 .nx-image-container {
+  display: block;
   position: relative;
   width: min(86vw, 1300px, calc((100vh - 265px) * 16 / 9));
   aspect-ratio: 16 / 9;
@@ -104,6 +106,22 @@
   transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* One shared veil over every screenshot: a warm paper-toned gradient and a
+   soft inner frame, so slides with very different UI colours still read as
+   one family. */
+.nx-image-container::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  background: linear-gradient(160deg, rgba(247, 244, 238, 0.16), transparent 45%, rgba(22, 21, 16, 0.07));
+  box-shadow:
+    inset 0 0 0 1px rgba(22, 21, 16, 0.07),
+    inset 0 0 90px rgba(110, 44, 44, 0.05);
+  pointer-events: none;
+}
+
 .nx-image-container:hover {
   transform: scale(1.02);
   box-shadow: 0 45px 90px rgba(22, 21, 16, 0.24);
@@ -114,6 +132,10 @@
   height: 100%;
   object-fit: contain;
   display: block;
+  /* Moderate harmonisation: each product keeps its own accent colour (full
+     desaturation felt weird), but the saturation comes down and a whisper of
+     warmth ties all seven to the site's palette. */
+  filter: saturate(0.65) sepia(0.05) contrast(1.03);
   transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
 }
 

@@ -17,19 +17,19 @@ export function NexCaseCommandDashboard() {
   const y = useTransform(scrollYProgress, [0.1, 0.8], [80, -40]);
   
   const dashboardRows = [
-    "Entity timeline",
-    "Evidence queue",
-    "Persons of interest",
-    "Location history",
-    "Investigator tasks",
-    "Decision record",
+    "Face embeddings",
+    "Training corpus",
+    "Benchmark suite",
+    "Quality gates",
+    "Fine-tune jobs",
+    "Release record",
   ];
 
   return (
     <section className="nx-command" ref={containerRef}>
       <div className="nx-command-grid">
         <motion.div className="nx-command-copy" style={{ y }}>
-          <p className="nx-kicker">Chapter Four</p>
+          <p className="nx-kicker">Chapter Two</p>
           <h2>Every investigation eventually becomes a decision.</h2>
           <p>
             NexCase exists for the moment when intelligence must become coordinated operational
@@ -39,20 +39,20 @@ export function NexCaseCommandDashboard() {
         
         <motion.div className="nx-command-ui" style={{ scale }}>
           <div className="nx-ui-topbar">
-            <span>NEXCASE</span>
-            <span>LIVE CASE / NX-0429</span>
+            <span>NEXGEN AI</span>
+            <span>LIVE MODEL / NX-V2.4</span>
           </div>
           <div className="nx-ui-body">
             <div className="nx-ui-side">
-              <strong>Case Board</strong>
+              <strong>Model Pipeline</strong>
               {dashboardRows.slice(0, 4).map((row) => (
                 <span key={row}>{row}</span>
               ))}
             </div>
             <div className="nx-ui-main">
               <div className="nx-ui-main-header">
-                <span>Operational Picture</span>
-                <strong>86%</strong>
+                <span>Verification Accuracy</span>
+                <strong>99.78%</strong>
               </div>
               {dashboardRows.map((row, index) => (
                 <motion.div
@@ -65,7 +65,7 @@ export function NexCaseCommandDashboard() {
                 >
                   <span>{row}</span>
                   <em className={index % 2 === 0 ? "nx-status-verified" : "nx-status-review"}>
-                    {index % 2 === 0 ? "verified" : "review"}
+                    {index % 2 === 0 ? "passing" : "tuning"}
                   </em>
                 </motion.div>
               ))}

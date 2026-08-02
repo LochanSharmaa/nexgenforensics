@@ -144,3 +144,6 @@ node/
 # Clean-room venv used to verify the trimmed deploy dependency set
 .venv-deploy/
 .venv-dep2/
+
+# Local training/eval datasets (multi-GB, never committed)
+faces_vgg_112x112*/

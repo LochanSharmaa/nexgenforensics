@@ -30,7 +30,7 @@ class MultiDatasetFaceDataset(Dataset):
                 agedb_subjs.setdefault(f"agedb_{parts[1]}", []).append(f)
 
         # 2. CFP
-        cfp_dir = Path(base_dir) / "archive (4)" / "cfp-dataset" / "Data" / "Images"
+        cfp_dir = Path(base_dir) / "cfp_dataset" / "cfp-dataset" / "Data" / "Images"
         cfp_subjs = {}
         if cfp_dir.exists():
             for d in cfp_dir.iterdir():
