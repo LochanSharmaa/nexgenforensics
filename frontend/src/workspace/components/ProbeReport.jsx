@@ -59,28 +59,37 @@ export function ProbeReport({ probe, reasons = [] }) {
         />
       </div>
 
-      <p className="wk-notice">
-        Liveness and synthetic-media screening here are heuristics, not certified detection.
-        They have not been evaluated against ISO/IEC 30107-3 and will not stop a determined
-        attacker. A pass means nothing obvious was wrong, not that the media is authentic.
-      </p>
+      {/* Collapsed by default: the screening caveat and capture details matter
+          for the record, not for the at-a-glance read, so they live behind a
+          disclosure instead of repeating on every assessment. */}
+      <details style={{ marginTop: 14 }}>
+        <summary style={{ cursor: "pointer", fontSize: 13, opacity: 0.7 }}>
+          Technical details
+        </summary>
 
-      <dl className="wk-detail-list">
-        <div>
-          <dt>Detector</dt>
-          <dd>{probe.detector}</dd>
-        </div>
-        <div>
-          <dt>Faces found</dt>
-          <dd>{probe.faces_detected}</dd>
-        </div>
-        <div>
-          <dt>Head pose</dt>
-          <dd>
-            yaw {probe.pose.yaw}&deg;, pitch {probe.pose.pitch}&deg;, roll {probe.pose.roll}&deg;
-          </dd>
-        </div>
-      </dl>
+        <dl className="wk-detail-list">
+          <div>
+            <dt>Detector</dt>
+            <dd>{probe.detector}</dd>
+          </div>
+          <div>
+            <dt>Faces found</dt>
+            <dd>{probe.faces_detected}</dd>
+          </div>
+          <div>
+            <dt>Head pose</dt>
+            <dd>
+              yaw {probe.pose.yaw}&deg;, pitch {probe.pose.pitch}&deg;, roll {probe.pose.roll}&deg;
+            </dd>
+          </div>
+        </dl>
+
+        <p className="wk-notice">
+          Liveness and synthetic-media screening here are heuristics, not certified detection.
+          They have not been evaluated against ISO/IEC 30107-3 and will not stop a determined
+          attacker. A pass means nothing obvious was wrong, not that the media is authentic.
+        </p>
+      </details>
 
       {reasons.length > 0 && (
         <>

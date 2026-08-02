@@ -70,14 +70,18 @@ export function CaseDetailPage() {
     setError("");
     try {
       const report = await fetchCaseReport(caseId, format);
-      const isMarkdown = format === "markdown";
-      const blob = new Blob([isMarkdown ? report : JSON.stringify(report, null, 2)], {
-        type: isMarkdown ? "text/markdown" : "application/json",
-      });
+      // PDF arrives as a Blob already; the text formats are wrapped into one.
+      const blob =
+        format === "pdf"
+          ? report
+          : new Blob([format === "markdown" ? report : JSON.stringify(report, null, 2)], {
+              type: format === "markdown" ? "text/markdown" : "application/json",
+            });
+      const extension = { pdf: "pdf", markdown: "md", json: "json" }[format];
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `case-${caseRecord?.reference || caseId}.${isMarkdown ? "md" : "json"}`;
+      anchor.download = `case-${caseRecord?.reference || caseId}.${extension}`;
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (reportError) {
@@ -100,6 +104,9 @@ export function CaseDetailPage() {
           <Link className="wk-button ghost" to={`/workspace/search?case=${caseId}`}>
             New search
           </Link>
+          <button type="button" className="wk-button ghost" onClick={() => downloadReport("pdf")}>
+            Export PDF
+          </button>
           <button type="button" className="wk-button ghost" onClick={() => downloadReport("markdown")}>
             Export Markdown
           </button>

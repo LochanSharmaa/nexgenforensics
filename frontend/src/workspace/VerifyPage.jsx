@@ -4,6 +4,45 @@ import { ImageDropZone } from "./components/ImageDropZone";
 import { ProbeReport } from "./components/ProbeReport";
 
 /**
+ * Translate the raw comparison into the language an investigator acts on.
+ *
+ * The cosine value and threshold stay visible in a technical footnote — they
+ * are what the audit record holds — but the headline states the finding the
+ * way it would be spoken: match, no match, or inconclusive.
+ */
+function describeVerdict(result) {
+  const similarity = Number(result.similarity);
+  const threshold = Number(result.threshold);
+  if (result.verified) {
+    return {
+      label: "Match",
+      chip: "good",
+      detail: "Same person indicated",
+      summary:
+        "The two faces are similar enough for the engine to treat them as the same person. Confirm by visual examination before relying on this.",
+    };
+  }
+  if (result.morphing?.in_morph_band) {
+    return {
+      label: "Inconclusive",
+      chip: "neutral",
+      detail: "Expert review needed",
+      summary:
+        "The score falls just short of a match — in a range where the algorithm alone cannot make the call.",
+    };
+  }
+  const farBelow = similarity < threshold - 0.15;
+  return {
+    label: "No match",
+    chip: "neutral",
+    detail: "Different people indicated",
+    summary: farBelow
+      ? "The faces show no meaningful similarity. These images are unlikely to show the same person."
+      : "The similarity falls short of the level needed to treat these as the same person.",
+  };
+}
+
+/**
  * One-to-one comparison. No gallery is involved and nothing is enrolled, so
  * this is the right tool for "are these two photographs the same person"
  * questions where both images are already in hand.
@@ -24,6 +63,7 @@ export function VerifyPage() {
 
   const [referencePreview, setReferencePreview] = useState("");
   const [probePreview, setProbePreview] = useState("");
+  const verdict = result ? describeVerdict(result) : null;
 
   useEffect(() => {
     if (!referenceFile) return setReferencePreview("");
@@ -131,13 +171,15 @@ export function VerifyPage() {
               </figure>
 
               <div className="wk-compare-score">
-                <b>{result.similarity.toFixed(4)}</b>
-                <span>cosine similarity</span>
+                <b>{verdict.label}</b>
+                <span>{verdict.summary}</span>
                 <div style={{ marginTop: 12 }}>
-                  <span className={`wk-chip ${result.verified ? "good" : "neutral"}`}>
-                    {result.verified ? "Above threshold" : "Below threshold"}
-                  </span>
+                  <span className={`wk-chip ${verdict.chip}`}>{verdict.detail}</span>
                 </div>
+                <small style={{ display: "block", marginTop: 12, opacity: 0.65 }}>
+                  Technical record: cosine similarity {result.similarity.toFixed(4)}, decision
+                  threshold {result.threshold.toFixed(4)}
+                </small>
               </div>
 
               <figure>

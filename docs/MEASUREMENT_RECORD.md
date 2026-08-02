@@ -114,7 +114,7 @@ TAR@FAR=0.1%, `experiments/S0_3/results/s0_3_arcface_*.json`:
 |---|---|---|---|---|---|---|---|---|
 | tinyface (3k pairs) | 25.33 | 25.40 | 17.40 | **25.53** | 19.33 | 0.73 | **+0.13 [−0.41, +1.84]** | **FAIL** |
 | qmul (3k pairs) | 8.80 | 6.47 | 1.73 | **6.60** | 3.07 | 0.07 | **+0.13 [−2.20, +1.53]** | **FAIL** |
-| lfw_synth (20k pairs) | 1.57 | 3.01 | 6.45 | *pending — run in progress* | 3.43 | 0.29 | B2−B1: **+3.44 [+1.82, +5.62] PASS** | see below |
+| lfw_synth (20k pairs) | 2.37 | 2.13 | 3.43 | **5.68** | 4.04 | 0.50 | **+3.55 [+2.02, +5.02]** | **PASS** |
 
 ### Reading the verdict honestly
 
@@ -123,16 +123,20 @@ TAR@FAR=0.1%, `experiments/S0_3/results/s0_3_arcface_*.json`:
   residual is ≈0). B2r confirms it: the correct forward model reduces to a
   no-op, +0.13 pts, CI spanning zero. *The method is coherent but inapplicable
   where no operator asymmetry exists.*
-- **HR-gallery vs degraded-probe: the one PASS.** +3.44 pts on `lfw_synth` with
-  CI excluding zero. Caveat that only new data removes: the degradation is
+- **HR-gallery vs degraded-probe: the one PASS.** +3.55 pts on `lfw_synth` with
+  CI excluding zero, and **B2r beats B2 on every dataset** (5.68 vs 3.43 here;
+  25.53 vs 17.40 and 6.60 vs 1.73 on the surveillance corpora) — the residual
+  formulation is strictly better than the absolute one everywhere, which is the
+  independent confirmation that the double-degradation diagnosis was right. Caveat that only new data removes: the degradation is
   synthetic and B2 estimates a simplified version of the same operator family,
   so part of the margin may be self-fulfilment. **SCface (real mugshot vs real
   CCTV at 3 known distances) is the decisive test** — see
   `DATA_ACQUISITION_REQUEST.md`.
 - **Pixel-space likelihood (C) is dead everywhere** (AUC 0.55–0.60).
-- **Consequence for the roadmap:** Stage 3 (generative core) is *not* licensed
-  for surveillance-to-surveillance and remains conditionally alive only for the
-  asymmetric case, pending SCface.
+- **Consequence for the roadmap:** Stage 3 (generative core) is **refuted** for
+  surveillance-to-surveillance and **conditionally licensed** for the asymmetric
+  mugshot-vs-CCTV case, on synthetic degradation only. SCface converts that
+  condition into a decision.
 
 ## 4. Defects found in our own work during the campaign
 
@@ -155,9 +159,9 @@ test, and it is recorded here because it was our own error.
 
 | # | defect | observed effect | fix |
 |---|---|---|---|
-| 1 | `estimate_quality` recompression-MSE criterion | returned q=95 for true q=35 on **every** real face size tested | DCT-lattice fitting; **24/24 exact** across q∈{20,35,50,65,80,95} × {31,48,112,250}px (§D) |
+| 1 | `estimate_quality` recompression-MSE criterion | returned **q=95 for true q=35 at 31, 48, 112 and 250 px** — every size tested (§F) | DCT-lattice fitting; **24/24 exact** across q∈{20,35,50,65,80,95} × {31,48,112,250}px (§D) |
 | 2 | confidence = best-vs-second-best | ~0 margin even when exactly right | best-vs-median: **0.880** compressed vs **0.021** raw; 100% accept / 0% false-accept at the 0.15 gate (§E) |
-| 3 | channel averaging before JPEG estimation | superimposed three quantisation lattices; 76% accuracy | green-channel estimation; 100% |
+| 3 | channel averaging before JPEG estimation | superimposed three quantisation lattices; **76.0%** accuracy over 100 cases (§F) | green-channel estimation; **100.0%** (§F) |
 | 4 | `trustworthy` = blur-R² alone | flag True while JPEG estimate wrong by 60 points | conjunction with per-component breakdown |
 | 5 | `arm_B2` unit order | probe-space σ applied before decimation → 1/8 of the operator | decimate first, apply in probe space |
 | 6 | `arm_B2` absolute operator | double degradation, −8.0 pts | `arm_B2r` residual composition |
@@ -180,8 +184,15 @@ known ground truth before they are trusted.** Both are now enforced in code
    carried forward: QMUL's pool audits as `label_uncertainty` (2.31% suspect),
    not `valid`, which if anything makes its already-poor numbers optimistic.
 3. **The open-set deficit is measured, not assumed**: TPIR 0.00% @1% FPIR on QMUL.
-4. **The generative-core decision is data-driven**: dead for LR-vs-LR, alive only
-   for the asymmetric forensic case pending SCface.
+4. **The generative-core decision is data-driven and now complete for the data we
+   hold**: the residual forward-operator model **PASSES** on HR-gallery/LR-probe
+   (+3.55 pts, CI [+2.02, +5.02]) and is a measured **no-op** on
+   surveillance-to-surveillance (+0.13 on both corpora, CI spanning zero). It is
+   therefore licensed *narrowly* — for the mugshot-vs-CCTV case, which is the
+   forensic one — and refuted for the camera-to-camera case. The remaining threat
+   to the PASS is that `lfw_synth` degradation is synthetic and B2r estimates a
+   simplified form of the operator we applied; **SCface is the test that settles
+   it** (`DATA_ACQUISITION_REQUEST.md`).
 5. **The discrimination bottleneck is confirmed three independent ways** (Cllr
    decomposition, capacity bits, open-set TPIR). The next accuracy move is the
    backbone swap (ViT-B + KP-RPE + AdaFace; published TinyFace R1 76.10 — *uncited, see caveat in §1* — vs our

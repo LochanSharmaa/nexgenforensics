@@ -387,8 +387,35 @@ export function updateCase(caseId, payload) {
   });
 }
 
-export function fetchCaseReport(caseId) {
-  return request(`/api/cases/${encodeURIComponent(caseId)}/report`);
+/**
+ * Fetch a case report in the caller's chosen format.
+ *
+ * JSON goes through `request()` as usual. Markdown and PDF are NOT JSON — the
+ * generic helper would mangle both (parse-fail a .md body into `{detail}`,
+ * corrupt PDF bytes via text decoding) — so they use a direct fetch and return
+ * text or a Blob respectively, ready to hand to a download link.
+ */
+export async function fetchCaseReport(caseId, fmt = "json") {
+  const path = `/api/cases/${encodeURIComponent(caseId)}/report`;
+  if (fmt === "json") return request(path);
+
+  const response = await fetch(`${IMATCH_BASE}${path}?fmt=${encodeURIComponent(fmt)}`, {
+    headers: tokenStore.access ? { Authorization: `Bearer ${tokenStore.access}` } : {},
+    credentials: "include",
+  });
+  if (!response.ok) {
+    if (response.status === 401) tokenStore.clear();
+    let detail = null;
+    try {
+      detail = (await response.json())?.detail;
+    } catch {
+      /* non-JSON error body; the status is the message */
+    }
+    throw new ApiError(detail || `Report export failed (HTTP ${response.status}).`, {
+      status: response.status,
+    });
+  }
+  return fmt === "pdf" ? response.blob() : response.text();
 }
 
 // -------------------------------------------------------------- subjects ---
