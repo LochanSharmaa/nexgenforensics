@@ -10,6 +10,7 @@ const maskedSelectors = [
   ".nx-platform-header h2",
   ".nx-command-copy h2",
   ".nx-trust-header h2",
+  ".nx-trust-quote blockquote",
   ".nx-section-heading h2",
   ".nx-future h2",
   ".nx-pricing-header h2",

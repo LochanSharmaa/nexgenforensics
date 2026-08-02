@@ -1,50 +1,13 @@
 import { motion } from "framer-motion";
-import kavyaAvatar from "../../assets/kavya.jpg";
-import manAvatar from "../../assets/man.jpg";
-import sectorSprite from "../../assets/sector-sprite-ai.png";
 import "./RigorTrustStatements.css";
 
-const trustedSectors = [
-  { title: "Law Enforcement", col: 0, row: 0 },
-  { title: "Digital Forensics Labs", col: 1, row: 0 },
-  { title: "National Security", col: 2, row: 0 },
-  { title: "Cyber Crime Units", col: 3, row: 0 },
-  { title: "Enterprise Risk", col: 4, row: 0 },
-  { title: "Border Security", col: 0, row: 1 },
-  { title: "Fraud Investigation", col: 1, row: 1 },
-  { title: "Intelligence Teams", col: 2, row: 1 },
-  { title: "Research Partners", col: 3, row: 1 },
-  { title: "Public Safety", col: 4, row: 1 },
-];
-
-const testimonials = [
-  {
-    quote:
-      "NexGen gives investigators a single operational view across faces, fingerprints, video, OSINT, documents, and devices. It turns fragmented evidence into a structured case picture.",
-    name: "Aarav Mehta",
-    role: "Digital Forensics Lead",
-    organization: "Regional Investigation Lab",
-    initials: "AM",
-    avatar: manAvatar,
-    label: "Verified Workflow",
-  },
-  {
-    quote:
-      "The platform’s evidence-first workflow is exactly what modern forensic teams need — fast analysis, explainable results, and reports that preserve chain of custody.",
-    name: "Dr. Kavya Rao",
-    role: "Forensic Technology Advisor",
-    organization: "Public Safety Research Unit",
-    initials: "KR",
-    avatar: kavyaAvatar,
-    label: "Evidence-Grade",
-  },
-];
-
+/* Real, measured figures — no decorative symbols. Sources: SCORECARD.md
+   benchmark runs and the audit design. */
 const trustStats = [
-  { value: "8", label: "AI forensic products" },
-  { value: "✓", label: "Evidence-grade workflows" },
-  { value: "∞", label: "Chain-of-custody logging" },
-  { value: "01", label: "Report-ready outputs" },
+  { value: "99.78%", label: "1:1 verification accuracy", note: "LFW · 6,000 pairs" },
+  { value: "96.68%", label: "Cross-age accuracy", note: "AgeDB-30" },
+  { value: "<200ms", label: "Search response", note: "Auto-Find index" },
+  { value: "100%", label: "Searches audit-logged", note: "Hash-chained trail" },
 ];
 
 const reveal = {
@@ -72,45 +35,35 @@ export function RigorTrustStatements() {
       <div className="nx-trust-orb nx-trust-orb-right" aria-hidden="true" />
 
       <motion.header className="nx-trust-header" variants={reveal}>
-        <p className="nx-trust-pill">Trusted Ecosystem</p>
         <h2>
           Trusted by Investigation Teams Across{" "}
           <span>Critical Sectors</span>
         </h2>
         <p className="nx-trust-lead">
-          NexGen Forensics is designed for agencies, forensic labs, enterprises,
-          and investigation teams that need explainable AI, evidence integrity,
-          and operational reliability.
+          Built for agencies, forensic labs, and investigation teams that need
+          explainable AI and evidence integrity.
         </p>
       </motion.header>
 
       <motion.div
         className="nx-sector-marquee"
         variants={reveal}
-        aria-label="Sectors using NexGen Forensics"
-        style={{ "--sector-sprite": `url(${sectorSprite})` }}
+        aria-label="Measured performance figures"
       >
         <div className="nx-sector-track">
           {[0, 1].map((groupIndex) => (
             <div
               className="nx-sector-group"
-              key={`sector-group-${groupIndex}`}
+              key={`stat-group-${groupIndex}`}
               aria-hidden={groupIndex === 1}
             >
-              {trustedSectors.map((sector) => (
-                <div
-                  className="nx-sector-mark"
-                  key={`${groupIndex}-${sector.title}`}
-                >
-                  <span
-                    className="nx-sector-image"
-                    aria-hidden="true"
-                    style={{
-                      "--sector-x": sector.col,
-                      "--sector-y": sector.row,
-                    }}
-                  />
-                  <span className="nx-sector-name">{sector.title}</span>
+              {trustStats.map((stat) => (
+                <div className="nx-stat-mark" key={`${groupIndex}-${stat.label}`}>
+                  <strong>{stat.value}</strong>
+                  <span>
+                    <em>{stat.label}</em>
+                    <small>{stat.note}</small>
+                  </span>
                 </div>
               ))}
             </div>
@@ -118,53 +71,17 @@ export function RigorTrustStatements() {
         </div>
       </motion.div>
 
-      <motion.div
-        className="nx-testimonial-grid"
-        variants={{
-          hidden: {},
-          visible: { transition: { staggerChildren: 0.14 } },
-        }}
-      >
-        {testimonials.map((testimonial) => (
-          <motion.article
-            className="nx-testimonial-card"
-            key={testimonial.name}
-            variants={reveal}
-          >
-            <div className="nx-testimonial-topline">
-              <span className="nx-quote-mark" aria-hidden="true">
-                “
-              </span>
-              <span className="nx-testimonial-label">
-                {testimonial.label}
-              </span>
-            </div>
-            <blockquote>{testimonial.quote}</blockquote>
-            <footer className="nx-testimonial-author">
-              <img
-                className="nx-author-avatar"
-                src={testimonial.avatar}
-                alt=""
-                aria-hidden="true"
-              />
-              <span>
-                <strong>{testimonial.name}</strong>
-                <small>{testimonial.role}</small>
-                <small>{testimonial.organization}</small>
-              </span>
-            </footer>
-          </motion.article>
-        ))}
-      </motion.div>
-
-      <motion.div className="nx-trust-stats" variants={reveal}>
-        {trustStats.map((stat) => (
-          <div className="nx-trust-stat" key={stat.label}>
-            <strong>{stat.value}</strong>
-            <span>{stat.label}</span>
-          </div>
-        ))}
-      </motion.div>
+      <motion.figure className="nx-trust-quote" variants={reveal}>
+        <blockquote>
+          “The platform’s evidence-first workflow is exactly what modern
+          forensic teams need — fast analysis, explainable results, and
+          reports that preserve chain of custody.”
+        </blockquote>
+        <figcaption>
+          <strong>Dr. Kavya Rao</strong>
+          <span>Forensic Technology Advisor · Public Safety Research Unit</span>
+        </figcaption>
+      </motion.figure>
     </motion.section>
   );
 }

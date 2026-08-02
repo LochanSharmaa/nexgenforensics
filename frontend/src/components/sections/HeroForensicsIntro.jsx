@@ -49,8 +49,6 @@ export function HeroForensicsIntro() {
       <div className="nx-hero-shade" aria-hidden="true" />
 
       <div className="nx-hero-content">
-        <p className="nx-hero-kicker">Commercial biometric AI platform</p>
-
         <div className="nx-hero-main">
           <h1>NexGen <span>Forensics</span></h1>
           <p>
