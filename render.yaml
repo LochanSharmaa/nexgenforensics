@@ -135,9 +135,9 @@ services:
       - key: NEXGEN_SEED_TENANT
         value: nexgen-demo
       - key: NEXGEN_SEED_ADMIN_EMAIL
-        value: demo@nexgen.local
+        value: admin@nexgen.local
       - key: NEXGEN_SEED_ADMIN_PASSWORD
-        value: TZcphvfG96Qc2bPTSyvm
+        value: Admin@123456
 
       # --- database: wired automatically from the instance declared above ---
       # Render supplies a postgres:// URL. session.py rewrites the scheme to

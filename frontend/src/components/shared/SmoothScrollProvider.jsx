@@ -15,11 +15,12 @@ export function SmoothScrollProvider() {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reducedMotion) return undefined;
 
-    // lerp 0.16: enough glide to feel liquid, still answering the wheel
-    // promptly; the multiplier keeps travel-per-tick generous.
+    // lerp 0.12: longer, more liquid coast after each wheel tick — the
+    // "butter" glide. Safe now that nothing on the scroll path does per-frame
+    // work; the generous multiplier keeps response feeling immediate.
     const lenis = new Lenis({
       autoRaf: true,
-      lerp: 0.16,
+      lerp: 0.12,
       wheelMultiplier: 1.3,
       anchors: { offset: -90 },
     });

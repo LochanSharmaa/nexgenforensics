@@ -44,6 +44,7 @@ for p in (str(_BACKEND), str(Path(__file__).resolve().parent)):
         sys.path.insert(0, p)
 
 from nexgen_engine.models.cvlface_backbone import ARCFACE_5PTS, CvlfaceViTKprpe  # noqa: E402
+from nexgen_engine.models.cvlface_aligner import DfaAligner  # noqa: E402
 
 _ROOT = _BACKEND.parent
 CACHE = _ROOT / "runtime" / "benchmarks" / "embeddings"
@@ -69,7 +70,35 @@ MIRROR_5PTS = np.array(
 )
 
 
+#: Module-level aligner, constructed on first use. None => canonical-keypoint
+#: mode (only valid for pre-aligned crops; see stage_lfw's two-gate design).
+_ALIGNER: DfaAligner | None = None
+
+
+def _mirror_ldmks(ld: np.ndarray) -> np.ndarray:
+    """Mirror per-image [0,1] landmarks: x -> 1-x, swap L/R eye and mouth corners."""
+    out = ld.copy()
+    out[:, :, 0] = 1.0 - out[:, :, 0]
+    return out[:, [1, 0, 2, 4, 3], :]
+
+
 def embed_tta(model: CvlfaceViTKprpe, imgs: list[np.ndarray]) -> np.ndarray:
+    """Flip-TTA embedding.
+
+    ALIGNED MODE (the published CVLface pipeline, and the only valid mode for
+    crops that are not ArcFace-aligned): DFA aligner -> aligned 112 crop + that
+    image's own landmarks -> KP-RPE. The first TinyFace evaluation skipped this
+    and fed canonical keypoints on unaligned detector crops; the ViT scored
+    15.19% TAR@FAR=0.1% -- BELOW the R50's 20.59% -- because KP-RPE was being
+    conditioned on landmark positions that were simply false. That number was
+    withdrawn, not compared.
+    """
+    if _ALIGNER is not None:
+        aligned, ld = _ALIGNER.align(imgs)
+        kpm = _mirror_ldmks(ld)
+        return model.get_feat(aligned, ld) + model.get_feat(
+            [im[:, ::-1] for im in aligned], kpm
+        )
     n = len(imgs)
     kp = np.repeat(ARCFACE_5PTS[None], n, axis=0)
     kpm = np.repeat(MIRROR_5PTS[None], n, axis=0)
@@ -205,8 +234,15 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--stage", required=True, choices=["lfw", "tinyface", "qmul"])
     ap.add_argument("--batch", type=int, default=64)
+    ap.add_argument("--no-align", action="store_true",
+                    help="skip the DFA aligner (only valid for pre-aligned packs)")
     args = ap.parse_args()
     CACHE.mkdir(parents=True, exist_ok=True)
+
+    global _ALIGNER
+    if not args.no_align:
+        _ALIGNER = DfaAligner(batch_size=args.batch)
+        print("aligner: DFA mobilenet (aligned pipeline)")
 
     model = CvlfaceViTKprpe(batch_size=args.batch)
     print(f"backbone: {model.provider_label}")

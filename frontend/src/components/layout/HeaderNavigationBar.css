@@ -10,10 +10,9 @@
   justify-content: space-between;
   padding: 0 var(--page-gutter, clamp(20px, 5vw, 72px));
   border-bottom: 1px solid rgba(60, 45, 35, 0.12);
-  background: rgba(247, 243, 236, 0.9);
-  /* 12px instead of 18px: the fixed nav's backdrop blur re-samples on every
-     scrolled frame, and radius is the main cost. */
-  backdrop-filter: blur(12px);
+  /* No backdrop blur: at 95% opacity the blur was invisible but still
+     re-sampled the page behind the nav on every scrolled frame. */
+  background: rgba(247, 243, 236, 0.95);
   transition: box-shadow 220ms ease, background 220ms ease;
 }
 
