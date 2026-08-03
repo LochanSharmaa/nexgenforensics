@@ -262,6 +262,48 @@ class Candidate(SQLModel, table=True):
     examiner_notes: str = ""
 
 
+class ReportNarrative(SQLModel, table=True):
+    """Model-drafted prose for one case report, bound to the findings it explains.
+
+    WHY THIS IS PERSISTED RATHER THAN GENERATED PER EXPORT. Two exports of the
+    same case must read identically. A language model does not guarantee that
+    even at temperature 0, and a report whose wording drifts between exports is
+    indefensible the moment two copies are disclosed side by side. So the prose
+    is generated once, stored, and reused.
+
+    ``evidence_digest`` is the SHA-256 of the canonical evidence payload that
+    was sent. It is the cache key AND the invalidation rule: if any finding
+    changes -- a new candidate, an adjudication, a corrected threshold -- the
+    digest changes and the narrative is regenerated rather than silently
+    describing findings that no longer exist.
+
+    ``validator_status`` records what the guard in NarrativeService made of the
+    output. A row that failed validation is kept, not discarded, so a reviewer
+    can see that a generation was rejected and why.
+    """
+
+    __tablename__ = "report_narratives"
+    __table_args__ = (Index("ix_narrative_lookup", "tenant_id", "case_id", "evidence_digest"),)
+
+    id: str = Field(default_factory=_uuid, primary_key=True)
+    tenant_id: str = Field(foreign_key="tenants.id", index=True)
+    case_id: str = Field(foreign_key="cases.id", index=True)
+
+    evidence_digest: str = Field(default="", index=True)
+    sections_json: str = "{}"
+
+    provider: str = "google-gemini"
+    model: str = ""
+    prompt_sha256: str = ""
+
+    validator_status: str = "passed"
+    validator_notes: str = ""
+    attempts: int = 1
+
+    generated_at: datetime = Field(default_factory=utcnow)
+    generated_by: str = ""
+
+
 class AuditRecord(SQLModel, table=True):
     """Append-only, hash-chained record of every consequential action.
 

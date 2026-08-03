@@ -113,6 +113,31 @@ class Settings(BaseSettings):
     # without a network call, and makes "did we send it?" checkable.
     mail_outbox_path: str = "runtime/mail_outbox.jsonl"
 
+    # ---------------------------------------------------------- narrative --
+    # Model-drafted prose for three DESCRIPTIVE report sections only. It never
+    # decides anything: methodology, limitations and conclusion are rendered
+    # from templates in ReportService because a generated methodology can
+    # misdescribe the system, a generated limitation can soften a caveat, and a
+    # generated conclusion would be the model making the decision.
+    #
+    # OFF BY DEFAULT, and not merely for cost. Enabling it sends case findings
+    # to a third party. That is a data-protection decision for the deployment,
+    # not something a default should make on its behalf. The payload is
+    # pseudonymised before it leaves (see NarrativeService.build_payload), but
+    # pseudonymised case data is still case data.
+    narrative_enabled: bool = False
+    gemini_api_key: str = Field(default="", validation_alias="GEMINI_API_KEY")
+    # Pinned, not "latest". A floating alias would change the wording of
+    # already-issued reports on regeneration, and the model version is printed
+    # in the report's own disclosure line.
+    gemini_model: str = "gemini-2.0-flash"
+    gemini_timeout_seconds: int = 30
+    # One retry, fed the validator's complaint. Beyond that the report renders
+    # its deterministic sections and states that the narrative was withheld --
+    # a report with a missing section is recoverable, one with an unchecked
+    # generated claim is not.
+    narrative_max_attempts: int = 2
+
     # -------------------------------------------------------------- engine --
     # buffalo_l (w600k_r50) is deployed DELIBERATELY, and it is not the model
     # with the best clean-benchmark score. Measured, 1:1 verification:

@@ -14,6 +14,15 @@ export default defineConfig({
         target: 'http://localhost:8443',
         changeOrigin: true,
       },
+      // Image Intelligence Engine (public-web provenance). Proxied for the same
+      // reason as /api: same-origin in dev means no CORS grant per Vite port,
+      // and no cross-origin request carrying an investigator's bearer token.
+      // The rewrite strips the prefix so IIE still sees its own /api/v1 paths.
+      '/iie': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/iie/, ''),
+      },
     },
   },
 })

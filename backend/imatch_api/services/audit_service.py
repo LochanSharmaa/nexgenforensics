@@ -36,6 +36,10 @@ ACTION_ADJUDICATE = "case.adjudicate"
 ACTION_CASE_CREATE = "case.create"
 ACTION_CASE_UPDATE = "case.update"
 ACTION_EXPORT = "case.export"
+# Case findings were sent to a third-party language model to draft the report's
+# descriptive sections. Pseudonymised, but still case data leaving the system --
+# which is exactly the class of event this chain exists to record.
+ACTION_NARRATIVE = "case.narrative_generate"
 ACTION_USER_CREATE = "admin.user_create"
 ACTION_KEY_CREATE = "admin.api_key_create"
 ACTION_KEY_REVOKE = "admin.api_key_revoke"

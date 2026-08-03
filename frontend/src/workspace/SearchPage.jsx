@@ -4,6 +4,7 @@ import { listCases, listCandidates, runSearch } from "../services/imatchApi";
 import { CandidateTable } from "./components/CandidateTable";
 import { ImageDropZone } from "./components/ImageDropZone";
 import { ProbeReport } from "./components/ProbeReport";
+import { ProvenancePanel } from "./components/ProvenancePanel";
 
 const DECISION_TONE = {
   candidate_match: "good",
@@ -208,6 +209,16 @@ export function SearchPage() {
           </p>
         </section>
       )}
+
+      {/* The complementary question: face search asks who this face
+          resembles among enrolled subjects; provenance asks where this file
+          has been published. Same probe, no re-upload. */}
+      <ProvenancePanel
+        file={file}
+        lawfulBasis={lawfulBasis}
+        purpose={purpose}
+        caseReference={caseId}
+      />
     </>
   );
 }
