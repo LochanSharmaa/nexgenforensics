@@ -5,7 +5,7 @@
     "recogniser_modified": false,
     "dataset": "tinyface",
     "distance": null,
-    "n_pairs": 60,
+    "n_pairs": 40,
     "seed": 0,
     "device": {
       "torch_installed": true,
@@ -23,8 +23,8 @@
     },
     "cache": {
       "enabled": true,
-      "entries": 120,
-      "bytes": 1077720,
+      "entries": 1332,
+      "bytes": 87004714,
       "root": "C:\\Users\\hello\\Desktop\\nexgenforensics\\runtime\\enhancement_cache"
     },
     "binding": false,
@@ -40,24 +40,24 @@
   "arms_unavailable": {},
   "arms": {
     "A": {
-      "tar_at_far_1e3": 0.3,
-      "auc": 0.732222,
-      "score_mean_genuine": 0.991548,
-      "score_mean_impostor": 0.983907,
+      "tar_at_far_1e3": 0.25,
+      "auc": 0.77,
+      "score_mean_genuine": 0.990866,
+      "score_mean_impostor": 0.983006,
       "description": "untransformed baseline"
     },
     "E0": {
-      "tar_at_far_1e3": 0.3,
-      "auc": 0.732222,
-      "score_mean_genuine": 0.991618,
-      "score_mean_impostor": 0.984142,
+      "tar_at_far_1e3": 0.25,
+      "auc": 0.77,
+      "score_mean_genuine": 0.990976,
+      "score_mean_impostor": 0.983233,
       "description": "CONTROL. Lanczos upscaling only, no restoration. Separates 'the recogniser prefers a larger input' from 'restoration recovered identity information'. Without this control an improvement from any other arm is uninterpretable, because the embedder resamples every input to 112x112 and the resampling path itself changes."
     },
     "E1": {
-      "tar_at_far_1e3": 0.033333,
-      "auc": 0.621111,
-      "score_mean_genuine": 0.974512,
-      "score_mean_impostor": 0.970207,
+      "tar_at_far_1e3": 0.05,
+      "auc": 0.685,
+      "score_mean_genuine": 0.973871,
+      "score_mean_impostor": 0.96738,
       "description": "Track A only: deterministic, classical, no learned prior. Deblock, denoise, tone, and band-limited sharpening whose correction is projected onto the measured passband, so it cannot synthesise frequencies the sensor never recorded."
     }
   },
@@ -66,10 +66,24 @@
       "arm": "E0",
       "description": "CONTROL. Lanczos upscaling only, no restoration. Separates 'the recogniser prefers a larger input' from 'restoration recovered identity information'. Without this control an improvement from any other arm is uninterpretable, because the embedder resamples every input to 112x112 and the resampling path itself changes.",
       "track": "measurement",
-      "stages": [],
+      "stages": [
+        {
+          "stage": "classical_upscale",
+          "track": "measurement",
+          "task": "upscale",
+          "images": 10,
+          "distinct_images_computed": 10,
+          "ms_total": 37.1,
+          "ms_per_image": 3.71,
+          "vram_peak_mb": 0.0,
+          "unchanged_outputs": 0
+        }
+      ],
+      "cache_hits": 30,
+      "computed": 10,
       "device": "cpu",
       "device_note": "",
-      "total_ms": 855.6,
+      "total_ms": 504.2,
       "example_profile": {
         "width": 32,
         "height": 32,
@@ -106,10 +120,57 @@
       "arm": "E1",
       "description": "Track A only: deterministic, classical, no learned prior. Deblock, denoise, tone, and band-limited sharpening whose correction is projected onto the measured passband, so it cannot synthesise frequencies the sensor never recorded.",
       "track": "measurement",
-      "stages": [],
+      "stages": [
+        {
+          "stage": "classical_deblock",
+          "track": "measurement",
+          "task": "deblock",
+          "images": 10,
+          "distinct_images_computed": 10,
+          "ms_total": 34.7,
+          "ms_per_image": 3.47,
+          "vram_peak_mb": 0.0,
+          "unchanged_outputs": 0
+        },
+        {
+          "stage": "classical_denoise",
+          "track": "measurement",
+          "task": "denoise",
+          "images": 10,
+          "distinct_images_computed": 10,
+          "ms_total": 199.9,
+          "ms_per_image": 19.99,
+          "vram_peak_mb": 0.0,
+          "unchanged_outputs": 0
+        },
+        {
+          "stage": "classical_tone",
+          "track": "measurement",
+          "task": "tone",
+          "images": 10,
+          "distinct_images_computed": 10,
+          "ms_total": 30.1,
+          "ms_per_image": 3.01,
+          "vram_peak_mb": 0.0,
+          "unchanged_outputs": 0
+        },
+        {
+          "stage": "classical_deblur",
+          "track": "measurement",
+          "task": "deblur",
+          "images": 10,
+          "distinct_images_computed": 10,
+          "ms_total": 29.2,
+          "ms_per_image": 2.92,
+          "vram_peak_mb": 0.0,
+          "unchanged_outputs": 0
+        }
+      ],
+      "cache_hits": 30,
+      "computed": 10,
       "device": "cpu",
       "device_note": "",
-      "total_ms": 750.3,
+      "total_ms": 685.0,
       "example_profile": {
         "width": 32,
         "height": 32,
@@ -147,22 +208,22 @@
     "E0": {
       "vs_A_points": 0.0,
       "ci95": [
-        -4.1815,
+        0.0,
         0.0
       ],
       "verdict": "REJECT"
     },
     "E1": {
-      "vs_A_points": -26.6667,
+      "vs_A_points": -20.0,
       "ci95": [
-        -48.2759,
-        11.1218
+        -58.3333,
+        27.2909
       ],
       "verdict": "REJECT",
-      "vs_E0_control_points": -26.6667,
+      "vs_E0_control_points": -20.0,
       "vs_E0_ci95": [
-        -46.6765,
-        11.1218
+        -58.3333,
+        27.2909
       ],
       "beats_interpolation_control": false
     }

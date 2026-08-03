@@ -209,9 +209,34 @@ class EnhancementArm:
             if progress and hits:
                 progress(f"  {self.name}: {hits}/{len(rgb)} served from cache")
 
+        # WITHIN-BATCH DEDUPLICATION -- this is a 10x, not a nicety.
+        #
+        # In an enumerated pair list the same probe image appears once per pair
+        # it participates in: SCface D1 uses each probe in ~11 pairs (1 genuine
+        # + 10 impostors), so a 500-pair chunk holds only ~45 distinct images.
+        # The disk cache deduplicates against PREVIOUS batches, but on first
+        # encounter every copy misses together -- and the original loop then
+        # enhanced each copy separately, doing ~11x the GPU work. Measured on
+        # the first real SCface run: the projected wall clock was ~3 hours
+        # against ~20 minutes for the deduplicated equivalent.
+        #
+        # So stages run once per DISTINCT image, and the result is fanned out
+        # to every index sharing that content. Correct by construction: the
+        # transform is a pure function of (pixels, parameters), and parameters
+        # are derived from the pixels.
+        representative: dict[str, int] = {}
+        duplicates: dict[int, int] = {}  # index -> representative index
+        for index in pending:
+            digest = digests[index]
+            if digest in representative:
+                duplicates[index] = representative[digest]
+            else:
+                representative[digest] = index
+        workset = sorted(representative.values())
+
         stage_stats: list[dict[str, Any]] = []
         for stage in self.stages:
-            if not pending:
+            if not workset:
                 break
             if not _registered(stage):
                 stage_stats.append({"stage": stage, "skipped": "not registered"})
@@ -227,7 +252,7 @@ class EnhancementArm:
             peak = 0.0
             try:
                 backend.load(effective)
-                for index in pending:
+                for index in workset:
                     merged = {
                         **backend.spec.default_parameters,
                         **params[index].get(stage, {}),
@@ -252,8 +277,9 @@ class EnhancementArm:
                 "track": backend.spec.track.value,
                 "task": backend.spec.task.value,
                 "images": len(pending),
+                "distinct_images_computed": len(workset),
                 "ms_total": round(elapsed, 1),
-                "ms_per_image": round(elapsed / max(len(pending), 1), 2),
+                "ms_per_image": round(elapsed / max(len(workset), 1), 2),
                 "vram_peak_mb": round(peak, 1),
                 "unchanged_outputs": unchanged,
             }
@@ -271,20 +297,24 @@ class EnhancementArm:
                 # and the arm is then not a measurement of that model at all.
                 if backend.spec.track is Track.RECONSTRUCTION or backend.spec.task is Task.FACE_RESTORE:
                     record["warning"] = (
-                        f"{unchanged}/{len(pending)} outputs were identical to their input. A learned "
-                        "restorer that returns its input did not act on those crops; this arm's result "
-                        "is not a measurement of that model."
+                        f"{unchanged}/{len(workset)} distinct outputs were identical to their input. A "
+                        "learned restorer that returns its input did not act on those crops; this arm's "
+                        "result is not a measurement of that model."
                     )
                 else:
                     record["note"] = (
-                        f"{unchanged}/{len(pending)} outputs unchanged. For an adaptively parameterised "
-                        "classical stage this is normally correct -- the measurement said there was "
-                        "nothing to correct."
+                        f"{unchanged}/{len(workset)} distinct outputs unchanged. For an adaptively "
+                        "parameterised classical stage this is normally correct -- the measurement said "
+                        "there was nothing to correct."
                     )
             stage_stats.append(record)
 
+        # Fan the representative's result out to every duplicate index, then
+        # persist one cache entry per distinct image.
+        for index, rep in duplicates.items():
+            rgb[index] = rgb[rep]
         if cache is not None:
-            for index in pending:
+            for index in workset:
                 cache.put(digests[index], keys[index], rgb[index], {"arm": self.name, "stages": list(self.stages)})
 
         report = {

@@ -42,12 +42,11 @@ _RELEASE = "https://github.com/xinntao/Real-ESRGAN/releases/download"
 class RealESRGANx4(TorchBackend):
     weight_spec = WeightSpec(
         filename="RealESRGAN_x4plus.pth",
+        # Pinned 2026-08-03 against the file downloaded from the official
+        # release; matches the hash the Real-ESRGAN project publishes.
+        sha256="4fa0d38905f75ac06eb49a7951b426670021be3018265fd191d2125df9d682f1",
         url=f"{_RELEASE}/v0.1.0/RealESRGAN_x4plus.pth",
-        notes=(
-            "Checksum is intentionally unpinned until an operator installs the file and records it "
-            "with scripts/pin_enhancement_weights.py. A guessed checksum would permanently disable "
-            "the backend, which is worse than an unverified one that is flagged as unverified."
-        ),
+        notes="Official xinntao/Real-ESRGAN release asset.",
     )
     net_scale = 4
     tile = 256
@@ -79,8 +78,10 @@ class RealESRGANx4(TorchBackend):
 class RealESRGANx2(TorchBackend):
     weight_spec = WeightSpec(
         filename="RealESRGAN_x2plus.pth",
+        # Pinned 2026-08-03 against the official release asset.
+        sha256="49fafd45f8fd7aa8d31ab2a22d14d91b536c34494a5cfe31eb5d89c2fa266abb",
         url=f"{_RELEASE}/v0.2.1/RealESRGAN_x2plus.pth",
-        notes="See RealESRGANx4 on checksum pinning.",
+        notes="Official xinntao/Real-ESRGAN release asset.",
     )
     net_scale = 2
     tile = 256

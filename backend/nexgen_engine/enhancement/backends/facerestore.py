@@ -274,6 +274,12 @@ class OnnxFaceRestorer(EnhancementBackend):
 class CodeFormer(OnnxFaceRestorer):
     weight_spec = WeightSpec(
         filename="codeformer.onnx",
+        # Pinned 2026-08-03. Source: facefusion-assets models-3.0.0 release --
+        # a community ONNX export of the official sczhou/CodeFormer weights (no
+        # official ONNX exists). The pin is against the exact file validated
+        # here, so a re-download that differs is refused rather than trusted.
+        sha256="21710e7ab61c82683576c428e9c1b6fe1ed419586b7b39e394c3449c294b550f",
+        url="https://github.com/facefusion/facefusion-assets/releases/download/models-3.0.0/codeformer.onnx",
         notes=(
             "ONNX export of CodeFormer, 512x512 input. Exports vary in whether they expose the "
             "fidelity weight as a second input; the loader introspects the graph and passes it only "
@@ -298,7 +304,13 @@ class CodeFormer(OnnxFaceRestorer):
 )
 class GFPGAN(OnnxFaceRestorer):
     weight_spec = WeightSpec(
-        filename="gfpgan_v1.4.onnx",
+        # The publisher's filename, kept verbatim so a file placed straight from
+        # the release needs no rename.
+        filename="gfpgan_1.4.onnx",
+        # Pinned 2026-08-03. Source: facefusion-assets models-3.0.0 release
+        # (community ONNX export of the official TencentARC GFPGANv1.4 weights).
+        sha256="accc4757b26bdb89b32b4d3500d4f79c9dff97c1dd7c7104bf9dcb95e3311385",
+        url="https://github.com/facefusion/facefusion-assets/releases/download/models-3.0.0/gfpgan_1.4.onnx",
         notes="ONNX export of GFPGANv1.4, 512x512 input, single input tensor, [-1,1] range.",
     )
 

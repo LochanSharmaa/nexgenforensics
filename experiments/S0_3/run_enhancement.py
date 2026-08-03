@@ -184,11 +184,20 @@ def main() -> int:
             # model and empties the cache before returning, so the embedder
             # below finds the card free. On 6 GB this ordering is the difference
             # between a run and an OOM.
+            arm_started = time.time()
             enhanced, report = arm.transform_batch(
                 probes, device=args.device, cache=cache, progress=lambda m: print(m, flush=True)
             )
+            enhance_s = time.time() - arm_started
             accumulated[name].append(np.sum(gallery_embedded * embed(enhanced), axis=1))
             arm_reports.setdefault(name, report)
+            # One line per arm per chunk, flushed: this is the only way to see
+            # WHERE a slow run is spending its time from outside the process.
+            print(
+                f"  {name}: enhance {enhance_s:.1f}s (hits {report.get('cache_hits', 0)}, "
+                f"computed {report.get('computed', 0)}), embed {time.time() - arm_started - enhance_s:.1f}s",
+                flush=True,
+            )
             del enhanced
 
         del gallery, probes, gallery_embedded
