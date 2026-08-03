@@ -162,6 +162,39 @@ export function getRun(runId) {
   return request(`/runs/${runId}`);
 }
 
+// -- image analysis ---------------------------------------------------------
+
+/**
+ * Ask a vision model what is *visible* in the probe image.
+ *
+ * This is the observation stage, and the distinction it holds is the whole
+ * point: it reports what the picture shows — transcribed signage, a document
+ * reference, a licence-plate format — never what any of it means. "The sign
+ * reads MERIDIAN LOGISTICS" is checkable by looking at the image. "This is
+ * Meridian's head office" is a claim about the world, needs pages behind it,
+ * and comes from `discover`/`getFindings` instead.
+ *
+ * It never identifies anyone. People are counted, not named: the response
+ * schema has no field for a person's identity, guardrails strip any identity
+ * assertion that appears in free text anyway, and a refused item is returned in
+ * `rejected` rather than silently dropped.
+ *
+ * Slow — around twenty seconds — because it is a live model call. Callers must
+ * show progress rather than a frozen button.
+ */
+export function analyzeImage(investigationId, { imageId } = {}) {
+  const query = imageId ? `?image_id=${encodeURIComponent(imageId)}` : "";
+  return request(`/investigations/${investigationId}/analyze${query}`, {
+    method: "POST",
+  });
+}
+
+/** Observations already stored, rebuilt from the evidence table — no second
+ *  model call, and therefore exactly what a reviewer would find in the record. */
+export function getAnalysis(investigationId) {
+  return request(`/investigations/${investigationId}/analysis`);
+}
+
 // -- discovery and findings -------------------------------------------------
 
 /** Every provider and whether it can actually run — reported *before* a search,
@@ -190,17 +223,21 @@ export function getFindings(investigationId) {
 }
 
 /**
- * Open a provenance investigation for one image, end to end.
+ * Open a provenance case for one image and put the image in it.
  *
- * Four calls rather than one, because each is separately meaningful in the
- * audit chain: opening a case records the lawful basis, the upload opens the
- * image's chain of custody, and starting a run records which stages will run
- * under which configuration.
+ * Two calls rather than one, because each is separately meaningful in the audit
+ * chain: opening the case records the lawful basis, and the upload opens the
+ * image's chain of custody.
+ *
+ * Separate from `traceImage` because analysis and discovery are different
+ * questions asked of the same image, and either may be asked first. Whichever
+ * the investigator reaches for, the case underneath is the same one — so both
+ * lines of enquiry sit in a single audit trail rather than two half-cases.
  *
  * `onStep` reports progress so the UI can show what is happening instead of
  * freezing on a single spinner for the whole sequence.
  */
-export async function traceImage({ file, caseRef, title, lawfulBasis, purpose, onStep }) {
+export async function openCase({ file, caseRef, title, lawfulBasis, purpose, onStep }) {
   onStep?.("Opening provenance case…");
   const investigation = await createInvestigation({
     caseId: caseRef,
@@ -212,10 +249,22 @@ export async function traceImage({ file, caseRef, title, lawfulBasis, purpose, o
   onStep?.("Uploading image and hashing…");
   const upload = await uploadImage(investigation.id, file);
 
-  onStep?.("Starting discovery run…");
-  const run = await startRun(investigation.id);
+  return { investigation, image: upload.image, deduplicated: upload.deduplicated };
+}
 
-  return { investigation, image: upload.image, deduplicated: upload.deduplicated, run };
+/**
+ * Open a case and start a discovery run over it.
+ *
+ * The run is what records which stages will execute under which configuration,
+ * so a finding can be reproduced later against the same ruleset.
+ */
+export async function traceImage({ file, caseRef, title, lawfulBasis, purpose, onStep }) {
+  const opened = await openCase({ file, caseRef, title, lawfulBasis, purpose, onStep });
+
+  onStep?.("Starting discovery run…");
+  const run = await startRun(opened.investigation.id);
+
+  return { ...opened, run };
 }
 
 /**

@@ -657,3 +657,75 @@
     gap: 4px;
   }
 }
+
+/* ---------------------------------------------------- image observations --- */
+
+/* One thing the image shows. The transcription is the evidence, so it is set in
+   mono at full weight and everything around it — where it sits in the picture,
+   whether it was quoted or summarised — is subordinate to it. */
+.wk-observations {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.wk-observations li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid rgba(29, 53, 87, 0.35);
+  border-radius: 8px;
+  background: var(--paper);
+}
+
+.wk-observation-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13.5px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.wk-observations li small {
+  color: var(--muted);
+  font-size: 12.5px;
+  flex: 1 1 200px;
+}
+
+.wk-clues {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.wk-clues li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--paper);
+}
+
+.wk-clues code {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.wk-clues small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
