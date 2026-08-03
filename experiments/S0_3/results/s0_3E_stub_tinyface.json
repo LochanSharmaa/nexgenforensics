@@ -1,0 +1,170 @@
+{
+  "provenance": {
+    "experiment": "S0.3-E (enhancement arms)",
+    "embedder": "stub (CPU, not a recogniser)",
+    "recogniser_modified": false,
+    "dataset": "tinyface",
+    "distance": null,
+    "n_pairs": 60,
+    "seed": 0,
+    "device": {
+      "torch_installed": true,
+      "torch_version": "2.5.1+cu121",
+      "cuda_available": true,
+      "cuda_unavailable_reason": "",
+      "devices": [
+        {
+          "index": 0,
+          "name": "NVIDIA RTX A3000 Laptop GPU",
+          "total_mb": 6143.5,
+          "compute_capability": "8.6"
+        }
+      ]
+    },
+    "cache": {
+      "enabled": true,
+      "entries": 120,
+      "bytes": 1077720,
+      "root": "C:\\Users\\hello\\Desktop\\nexgenforensics\\runtime\\enhancement_cache"
+    },
+    "binding": false,
+    "warning": "STUB EMBEDDER. These numbers measure plumbing, not recognition, and must never be quoted."
+  },
+  "decision_rule": {
+    "adopt_threshold_points": 2.0,
+    "reject_threshold_points": 0.5,
+    "metric": "TAR@FAR=0.1% (points)",
+    "comparison": "enhancement arm minus arm A (untransformed baseline)",
+    "control": "E0 (Lanczos upscale only). An arm must also beat E0 to demonstrate restoration."
+  },
+  "arms_unavailable": {},
+  "arms": {
+    "A": {
+      "tar_at_far_1e3": 0.3,
+      "auc": 0.732222,
+      "score_mean_genuine": 0.991548,
+      "score_mean_impostor": 0.983907,
+      "description": "untransformed baseline"
+    },
+    "E0": {
+      "tar_at_far_1e3": 0.3,
+      "auc": 0.732222,
+      "score_mean_genuine": 0.991618,
+      "score_mean_impostor": 0.984142,
+      "description": "CONTROL. Lanczos upscaling only, no restoration. Separates 'the recogniser prefers a larger input' from 'restoration recovered identity information'. Without this control an improvement from any other arm is uninterpretable, because the embedder resamples every input to 112x112 and the resampling path itself changes."
+    },
+    "E1": {
+      "tar_at_far_1e3": 0.033333,
+      "auc": 0.621111,
+      "score_mean_genuine": 0.974512,
+      "score_mean_impostor": 0.970207,
+      "description": "Track A only: deterministic, classical, no learned prior. Deblock, denoise, tone, and band-limited sharpening whose correction is projected onto the measured passband, so it cannot synthesise frequencies the sensor never recorded."
+    }
+  },
+  "enhancement_reports": {
+    "E0": {
+      "arm": "E0",
+      "description": "CONTROL. Lanczos upscaling only, no restoration. Separates 'the recogniser prefers a larger input' from 'restoration recovered identity information'. Without this control an improvement from any other arm is uninterpretable, because the embedder resamples every input to 112x112 and the resampling path itself changes.",
+      "track": "measurement",
+      "stages": [],
+      "device": "cpu",
+      "device_note": "",
+      "total_ms": 855.6,
+      "example_profile": {
+        "width": 32,
+        "height": 32,
+        "short_side": 32,
+        "mean_luma": 114.73,
+        "contrast": 26.18,
+        "sharpness_laplacian": 224.61,
+        "blur_sigma": 0.9782,
+        "blur_confidence": 0.8633,
+        "blur_kind": "motion",
+        "blur_anisotropy": 0.687,
+        "blur_angle_deg": 15.0,
+        "noise_sigma": 0.002584,
+        "jpeg_quality": 75,
+        "jpeg_confidence": 0.545,
+        "spectral_cutoff": 0.230469,
+        "effective_resolution_ratio": 0.4609,
+        "upscaled_beyond_content": true,
+        "monochrome_fraction": 0.0,
+        "infrared": false,
+        "interlace_ratio": 0.5478,
+        "interlaced": false,
+        "clipped_low": 0.0,
+        "clipped_high": 0.0,
+        "small_face": true,
+        "estimator_trustworthy": true,
+        "notes": [
+          "Stored size 32x32 overstates true resolution: content is band-limited at 0.230 cycles/px (46% of Nyquist). The image was probably upscaled or re-encoded before storage.",
+          "Short side is 32px, below the 60px floor at which recognition accuracy degrades sharply."
+        ]
+      }
+    },
+    "E1": {
+      "arm": "E1",
+      "description": "Track A only: deterministic, classical, no learned prior. Deblock, denoise, tone, and band-limited sharpening whose correction is projected onto the measured passband, so it cannot synthesise frequencies the sensor never recorded.",
+      "track": "measurement",
+      "stages": [],
+      "device": "cpu",
+      "device_note": "",
+      "total_ms": 750.3,
+      "example_profile": {
+        "width": 32,
+        "height": 32,
+        "short_side": 32,
+        "mean_luma": 114.73,
+        "contrast": 26.18,
+        "sharpness_laplacian": 224.61,
+        "blur_sigma": 0.9782,
+        "blur_confidence": 0.8633,
+        "blur_kind": "motion",
+        "blur_anisotropy": 0.687,
+        "blur_angle_deg": 15.0,
+        "noise_sigma": 0.002584,
+        "jpeg_quality": 75,
+        "jpeg_confidence": 0.545,
+        "spectral_cutoff": 0.230469,
+        "effective_resolution_ratio": 0.4609,
+        "upscaled_beyond_content": true,
+        "monochrome_fraction": 0.0,
+        "infrared": false,
+        "interlace_ratio": 0.5478,
+        "interlaced": false,
+        "clipped_low": 0.0,
+        "clipped_high": 0.0,
+        "small_face": true,
+        "estimator_trustworthy": true,
+        "notes": [
+          "Stored size 32x32 overstates true resolution: content is band-limited at 0.230 cycles/px (46% of Nyquist). The image was probably upscaled or re-encoded before storage.",
+          "Short side is 32px, below the 60px floor at which recognition accuracy degrades sharply."
+        ]
+      }
+    }
+  },
+  "decisions": {
+    "E0": {
+      "vs_A_points": 0.0,
+      "ci95": [
+        -4.1815,
+        0.0
+      ],
+      "verdict": "REJECT"
+    },
+    "E1": {
+      "vs_A_points": -26.6667,
+      "ci95": [
+        -48.2759,
+        11.1218
+      ],
+      "verdict": "REJECT",
+      "vs_E0_control_points": -26.6667,
+      "vs_E0_ci95": [
+        -46.6765,
+        11.1218
+      ],
+      "beats_interpolation_control": false
+    }
+  }
+}

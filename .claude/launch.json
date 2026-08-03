@@ -29,6 +29,33 @@
       ],
       "port": 8443,
       "autoPort": false
+    },
+    {
+      "name": "backend-8444",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": [
+        "-m",
+        "uvicorn",
+        "imatch_api.main:app",
+        "--app-dir",
+        "backend",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8444"
+      ],
+      "port": 8444,
+      "autoPort": false
+    },
+    {
+      "name": "frontend-8444",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "set IMATCH_PROXY_TARGET=http://localhost:8444&& npm run dev --prefix frontend"
+      ],
+      "port": 5173,
+      "autoPort": true
     }
   ]
 }

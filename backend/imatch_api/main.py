@@ -10,7 +10,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from .core.csrf import CSRF_COOKIE, CSRF_HEADER, request_is_exempt, tokens_match, validate_csrf_token
 from fastapi.responses import JSONResponse
 
-from .api.routes import account, admin, audit, auth, cases, health, reports, search, subjects
+from .api.routes import (
+    account,
+    admin,
+    audit,
+    auth,
+    cases,
+    enhancement,
+    health,
+    reports,
+    search,
+    subjects,
+)
 from .core.config import get_settings
 from .db.session import init_database
 from .services.engine_service import get_engine_service
@@ -209,6 +220,7 @@ def create_app() -> FastAPI:
     app.include_router(reports.router)
     app.include_router(subjects.router)
     app.include_router(search.router)
+    app.include_router(enhancement.router)
     app.include_router(audit.router)
     app.include_router(admin.router)
 

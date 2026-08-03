@@ -729,3 +729,276 @@
   color: var(--muted);
   font-size: 12.5px;
 }
+
+/* ------------------------------------------------------------ enhancement --
+   Image enhancement page. The layout rules here enforce policy: the original
+   and the enhanced image are one component and cannot be separated, and the
+   track label is part of the pane rather than an annotation beside it. */
+
+.wk-split-wrap {
+  margin: 14px 0;
+}
+
+.wk-split {
+  position: relative;
+  display: flex;
+  height: 420px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #101210;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.wk-split:active {
+  cursor: grabbing;
+}
+
+.wk-split-pane {
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+  flex: none;
+}
+
+.wk-split-pane img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated; /* zoomed CCTV must show its real pixels, not smoothing */
+}
+
+.wk-split-pane.right {
+  border-left: none;
+}
+
+.wk-split-tag {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  padding: 3px 9px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+.wk-split-tag.original {
+  background: rgba(20, 60, 30, 0.88);
+  color: #d9f2df;
+}
+
+.wk-split-tag.enhanced {
+  background: rgba(96, 60, 10, 0.9);
+  color: #ffe9c9;
+}
+
+.wk-split-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  margin-left: -2px;
+  z-index: 3;
+  background: #fff;
+  opacity: 0.85;
+  cursor: col-resize;
+}
+
+.wk-split-divider::after {
+  content: "◀ ▶";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #fff;
+  color: #333;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.wk-split-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.wk-split-controls small {
+  color: var(--muted);
+}
+
+.wk-zoom-label {
+  min-width: 44px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}
+
+/* plan table */
+
+.wk-plan-skipped td {
+  opacity: 0.62;
+}
+
+.wk-plan-task {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.wk-plan-why {
+  max-width: 420px;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.wk-plan-note {
+  margin-top: 4px;
+  color: #8a5a00;
+  font-size: 12px;
+}
+
+.wk-plan-foot {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+}
+
+.wk-track {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 5px;
+  white-space: nowrap;
+}
+
+.wk-track.measurement {
+  background: #e8f2e9;
+  color: #1d5a2a;
+}
+
+.wk-track.reconstruction {
+  background: #fbeedd;
+  color: #8a5200;
+}
+
+/* analysis stats */
+
+.wk-stat-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 10px 0 14px;
+}
+
+.wk-stat {
+  flex: 1;
+  min-width: 110px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.wk-stat b {
+  display: block;
+  font-size: 17px;
+}
+
+.wk-stat small {
+  color: var(--muted);
+}
+
+.wk-notes {
+  margin: 10px 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #6b4a00;
+}
+
+.wk-notes li + li {
+  margin-top: 5px;
+}
+
+/* result section */
+
+.wk-result-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.wk-warnings {
+  margin: 10px 0;
+}
+
+.wk-warning {
+  padding: 8px 12px;
+  border: 1px solid #e5c992;
+  border-left-width: 4px;
+  border-radius: 6px;
+  background: #fdf6e8;
+  color: #6b4a00;
+  font-size: 13px;
+}
+
+.wk-warning + .wk-warning {
+  margin-top: 6px;
+}
+
+.wk-delta.good {
+  color: #1d5a2a;
+}
+
+.wk-delta.bad {
+  color: #a33;
+}
+
+.wk-delta.neutral {
+  color: var(--muted);
+}
+
+.wk-recognise-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.wk-recognise-bar small {
+  color: var(--muted);
+  max-width: 480px;
+}
+
+.wk-caution {
+  margin: 10px 0 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-left: 4px solid #b98c2f;
+  border-radius: 6px;
+  background: #faf6ec;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.wk-primary-side {
+  border-left: 3px solid #1d5a2a;
+  padding-left: 14px;
+}
+
+.wk-decision {
+  font-size: 13.5px;
+  color: var(--muted);
+}

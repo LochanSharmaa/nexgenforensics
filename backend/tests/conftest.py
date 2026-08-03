@@ -31,6 +31,7 @@ from imatch_api.core.security import hash_password  # noqa: E402
 from imatch_api.db.models import Role, Tenant, User  # noqa: E402
 from imatch_api.db.session import build_engine, set_engine  # noqa: E402
 from imatch_api.services.engine_service import EngineService, set_engine_service  # noqa: E402
+from imatch_api.services.enhancement_service import set_enhancement_service  # noqa: E402
 from nexgen_engine.models.arcface import EngineUnavailableError  # noqa: E402
 from nexgen_engine.runtime import EngineRuntime  # noqa: E402
 
@@ -130,6 +131,7 @@ def _isolated_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, reque
     monkeypatch.setenv("NEXGEN_DATABASE_URL", f"sqlite:///{tmp_path / 'test.db'}")
     monkeypatch.setenv("NEXGEN_STORAGE_ROOT", str(tmp_path / "storage"))
     monkeypatch.setenv("NEXGEN_AUDIT_LOG_PATH", str(tmp_path / "audit.jsonl"))
+    monkeypatch.setenv("NEXGEN_ENHANCEMENT_CACHE_ROOT", str(tmp_path / "enhancement_cache"))
 
     get_settings.cache_clear()
     reset_limiters()
@@ -144,8 +146,13 @@ def _isolated_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, reque
     if runtime is not None:
         set_engine_service(EngineService(get_settings(), runtime=runtime))
 
+    # The enhancement service caches Settings at construction; a stale instance
+    # would write cache entries into a previous test's tmp_path.
+    set_enhancement_service(None)
+
     yield
 
+    set_enhancement_service(None)
     set_engine_service(None)
     set_engine(None)
     engine.dispose()

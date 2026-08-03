@@ -6,6 +6,7 @@ import "./workspace.css";
 const LINKS = [
   { to: "/workspace", label: "Cases", end: true },
   { to: "/workspace/search", label: "Face search" },
+  { to: "/workspace/enhance", label: "Enhance" },
   { to: "/workspace/verify", label: "1:1 compare" },
   { to: "/workspace/batch-compare", label: "Reference vs set" },
   { to: "/workspace/enrol", label: "Enrol subject", minRole: "supervisor" },

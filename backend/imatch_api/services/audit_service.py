@@ -40,6 +40,11 @@ ACTION_EXPORT = "case.export"
 # descriptive sections. Pseudonymised, but still case data leaving the system --
 # which is exactly the class of event this chain exists to record.
 ACTION_NARRATIVE = "case.narrative_generate"
+# Enhancement is recorded as its own action, never folded into the search that
+# may follow it. A reader of the chain has to be able to see that an image was
+# processed, by what, and whether a learned prior was involved -- separately
+# from any matching decision taken afterwards.
+ACTION_ENHANCE = "evidence.enhance"
 ACTION_USER_CREATE = "admin.user_create"
 ACTION_KEY_CREATE = "admin.api_key_create"
 ACTION_KEY_REVOKE = "admin.api_key_revoke"

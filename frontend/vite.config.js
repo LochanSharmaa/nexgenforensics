@@ -11,7 +11,10 @@ export default defineConfig({
     // and the browser never sees a cross-origin biometric request.
     proxy: {
       '/api': {
-        target: 'http://localhost:8443',
+        // IMATCH_PROXY_TARGET lets a second dev instance point at a backend on
+        // a non-default port (e.g. when 8443 is already held by another
+        // session). Default unchanged.
+        target: process.env.IMATCH_PROXY_TARGET || 'http://localhost:8443',
         changeOrigin: true,
       },
       // Image Intelligence Engine (public-web provenance). Proxied for the same

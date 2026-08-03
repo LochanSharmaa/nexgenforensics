@@ -18,6 +18,12 @@ That ordering optimised for a recognition claim that milestone 1 does not make.
 is what actually produces a usable image, and the transparency machinery (§5)
 is the control rather than deferral.
 
+**Nothing about the recogniser changes.** The existing model, its thresholds,
+its datasets and its evaluation harness are reused unmodified. Enhancement is a
+pre-processing layer in front of them and a plug-in capability of the existing
+system — not a new research programme. §6 names the exact seam, file by file,
+and Rev 2's 5-day recognition sweep collapses to roughly a day as a result.
+
 One correction to Rev 1 worth stating plainly: I deferred diffusion restorers as
 "stochastic by design." That was wrong as written. Diffusion is fully
 deterministic given a fixed seed, scheduler, step count, and deterministic
@@ -412,7 +418,119 @@ has not read this document.
 
 ---
 
-## 6. Module layout
+## 6. Integration with the existing recognition and evaluation stack
+
+The recogniser is trained, benchmarked and working. Enhancement inserts *in
+front of it* and reuses everything downstream unchanged. Concretely:
+
+```
+Original CCTV image ──► Enhancement pipeline ──► EXISTING iMatch recogniser ──► compare vs original
+   (unmodified,             (new, this plan)        (unchanged: weights,           (existing metrics)
+    content-addressed)                               thresholds, alignment,
+                                                     gallery, decision engine)
+```
+
+### 6a. The evaluation harness already is the enhancement benchmark
+
+`experiments/S0_3/` was built to answer a different question, and its shape is
+exactly what this needs. An arm is a pure function:
+
+```python
+(gallery, probe) -> (gallery', probe', report)
+```
+
+An enhancement arm is one line of that shape:
+
+```python
+def arm_E_codeformer(gallery, probe):
+    out, rep = enhance(probe, plan="auto")        # probe side only
+    return gallery, out, {"arm": "E:codeformer", **rep}
+```
+
+Registered in the existing `ARMS` dict at
+[`arms.py:266`](experiments/S0_3/arms.py:266) and it runs through machinery that
+already exists and has already been used twice for binding decisions:
+
+| Needed | Already built | Path |
+|---|---|---|
+| Dataset loaders: TinyFace, QMUL, LFW-synth, **SCface D1/D2/D3** | `LOADERS` + `load_tinyface` / `load_qmul` / `load_scface` | [`run_gpu.py:160`](experiments/S0_3/run_gpu.py:160) |
+| Real recogniser as an injected embedder | `load_embedder("arcface")` | [`run_gpu.py:115`](experiments/S0_3/run_gpu.py:115) |
+| TAR@FAR=0.1%, AUC | `tar_at_far`, `auc` | [`run.py:44`](experiments/S0_3/run.py:44) |
+| Paired bootstrap CI on the arm difference | `paired_bootstrap`, `bootstrap_ci` | [`run_gpu.py:92`](experiments/S0_3/run_gpu.py:92) |
+| Pre-registered decision rule enforced in code | `DECISION` + verdict block | [`run.py:41`](experiments/S0_3/run.py:41) |
+| Zero-GPU plumbing validation | `stub_embedder` | [`arms.py:65`](experiments/S0_3/arms.py:65) |
+| Result JSON + provenance format | `results/s0_3_*.json` | `experiments/S0_3/results/` |
+| Baseline numbers to compare against | arm A, already run on all four datasets | same directory |
+
+**Arm A is the baseline. It is already measured.** SCface D1: TAR@FAR=0.1%
+0.55%, AUC 0.5712. No baseline run is needed — the comparison is enhancement
+arms against a number that already exists in the repo.
+
+### 6b. One thing about these arms is genuinely new, and it should be said
+
+Every existing arm transforms the **gallery** toward the probe. That direction
+is deliberate and is the organising principle of `degradation/`: *move the
+hypothesis toward the evidence, never the evidence toward the hypothesis.*
+
+An enhancement arm transforms the **probe** — the evidence — toward the
+hypothesis. It is the first arm in this experiment to run in the forbidden
+direction, and the module docstring at
+[`degradation/__init__.py:5`](backend/nexgen_engine/degradation/__init__.py:5)
+predicts it will fail for that reason.
+
+That is exactly why it is worth measuring rather than assuming either way, and
+it is why enhancement lives in its own package with its own types rather than
+inside `degradation/`. If the enhancement arms win, that docstring needs
+revising and the result is publishable. If they lose, the existing architecture
+is confirmed against its strongest available challenger. Both outcomes are
+useful; neither is assumed.
+
+### 6c. Three engineering realities the existing harness does not yet handle
+
+1. **GPU contention.** Every current arm is pure CPU with GPU used only for
+   embedding — `arms.py` says so explicitly. Enhancement arms need the GPU
+   *too*, and 6 GB will not hold a restorer and the recogniser comfortably at
+   once. The runner must **enhance in batches, release VRAM, then embed** rather
+   than interleaving. This is a real change to `run_gpu.py`'s execution model
+   and the main reason 6a is a day rather than an hour.
+2. **Caching is mandatory, not an optimisation.** Enhancement is seconds per
+   image against milliseconds for embedding. At 3,000 pairs × several arms a
+   naive re-run is hours of redundant GPU. Enhanced images are cached
+   content-addressed by `sha256(original) + sha256(canonical plan)`, reusing
+   `StorageService`'s existing scheme. A re-run with an unchanged plan costs
+   nothing.
+3. **Pre-cropped probes break face-restorer wrappers.** CodeFormer and GFPGAN
+   ship wrappers that detect and align a face before restoring. TinyFace and
+   SCface probes are *already* cropped faces, sometimes 20–30 px, where
+   detection frequently fails outright. The integration must bypass the vendor
+   wrapper, treat the crop as pre-aligned, and resize to the 512² template
+   directly. This is the detail most likely to silently produce garbage — it
+   fails by returning the input unchanged, which looks like "enhancement had no
+   effect" rather than like an error. E1 gets an explicit test for it.
+
+### 6d. Production seam — deliberately *not* inside `encode()`
+
+[`engine_service.py:181`](backend/imatch_api/services/engine_service.py:181)
+notes that `encode()` is "the single choke point every biometric operation
+passes through — search, verify, batch and enrolment all call it." That makes it
+the tempting hook and the wrong one: hooking there would silently enhance
+**enrolment** images too, which is never wanted, and would make enhancement
+implicit everywhere.
+
+Instead `encode()` stays pure, and the enhancement route calls it twice —
+`engine.encode(original)` and `engine.encode(enhanced)` — returning both ranked
+lists for the A/B view. The original's result is primary in the UI and is the
+only one that reaches the case record unless an examiner explicitly adjudicates
+otherwise. `SearchRun` gains `source_kind` (`original` | `restored` |
+`reconstructed`) and `enhancement_run_id`, which satisfies ROADMAP §3.2 at the
+schema level rather than by convention.
+
+**Nothing in `nexgen_engine/` recognition code is modified.** No retraining, no
+threshold changes, no new datasets, no re-benchmarking of the baseline.
+
+---
+
+## 7. Module layout
 
 ```
 backend/nexgen_engine/enhancement/
@@ -470,7 +588,7 @@ a measurement says otherwise (ROADMAP §12f).
 
 ---
 
-## 7. Roadmap — investigator value first
+## 8. Roadmap — investigator value first
 
 | Phase | Deliverable | Gate |
 |---|---|---|
@@ -483,10 +601,14 @@ a measurement says otherwise (ROADMAP §12f).
 | **E6** *(4d)* | Video: PyAV I-frame demux, field separation, tracking, frame selection. Diffusion tier (ResShift, DifFace) + §5b seed variance. Measure DiffBIR/StableSR on 6 GB | I-frame preference measured against naive frame grab |
 | **E7** *(5d)* | ★ Multi-frame registration + robust fusion, **fuse-then-restore** ordering, §5d agreement | Measured detail gain over the best single frame on controlled multi-frame capture |
 | **E8** *(3d)* | Report integration: `draw_enhanced_pair`, methodology + limitations sections, audit lines, synthesis fraction and identity drift in the PDF | Report states model, version, parameters, synthesis fraction, drift |
-| **E9** *(4d)* | **Recognition benchmarking.** Full SCface / TinyFace sweep: original vs each Track A stage vs each Track B model | ROADMAP §10.3 decision point — see the pre-registered gate below |
+| **E9** *(1d + GPU)* | **Recognition benchmarking — reuse, don't rebuild.** Register enhancement arms in the existing `ARMS` dict; add batched enhance-then-embed VRAM sequencing and the enhanced-image cache to `run_gpu.py`. Run against the **already-measured arm-A baseline** on SCface D1–D3, TinyFace, QMUL | ROADMAP §10.3 decision point — see the pre-registered gate below |
 | **E10** *(3d)* | Async job queue, batch, GPU throughput tuning | p95 latency measured and published |
 
-≈ 43 working days. **Milestone 1 lands at E4 (≈ 20 days).** E5 follows
+≈ **39 working days**, down from 43 — E9 drops from 4 days to 1 because §6a
+means writing arm functions plus a VRAM-sequencing change, not building a sweep.
+GPU hours are additional and are the real cost there.
+
+**Milestone 1 lands at E4 (≈ 20 days).** E5 follows
 immediately because shipping generative output without the synthesis measurement
 would breach Core Principle 7.
 
@@ -503,7 +625,7 @@ recognition gain are different claims, and only the second one is gated.
 
 ---
 
-## 8. What this design will not do
+## 9. What this design will not do
 
 * Put an enhanced image into the chain-of-custody hash or the LR computation.
 * Present enhanced output without the original beside it and the label
@@ -513,10 +635,12 @@ recognition gain are different claims, and only the second one is gated.
 * Claim bit-exact reproducibility across heterogeneous hardware — it defines a
   canonical mode instead.
 * Move the `torch==2.5.1+cu121` pin.
+* Retrain, fine-tune, re-threshold or otherwise modify the recogniser; add new
+  recognition datasets; or re-measure the arm-A baseline that already exists.
 
 ---
 
-## 9. Open questions
+## 10. Open questions
 
 1. **Video ingestion is now on the critical path.** §2a (I-frame preference) and
    §3 (multi-frame fusion) are the two largest quality levers and both need

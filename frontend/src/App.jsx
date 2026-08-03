@@ -84,6 +84,9 @@ const BatchComparePage = lazy(() =>
 const EnrolPage = lazy(() =>
   import("./workspace/EnrolPage").then((m) => ({ default: m.EnrolPage }))
 );
+const EnhancementPage = lazy(() =>
+  import("./workspace/EnhancementPage").then((m) => ({ default: m.EnhancementPage }))
+);
 const AuditPage = lazy(() =>
   import("./workspace/AuditPage").then((m) => ({ default: m.AuditPage }))
 );
@@ -188,6 +191,7 @@ export default function App() {
             <Route index element={<CaseListPage />} />
             <Route path="cases/:caseId" element={<CaseDetailPage />} />
             <Route path="search" element={<SearchPage />} />
+            <Route path="enhance" element={<EnhancementPage />} />
             <Route path="verify" element={<VerifyPage />} />
             <Route path="batch-compare" element={<BatchComparePage />} />
             <Route

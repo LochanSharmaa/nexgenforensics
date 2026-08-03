@@ -189,6 +189,22 @@ class Settings(BaseSettings):
     storage_root: str = "./runtime/storage"
     max_upload_mb: int = 15
 
+    # --------------------------------------------------------- enhancement --
+    # Forensic image enhancement. ON by default for the deterministic track:
+    # deblocking, denoising and tone mapping invent nothing, and an investigator
+    # looking at a 30-pixel face needs them.
+    enhancement_enabled: bool = True
+    # Generative restoration is a SEPARATE decision and defaults off. Track B
+    # synthesises detail from a learned prior; on a low-resolution face a large
+    # fraction of the output is the generator rather than the subject. Enabling
+    # it is a policy choice for the deployment, and every use of it is recorded
+    # with the model and version that produced it.
+    enhancement_reconstruction_enabled: bool = False
+    enhancement_cache_root: str = "./runtime/enhancement_cache"
+    # "auto" uses the GPU only when an allocation actually succeeds on it, the
+    # same probe-don't-trust rule the recognition runtime applies.
+    enhancement_device: str = "auto"
+
     # ----------------------------------------------------------- bootstrap --
     seed_tenant: str = "nexgen-demo"
     seed_admin_email: str = "admin@example.com"
@@ -264,6 +280,10 @@ class Settings(BaseSettings):
     @property
     def storage_path(self) -> Path:
         return self._resolve(self.storage_root)
+
+    @property
+    def enhancement_cache_path(self) -> Path:
+        return self._resolve(self.enhancement_cache_root)
 
     @property
     def audit_path(self) -> Path:

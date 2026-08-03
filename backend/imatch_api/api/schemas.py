@@ -511,6 +511,96 @@ class EngineStatusResponse(BaseModel):
     gallery: dict[str, int]
 
 
+class EnhancementRequest(BaseModel):
+    """Enhance one image for visual examination.
+
+    ``allow_reconstruction`` is a request, never a grant. The deployment flag
+    NEXGEN_ENHANCEMENT_RECONSTRUCTION_ENABLED has to be on as well: a caller can
+    decline generative restoration but cannot enable it for itself.
+
+    ``disabled_stages`` lets an examiner drop a stage the planner selected. The
+    drop is recorded as a skip with its reason, so an override appears in the
+    report rather than looking like the planner never considered the stage.
+    """
+
+    image_base64: str
+    case_id: str | None = None
+    allow_reconstruction: bool | None = None
+    lawful_basis: str = Field(default="", max_length=500)
+    overrides: dict[str, str] = Field(default_factory=dict)
+    disabled_stages: list[str] = Field(default_factory=list)
+
+
+class EnhancementAnalysisResponse(BaseModel):
+    """Measurement only. No pixels are produced and nothing is stored."""
+
+    profile: dict[str, Any]
+    metrics: dict[str, Any]
+    recommended_plan: dict[str, Any]
+    notes: list[str]
+
+
+class EnhancementResponse(BaseModel):
+    """One completed enhancement.
+
+    ``label`` is not decoration. A reconstructed image may be displayed only
+    beside its original and only with this text, which is the constraint
+    report_pdf.draw_enhanced_pair() enforces at render time.
+    """
+
+    enhancement_id: str
+    case_id: str | None = None
+    track: str
+    label: str
+    original_sha256: str
+    enhanced_sha256: str
+    ruleset_version: str
+    plan: dict[str, Any]
+    stages: list[dict[str, Any]]
+    metrics_before: dict[str, Any]
+    metrics_after: dict[str, Any]
+    warnings: list[str]
+    device: str
+    total_ms: int
+    served_from_cache: bool
+    created_at: str
+    audit_hash: str
+
+
+class EnhancementRecogniseRequest(BaseModel):
+    top_k: int = Field(default=10, ge=1, le=100)
+    lawful_basis: str = Field(default="", max_length=500)
+    purpose: str = Field(default="", max_length=500)
+
+
+class RecognitionSide(BaseModel):
+    """One side of the A/B comparison."""
+
+    source_kind: str
+    search_id: str | None = None
+    decision: str
+    confidence: float
+    explanation: str
+    candidates: list[CandidateResponse]
+    probe: ProbeAssessment | None = None
+    error: str = ""
+
+
+class EnhancementRecogniseResponse(BaseModel):
+    """Original and enhanced searched side by side.
+
+    ``primary`` names the side that is authoritative, and it is always
+    ``original``. The enhanced result is offered for comparison; it does not
+    replace the evidence and does not enter the case record on its own.
+    """
+
+    enhancement_id: str
+    primary: str = "original"
+    original: RecognitionSide
+    enhanced: RecognitionSide
+    caution: str
+
+
 class HealthResponse(BaseModel):
     status: str
     version: str
@@ -536,9 +626,15 @@ __all__ = [
     "CreateUserRequest",
     "CreatedApiKeyResponse",
     "EngineStatusResponse",
+    "EnhancementAnalysisResponse",
+    "EnhancementRecogniseRequest",
+    "EnhancementRecogniseResponse",
+    "EnhancementRequest",
+    "EnhancementResponse",
     "EnrolRequest",
     "EnrolResponse",
     "HealthResponse",
+    "RecognitionSide",
     "LoginRequest",
     "ProbeAssessment",
     "RefreshRequest",

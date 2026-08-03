@@ -584,6 +584,89 @@ export function adjudicateCandidate(candidateId, adjudication, examinerNotes = "
   });
 }
 
+// ----------------------------------------------------------- enhancement ---
+
+/**
+ * Forensic image enhancement. The contract mirrors the server's rules:
+ *
+ *   - the ORIGINAL is always primary; the enhanced image is an analysis
+ *     intermediate and every response says which is which;
+ *   - `track` is "restored" (deterministic only) or "reconstructed" (a learned
+ *     prior contributed pixels), and reconstructed images carry a label that
+ *     the UI must keep visible;
+ *   - analysis is free of side effects — nothing stored, nothing audited — so
+ *     it is safe to call on every upload for a live preview of the plan.
+ */
+
+export function fetchEnhancementStatus() {
+  return request("/api/imatch/enhance/status");
+}
+
+export async function analyzeForEnhancement({ file, imageBase64 }) {
+  const image_base64 = imageBase64 ?? (await fileToBase64(file));
+  return request("/api/imatch/enhance/analyze", {
+    method: "POST",
+    body: { image_base64 },
+  });
+}
+
+export async function runEnhancement({
+  file,
+  imageBase64,
+  caseId = null,
+  lawfulBasis = "",
+  allowReconstruction = null,
+  disabledStages = [],
+}) {
+  const image_base64 = imageBase64 ?? (await fileToBase64(file));
+  return request("/api/imatch/enhance", {
+    method: "POST",
+    body: {
+      image_base64,
+      case_id: caseId,
+      lawful_basis: lawfulBasis,
+      allow_reconstruction: allowReconstruction,
+      disabled_stages: disabledStages,
+    },
+  });
+}
+
+export function getEnhancement(enhancementId) {
+  return request(`/api/imatch/enhance/${encodeURIComponent(enhancementId)}`);
+}
+
+/**
+ * Image bytes for either side of the pair, as an object URL for <img>.
+ *
+ * A direct fetch rather than request(): the body is binary, and the generic
+ * helper would decode it as text and corrupt it. The caller owns the returned
+ * URL and must revoke it when done, same as any object URL.
+ */
+export async function fetchEnhancementImage(enhancementId, variant = "enhanced") {
+  const response = await fetch(
+    `${IMATCH_BASE}/api/imatch/enhance/${encodeURIComponent(enhancementId)}/image?variant=${variant}`,
+    {
+      headers: tokenStore.access ? { Authorization: `Bearer ${tokenStore.access}` } : {},
+      credentials: "include",
+    },
+  );
+  if (!response.ok) {
+    if (response.status === 401) tokenStore.clear();
+    throw new ApiError(`Could not load the ${variant} image (HTTP ${response.status}).`, {
+      status: response.status,
+    });
+  }
+  return URL.createObjectURL(await response.blob());
+}
+
+/** A/B: search the gallery with the original AND the enhanced image. */
+export function recogniseEnhancement(enhancementId, { lawfulBasis = "", topK = 10, purpose = "" } = {}) {
+  return request(`/api/imatch/enhance/${encodeURIComponent(enhancementId)}/recognise`, {
+    method: "POST",
+    body: { lawful_basis: lawfulBasis, top_k: topK, purpose },
+  });
+}
+
 // ------------------------------------------------------------ audit/engine ---
 
 export function listAuditRecords(params = {}) {

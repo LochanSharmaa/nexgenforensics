@@ -240,6 +240,18 @@ class SearchRun(SQLModel, table=True):
     audit_hash: str = ""
     created_at: datetime = Field(default_factory=utcnow, index=True)
 
+    # --- provenance of the probe that produced this run ------------------
+    # A search run against an ENHANCED probe must be distinguishable from one
+    # against the original, in the schema rather than by convention, because a
+    # report that cannot state which image produced a match is not defensible.
+    #
+    #   original       the evidence as received  (the default, and the only
+    #                  value that ever reaches a case record unadjudicated)
+    #   restored       Track A: deterministic processing, no synthesised detail
+    #   reconstructed  Track B: a learned prior contributed to the pixels
+    source_kind: str = Field(default="original", index=True)
+    enhancement_run_id: str | None = Field(default=None, foreign_key="enhancement_runs.id", index=True)
+
 
 class Candidate(SQLModel, table=True):
     """One ranked result within a search run, plus its examiner verdict."""
@@ -304,6 +316,60 @@ class ReportNarrative(SQLModel, table=True):
     generated_by: str = ""
 
 
+class EnhancementRun(SQLModel, table=True):
+    """One enhancement of one image. The original is untouched and still primary.
+
+    THE ORIGINAL IS NEVER REPLACED. ``original_sha256`` and ``original_path``
+    point at the bytes as received; ``enhanced_path`` is a separate object in a
+    separate storage category. Nothing in this table gives an enhanced image the
+    standing of evidence -- it records that an analysis intermediate was
+    produced, from what, by what, and with what result.
+
+    ``track`` is the field a report reads to decide how the output must be
+    labelled:
+
+        restored       deterministic operations only; no synthesised detail
+        reconstructed  a learned prior contributed pixels, and the image may be
+                       shown only beside its original and only labelled as a
+                       reconstruction
+
+    ``plan_json`` carries the stages that were selected AND the stages that were
+    considered and skipped, each with its reason. That is what makes the
+    processing explainable rather than merely logged.
+    """
+
+    __tablename__ = "enhancement_runs"
+    __table_args__ = (Index("ix_enhancement_tenant_created", "tenant_id", "created_at"),)
+
+    id: str = Field(default_factory=_uuid, primary_key=True)
+    tenant_id: str = Field(foreign_key="tenants.id", index=True)
+    case_id: str | None = Field(default=None, foreign_key="cases.id", index=True)
+    operator_id: str = Field(foreign_key="users.id", index=True)
+
+    original_sha256: str = Field(default="", index=True)
+    original_path: str = ""
+    enhanced_sha256: str = Field(default="", index=True)
+    enhanced_path: str = ""
+
+    track: str = Field(default="restored", index=True)
+    ruleset_version: str = ""
+    plan_cache_key: str = Field(default="", index=True)
+
+    plan_json: str = "{}"
+    stages_json: str = "[]"
+    metrics_before_json: str = "{}"
+    metrics_after_json: str = "{}"
+    warnings_json: str = "[]"
+
+    device: str = ""
+    total_ms: int = 0
+    served_from_cache: bool = False
+
+    lawful_basis: str = ""
+    audit_hash: str = ""
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+
+
 class AuditRecord(SQLModel, table=True):
     """Append-only, hash-chained record of every consequential action.
 
@@ -353,6 +419,7 @@ __all__ = [
     "Candidate",
     "Case",
     "CaseStatus",
+    "EnhancementRun",
     "Role",
     "SearchRun",
     "Subject",
