@@ -9,6 +9,7 @@ the migration integration test instead.
 from __future__ import annotations
 
 import asyncio
+import os
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 
@@ -30,10 +31,40 @@ from database.base import Base
 from database.models import User
 from database.repositories import UserRepository
 from shared.clock import FrozenClock
-from shared.config import Settings
+from shared.config import Settings, reset_settings_cache
 from shared.storage import FilesystemObjectStore
 
 TEST_PASSWORD = "investigator-pass-123"
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _isolate_from_developer_configuration():
+    """Keep the developer's own `.env` out of the test run.
+
+    `Settings` reads `.env` by default, which is right for the application and
+    wrong for a test suite: it makes the result depend on the machine. The
+    concrete damage was that once a real `IIE_GEMINI_API_KEY` was configured
+    locally, three tests asserting the *unconfigured* behaviour began to fail,
+    and — worse — the API-level ones started making live, billable calls to
+    Gemini on every run. A suite that spends money and fails depending on who
+    runs it is not testing the code.
+
+    The key is cleared from the ambient environment for the same reason. Other
+    `IIE_` variables are left alone: CI sets `IIE_ENVIRONMENT=test` deliberately,
+    and this fixture's job is to remove accidental influence, not deliberate
+    configuration.
+    """
+    original_env_file = Settings.model_config.get("env_file")
+    Settings.model_config["env_file"] = None
+    original_key = os.environ.pop("IIE_GEMINI_API_KEY", None)
+    reset_settings_cache()
+    try:
+        yield
+    finally:
+        Settings.model_config["env_file"] = original_env_file
+        if original_key is not None:
+            os.environ["IIE_GEMINI_API_KEY"] = original_key
+        reset_settings_cache()
 
 
 @pytest.fixture(scope="session")
