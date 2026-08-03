@@ -226,10 +226,25 @@ ungated, 880 MB), wrapped in
 `get_feat` interface. Two integration defects were found by the validation
 gate and fixed:
 
-| defect | observed | fix |
-|---|---|---|
-| Upstream `rpe_ops/setup.py` strands the process cwd on its no-CUDA_HOME failure path | `FileNotFoundError` on a file that exists | bypass the repo wrapper; absolute paths; cwd restored in `finally` |
-| KP-RPE keypoints are **[0, 1]-normalised**, not pixel units | pixel units: LFW **56.70%** (near chance, silently); [-1,1]: 98.30% — plausible and still wrong | canonical template / 112; measured 3-way comparison recorded in the module docstring |
+| # | defect | observed | fix |
+|---|---|---|---|
+| 9a | Upstream `rpe_ops/setup.py` strands the process cwd on its no-CUDA_HOME failure path | `FileNotFoundError` on a file that demonstrably exists | bypass the repo wrapper; absolute paths; cwd restored in `finally` |
+| 9b | KP-RPE keypoints are **[0, 1]-normalised**, not pixel units | pixel units: LFW **56.70%** (near chance, silently); [-1,1]: 98.30% — plausible and still wrong | canonical template / 112; 3-way comparison in the module docstring |
+| **10** | **Canonical keypoints fed to KP-RPE on crops that are not ArcFace-aligned** | TinyFace TAR@FAR=0.1% **15.19% — BELOW the R50 incumbent.** Withdrawn, archived as `capacity_official_tinyface_vit_UNALIGNED_WITHDRAWN.json` | run the published CVLface path: DFA aligner → aligned crop + that image's own predicted landmarks. Worth **+51 points** |
+
+**Defect 10 is the important one, and the LFW gate could not catch it.** `.bin`
+pack crops *are* ArcFace-aligned, so canonical keypoints are correct there —
+LFW passed at 99.75% while the assumption was false for every surveillance
+corpus, whose crops are detector crops with margin. Feeding canonical positions
+to KP-RPE on those is not an approximation; it is false information supplied
+directly to the attention mechanism.
+
+**The generalisable lesson: a gate that validates tensor plumbing does not
+validate a semantic assumption.** Both defects are now contract-tested in
+`backend/tests_engine/test_vit_backbone_contract.py` (7 tests, no GPU or weights
+required), including an assertion that alignment stays the DEFAULT path — if it
+ever becomes opt-in, degraded-imagery numbers regress ~50 points while still
+looking plausible.
 
 **Preprocessing gate (required before any evaluation): PASSED.**
 LFW 10-fold **99.75% ± 0.23**, TAR@FAR=0.1% 99.70%, against the CVLface
@@ -238,8 +253,102 @@ board's ~99.8 (uncited caveat as §1). Artifact:
 because the first run failed it at 56.70% — an error that would otherwise have
 silently capped every downstream number.
 
-TinyFace and QMUL embeddings under model key `vit_kprpe_wf12m` are in
-progress; the head-to-head against `w600k_r50` (same protocols, same reference
-populations, one variable) is the test of §5's central claim that
-discrimination, not calibration, is the binding constraint.
+### Head-to-head, TinyFace official protocol
+
+Same protocol, same 153,428-image reference population, same 50M impostor pool,
+same metrics. One variable: the backbone. Artifacts
+`capacity_official_tinyface__w600k_r50.json` and
+`capacity_official_tinyface__vit_kprpe_wf12m.json`.
+
+| metric | `w600k_r50` | **`vit_kprpe_wf12m`** | ratio |
+|---|---|---|---|
+| TAR @ FAR=1% | 35.55% | **70.69%** | 2.0× |
+| TAR @ FAR=0.1% | 20.59% | **60.77%** | 3.0× |
+| TAR @ FAR=0.01% | 12.07% | **48.62%** | 4.0× |
+| TAR @ FAR=1e-5 | 7.38% | **35.03%** | 4.7× |
+| rank-1 (155,997 gallery) | 32.93% | **68.20%** | 2.1× |
+| rank-100 | 51.67% | **75.60%** | |
+| identity bits, median | 4.73 | **12.95** | +8.2 bits |
+| identity bits, p20 | 1.89 | **3.32** | |
+| supportable gallery @50% rank-1 | 13 | **3,965** | 305× |
+| supportable gallery @80% rank-1 | 2 | **5** [CI 4–6] | |
+| Cllr | 0.6662 | **0.4920** | |
+| Cllr_cal (recoverable) | 0.0040 (0.6%) | 0.0148 (3.0%) | |
+
+**The ratio widens as FAR tightens** — 2.0× at 1%, 4.7× at 1e-5 — which is the
+signature of genuinely better non-mate separation rather than a threshold shift.
+
+**This settles §5's central claim.** Calibration was exhausted (Cllr_cal 0.6%);
+the deficit was discrimination; a better backbone moved every discrimination
+metric by 2–5× while barely touching the calibration residual. The capacity
+framework called this correctly *before* the swap.
+
+**Two caveats.** (a) Censoring rose from 2.0% to **13.1%** — 13% of genuine
+pairs now out-score all 50M impostors, so the ViT's true capacity is *higher*
+than the 12.95-bit median states; the estimator is at its ceiling again and a
+larger pool would be needed to resolve it. (b) rank-1 68.20% is on our
+155,997-entry gallery, not the standard TinyFace identification protocol, so it
+is not comparable to the published 76.10 R1 for this checkpoint.
+
+**Defect 11 (tooling).** `measure_capacity_official.py` wrote
+`capacity_official_<dataset>.json` with no model key, so each backbone's run
+destroyed the previous one's artifact; the R50 result was overwritten twice and
+survived only because it had been transcribed here. Fixed — the model key is now
+in the filename — and both R50 baselines were regenerated, reproducing their
+recorded values exactly (TinyFace rank-1 32.93%, Cllr 0.6662; QMUL rank-1 2.68%,
+TPIR 0.00%), which also confirms the harness is deterministic.
+
+### Head-to-head, QMUL official open-set protocol — the decisive test
+
+Artifacts `capacity_official_qmul__w600k_r50.json` and
+`capacity_official_qmul__vit_kprpe_wf12m.json`. Gallery 2,965 enrolled;
+1,844 sampled unmated probes are genuine strangers by protocol.
+
+| metric | `w600k_r50` | **`vit_kprpe_wf12m`** | ratio |
+|---|---|---|---|
+| TAR @ FAR=1% | 8.68% | **17.06%** | 2.0× |
+| TAR @ FAR=0.1% | 2.31% | **4.98%** | 2.2× |
+| TAR @ FAR=1e-5 | 0.11% | **0.34%** | 3.1× |
+| rank-1 | 2.68% | **6.06%** | 2.3× |
+| identity bits, median | 2.21 | **2.92** | +0.7 |
+| Cllr | 0.9047 | **0.8400** | |
+| **TPIR @ 1% FPIR** | **0.00%** | **0.00%** | **unchanged** |
+| TPIR @ 10% FPIR | 0.17% | 0.78% | 4.6× |
+
+**Verification improved 2–3×. Stranger rejection did not move at all.**
+
+The mechanism, measured directly (supplementary run, 2,377 mated / 3,623
+unmated probes against the same gallery):
+
+| backbone | mean top-1 score, mated probe | mean top-1 score, **stranger** | gap |
+|---|---|---|---|
+| `w600k_r50` | +0.5703 | +0.5705 | **−0.0002** |
+| `vit_kprpe_wf12m` | +0.4782 | +0.4771 | **+0.0011** |
+
+**The maximum-over-gallery score carries essentially zero information about
+whether the probe's identity is enrolled at all.** With 2,965 gallery entries
+and 25-pixel faces there is always *somebody* who resembles a stranger as
+closely as the true mate resembles its own probe. No threshold can separate
+distributions whose means differ by 0.001.
+
+**Why this was predictable, and why it matters.** The capacity analysis said
+QMUL delivers a **2.92-bit** median observation. A 2,965-entry gallery demands
+**≈11.5 bits**. The system is short by a factor of ~2⁸·⁶, so ranking degrades
+gracefully (rank-1 doubles with a better backbone) while *thresholded* open-set
+identification stays at zero. **The capacity framework predicted this before
+the swap, and the swap confirmed it** — which is the strongest evidence so far
+that capacity-in-bits is a genuinely predictive instrument rather than a
+descriptive statistic.
+
+**The consequence for the programme.** A better backbone is *necessary and not
+sufficient*. It bought a 2–5× improvement everywhere on TinyFace and 2–3× on
+QMUL verification, but the operationally decisive capability — telling an
+investigator "this person is not in your gallery" — remains at 0.00% on real
+cross-camera surveillance. That is not a model deficiency that a better model
+fixes; at 2.9 bits against an 11.5-bit gallery it is an information deficit.
+The routes that address it are more evidence per subject (multi-frame,
+multi-modal) or a smaller declared gallery — not a larger network.
+
+QMUL censoring is **0.000%**, so unlike TinyFace (13.1%) these bit figures are
+fully resolved and not a floor.
 

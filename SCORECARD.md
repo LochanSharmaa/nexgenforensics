@@ -4,7 +4,7 @@ Written to the same standard as BENCHMARKS.md: plain, factual, no promotional
 language. Every "verified" line names the check that produced it. Anything not
 verified is listed as a limitation, not omitted.
 
-**As of 2026-07-31, with limitations L3/L3a/L3b/L9/L11/L12 and item 8 revised
+**As of 2026-07-31, with limitations L3/L3a/L3b/L3c/L9/L11/L12 and item 8 revised
 2026-08-02** after the GPU measurement campaign (`docs/MEASUREMENT_RECORD.md`).
 Deployed model `buffalo_l` / `w600k_r50` on CUDA, thresholds 0.2871 / 0.2153 /
 0.2871.
@@ -15,7 +15,7 @@ Deployed model `buffalo_l` / `w600k_r50` on CUDA, thresholds 0.2871 / 0.2153 /
 
 | Check | Command | Result |
 |---|---|---|
-| Engine tests | `pytest backend/tests_engine/` | **136 passed** (was 112; +24 regression tests added 2026-08-02) |
+| Engine tests | `pytest backend/tests_engine/` | **144 passed** (was 112; +32 regression/contract tests added 2026-08-02) |
 | Accuracy + config regression | `python backend/scripts/regression_check.py` | **PASS** (5 datasets) |
 | GPU binding | `python scripts/verify_gpu.py` | **PASS** (12/12, genuinely CUDA) |
 
@@ -88,7 +88,8 @@ Deployed model `buffalo_l` / `w600k_r50` on CUDA, thresholds 0.2871 / 0.2153 /
 | **L1** | **Not deployed and cannot be, as configured.** No hosted backend; `vercel.json`'s catch-all rewrite returns 405 on POST and its CSP blocks `http://`. Everything above is verified locally only. |
 | **L2** | **No independent validation.** Every number was produced by the same person and tooling that built the system, on public academic datasets. |
 | **L3** | **Degraded-footage performance is weak — and worse than this row previously said.** The 82.45% / 33.13% figures came from a self-constructed pair list. On TinyFace's **official** Gallery_Match × Probe split against a 153,428-image protocol reference population: **TAR@FAR=0.1% = 20.59%**, rank-1 **32.93%** on a 155,997-entry gallery. On QMUL-SurvFace's official open-set protocol it collapses further: **TAR@FAR=0.1% = 2.31%**, rank-1 2.68%, and **TPIR = 0.00% at 1% FPIR** against 1,844 true unmated probes. Leads for human review, never identifications. See `docs/MEASUREMENT_RECORD.md` §2. |
-| **L3a** | **The system cannot reject strangers on real surveillance imagery.** TPIR 0.00% @ 1% FPIR (QMUL, measured with genuine non-mates) is the operationally decisive number and had never been measured before 2026-08-02. TinyFace *structurally cannot* measure it — every one of its probe identities is enrolled. |
+| **L3a** | **The system cannot reject strangers on real surveillance imagery, and a better backbone does not fix it.** TPIR **0.00% @ 1% FPIR** (QMUL, 1,844 genuine non-mates) — identical for stock ArcFace R50 *and* for ViT-B KP-RPE, even though the latter improved QMUL verification 2–3× and rank-1 2.3×. Measured cause: the mean top-1 gallery score for a stranger and for an enrolled probe differ by **0.001** (R50: 0.5705 vs 0.5703 — strangers score *higher*). No threshold separates them. This is an information deficit, not a model deficit: QMUL delivers ~2.9 identity bits against a gallery demanding ~11.5. TinyFace *structurally cannot* measure this — every probe identity is enrolled. |
+| **L3c** | **The binding constraint was confirmed by fixing it.** Swapping the stock ArcFace R50 for CVLface ViT-B + KP-RPE + AdaFace (WebFace12M), same TinyFace official protocol and same 153,428-image reference population, moved **TAR@FAR=0.1% 20.59% → 60.77%**, rank-1 **32.93% → 68.20%**, identity bits median **4.73 → 12.95**, and supportable gallery at 50% rank-1 **13 → 3,965**. Cllr fell 0.6662 → 0.4920 while the *calibration* residual stayed near zero — exactly what "discrimination-limited" predicts. `docs/MEASUREMENT_RECORD.md` §7. Two integration defects had to be fixed first, both silent: KP-RPE keypoints are [0,1]-normalised (pixel units cost ~40 points on LFW), and surveillance crops must go through the DFA aligner (canonical keypoints on unaligned crops cost ~51 points and put the ViT *below* the R50). |
 | **L3b** | **Identity information is the binding constraint, confirmed three independent ways.** Cllr decomposition (Cllr_cal ≤ 0.6% of loss on both corpora — calibration is exhausted), capacity in bits (TinyFace median 4.73, QMUL 2.21; supportable gallery at 80% rank-1 ≈ 2 and ≈ 1 respectively), and open-set TPIR. No evidence-layer work moves these; only a better recognition model does. |
 | **L4** | `frontend/dist` is force-added to a gitignored path — tracked copy drifts from source. Decide: untrack and build on deploy, or keep force-adding. |
 | **L5** | **Demographic differentials persist.** Women 1.7× the FNMR of men, under-25s 3.8× the 41–55 band. Raising the threshold relocated the errors; it did not remove the gap. |

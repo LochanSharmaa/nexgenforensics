@@ -49,7 +49,7 @@ from nexgen_engine.models.cvlface_aligner import DfaAligner  # noqa: E402
 _ROOT = _BACKEND.parent
 CACHE = _ROOT / "runtime" / "benchmarks" / "embeddings"
 OUT = _ROOT / "runtime" / "forensics"
-MODEL_KEY = "vit_kprpe_wf12m"
+MODEL_KEY = "vit_kprpe_wf12m"  # overridden to *_lora_<tag> when --lora is given
 TF = _ROOT / "src_extracted/tinyface/tinyface/Testing_Set"
 QMUL_ID = Path("C:/Users/hello/Downloads/QMUL-SurvFace-v1/QMUL-SurvFace/Face_Identification_Test_Set")
 TF_RE = re.compile(r"^(\d+)_\d+\.jpg$", re.IGNORECASE)
@@ -236,7 +236,14 @@ def main() -> int:
     ap.add_argument("--batch", type=int, default=64)
     ap.add_argument("--no-align", action="store_true",
                     help="skip the DFA aligner (only valid for pre-aligned packs)")
+    ap.add_argument("--lora", default=None,
+                    help="path to a LoRA adapter; results are cached under a distinct model key")
     args = ap.parse_args()
+    global MODEL_KEY
+    if args.lora:
+        # Distinct key so fine-tuned results can never overwrite the base
+        # backbone's artifacts -- the defect-11 lesson.
+        MODEL_KEY = f"vit_kprpe_{Path(args.lora).stem}"
     CACHE.mkdir(parents=True, exist_ok=True)
 
     global _ALIGNER
@@ -244,7 +251,7 @@ def main() -> int:
         _ALIGNER = DfaAligner(batch_size=args.batch)
         print("aligner: DFA mobilenet (aligned pipeline)")
 
-    model = CvlfaceViTKprpe(batch_size=args.batch)
+    model = CvlfaceViTKprpe(batch_size=args.batch, lora_path=args.lora)
     print(f"backbone: {model.provider_label}")
     return {"lfw": stage_lfw, "tinyface": stage_tinyface, "qmul": stage_qmul}[args.stage](model, args.batch)
 

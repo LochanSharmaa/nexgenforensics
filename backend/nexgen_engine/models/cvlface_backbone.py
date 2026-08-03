@@ -93,11 +93,47 @@ def _snapshot_dir() -> Path:
     return sorted(candidates)[-1]
 
 
-class CvlfaceViTKprpe:
-    """Minimal inference wrapper with the insightface `get_feat` interface."""
+class LoRALinear:  # noqa: D101 - defined dynamically below to avoid a torch import at module scope
+    pass
 
-    def __init__(self, device: str | None = None, batch_size: int = 64):
+
+def _make_lora_cls():
+    import torch
+    import torch.nn as nn
+    import torch.nn.functional as F
+
+    class _LoRALinear(nn.Module):
+        """y = W0 x + (alpha/r) B A x, with W0 frozen. Mirrors train_lora.py."""
+
+        def __init__(self, base, r=8, alpha=16):
+            super().__init__()
+            self.base = base
+            for p in self.base.parameters():
+                p.requires_grad = False
+            self.A = nn.Parameter(torch.randn(r, base.in_features) * 0.01)
+            self.B = nn.Parameter(torch.zeros(base.out_features, r))
+            self.scale = alpha / r
+
+        def forward(self, x):
+            return self.base(x) + F.linear(F.linear(x, self.A), self.B) * self.scale
+
+    return _LoRALinear
+
+
+class CvlfaceViTKprpe:
+    """Minimal inference wrapper with the insightface `get_feat` interface.
+
+    ``lora_path`` loads a LoRA adapter trained by scripts/train_lora.py. The
+    injection must reproduce train-time module targeting exactly -- the adapter
+    is stored by parameter name, so a mismatch surfaces as missing/unexpected
+    keys rather than as silently wrong embeddings, which is why the load is
+    strict.
+    """
+
+    def __init__(self, device: str | None = None, batch_size: int = 64,
+                 lora_path: str | Path | None = None):
         import torch
+        import torch.nn as nn
 
         self.batch_size = batch_size
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
@@ -129,11 +165,39 @@ class CvlfaceViTKprpe:
         finally:
             os.chdir(caller_cwd)
 
+        self.lora_path = str(lora_path) if lora_path else None
+        if lora_path:
+            ck = torch.load(lora_path, map_location="cpu")
+            LoRA = _make_lora_cls()
+            n_inj = 0
+            for mod in self.model.modules():
+                for name, child in list(mod.named_children()):
+                    if isinstance(child, nn.Linear) and name in ("qkv", "proj", "fc1", "fc2"):
+                        setattr(mod, name, LoRA(child, r=ck["rank"], alpha=ck["alpha"]))
+                        n_inj += 1
+            missing, unexpected = self.model.load_state_dict(ck["lora"], strict=False)
+            got = [k for k in ck["lora"]]
+            loaded = [k for k in got if k not in unexpected]
+            if len(loaded) != len(got):
+                raise RuntimeError(
+                    f"LoRA adapter did not apply cleanly: {len(got)-len(loaded)} of "
+                    f"{len(got)} tensors unmatched. Injection targets differ from training."
+                )
+            self.model.eval().to(self.device)
+            self._lora_info = {"layers": n_inj, "tensors": len(got),
+                               "rank": ck["rank"], "epoch": ck.get("epoch")}
+        else:
+            self._lora_info = None
+
         self._torch = torch
         self._canonical = torch.from_numpy(ARCFACE_5PTS).to(self.device)
 
     @property
     def provider_label(self) -> str:
+        if self._lora_info:
+            i = self._lora_info
+            return (f"cvlface_vit_kprpe+lora_r{i['rank']}@ep{i['epoch']} "
+                    f"({i['layers']} layers, {self.device})")
         return f"cvlface_vit_kprpe ({self.device})"
 
     def get_feat(self, images: list[np.ndarray], keypoints: np.ndarray | None = None) -> np.ndarray:

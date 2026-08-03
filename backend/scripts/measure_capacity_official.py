@@ -237,7 +237,14 @@ def main() -> int:
         "calibration": cv.as_dict(),
         "supersedes": "capacity_real_gallery.json (non-official pairing, rank-1 inflated)",
     }
-    out = OUT / f"capacity_official_{args.dataset}.json"
+    # Model key is IN THE FILENAME. An earlier version wrote
+    # capacity_official_<dataset>.json regardless of backbone, so each run
+    # silently destroyed the previous model's result -- the w600k_r50 TinyFace
+    # artifact was overwritten twice before this was noticed, and its numbers
+    # survived only because they had already been transcribed into
+    # docs/MEASUREMENT_RECORD.md. A comparison harness that cannot hold two
+    # results at once is not a comparison harness.
+    out = OUT / f"capacity_official_{args.dataset}__{args.model}.json"
     out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     print(f"\nwrote {out.relative_to(_ROOT)}")
     return 0

@@ -257,7 +257,79 @@ def load_lfw_synth(n_pairs: int, seed: int, downsample: float = 8.0) -> tuple[li
     return G, P, np.array(lab, dtype=bool)
 
 
-LOADERS = {"tinyface": load_tinyface, "qmul": load_qmul, "lfw_synth": load_lfw_synth}
+
+def load_scface(n_pairs: int, seed: int, distance: int = 1) -> tuple[list, list, np.ndarray]:
+    """SCface: REAL mugshot vs REAL CCTV at a known standoff. The decisive test.
+
+    Every other S0.3 dataset is compromised for the asymmetric case:
+      lfw_synth  HR/LR asymmetry exists, but the degradation is OUR operator and
+                 arm B2r estimates a simplified form of it -- part of the +3.55
+                 margin may be the experiment recovering its own assumption.
+      tinyface   both sides low-resolution; no operator asymmetry to exploit.
+      qmul       same, and 100% cross-camera.
+
+    SCface has a genuine 1600x1200 mugshot gallery against real surveillance
+    cameras at three MEASURED distances, so it tests the forward-operator thesis
+    on optics nobody in this project chose:
+
+        distance 1 = 4.20 m   ~100x75 px   most degraded
+        distance 2 = 2.60 m   ~144x108 px
+        distance 3 = 1.00 m   ~224x168 px  least degraded
+
+    PRE-REGISTERED PREDICTION (DATA_ACQUISITION_REQUEST.md): if the thesis is
+    real, B2r-B1 must (a) clear +2.0 pts at distance 1 with CI excluding zero,
+    and (b) DECREASE monotonically as standoff shrinks -- the advantage should
+    track how much degradation there is to model. A flat or inverted ordering
+    refutes it even if a single distance passes, because a genuine mechanism
+    cannot be indifferent to the amount of degradation present.
+    """
+    root = _ROOT / "src_extracted/scface/SCface_database"
+    mug_dir = root / "mugshot_frontal_cropped_all"
+    sur_dir = root / f"surveillance_cameras_distance_{distance}"
+    if not (mug_dir.is_dir() and sur_dir.is_dir()):
+        raise SystemExit(f"SCface not found under {root}")
+
+    mugs: dict[str, Path] = {}
+    for f in mug_dir.glob("*"):
+        if f.suffix.lower() in (".jpg", ".jpeg", ".png"):
+            mugs[f.name.split("_")[0]] = f
+
+    sur: dict[str, list[Path]] = defaultdict(list)
+    for cam in sorted(p for p in sur_dir.iterdir() if p.is_dir()):
+        for f in cam.glob("*"):
+            if f.suffix.lower() in (".jpg", ".jpeg", ".png"):
+                sur[f.name.split("_")[0]].append(f)
+
+    subjects = sorted(set(mugs) & set(sur))
+    if len(subjects) < 2:
+        raise SystemExit("SCface: could not pair mugshots to surveillance by subject id")
+
+    rng = np.random.default_rng(seed)
+    gal, prb, lab = [], [], []
+    for _ in range(n_pairs // 2):
+        i = subjects[rng.integers(0, len(subjects))]
+        gal.append(mugs[i])
+        prb.append(sur[i][rng.integers(0, len(sur[i]))])
+        lab.append(True)
+        j = subjects[rng.integers(0, len(subjects))]
+        while j == i:
+            j = subjects[rng.integers(0, len(subjects))]
+        gal.append(mugs[i])
+        prb.append(sur[j][rng.integers(0, len(sur[j]))])
+        lab.append(False)
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        G = list(pool.map(_read, gal))
+        P = list(pool.map(_read, prb))
+    return G, P, np.array(lab, dtype=bool)
+
+
+LOADERS = {
+    "tinyface": load_tinyface,
+    "qmul": load_qmul,
+    "lfw_synth": load_lfw_synth,
+    "scface": load_scface,
+}
 
 
 # --------------------------------------------------------------------------- #
@@ -267,6 +339,8 @@ def main() -> int:
     ap.add_argument("--embedder", default="arcface", choices=["stub", "arcface"])
     ap.add_argument("--pairs", type=int, default=3000)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--distance", type=int, default=1, choices=[1, 2, 3],
+                    help="SCface standoff: 1=4.20m, 2=2.60m, 3=1.00m")
     ap.add_argument("--chunk", type=int, default=2500,
                     help="pairs held in memory at once; bounds peak RSS")
     args = ap.parse_args()
@@ -299,7 +373,10 @@ def main() -> int:
     for ci in range(n_chunks):
         take = min(chunk, args.pairs - ci * chunk)
         # Distinct seed per chunk so pairs are not re-drawn identically.
-        G, P, lab = LOADERS[args.dataset](take, args.seed + ci * 7919)
+        if args.dataset == "scface":
+            G, P, lab = load_scface(take, args.seed + ci * 7919, args.distance)
+        else:
+            G, P, lab = LOADERS[args.dataset](take, args.seed + ci * 7919)
         all_labels.append(lab)
         if not dims:
             dims = [(int(np.median([g.shape[0] for g in G])),
@@ -362,6 +439,7 @@ def main() -> int:
 
     payload = {
         "dataset": args.dataset,
+        "scface_distance_m": {1: 4.20, 2: 2.60, 3: 1.00}.get(args.distance) if args.dataset == "scface" else None,
         "embedder": embed_name,
         "n_pairs": int(labels.size),
         "decision_rule": DECISION,
@@ -378,7 +456,8 @@ def main() -> int:
         "decision_arm": "B2r",
         "arm_reports": reports,
     }
-    out = RESULTS / f"s0_3_{args.embedder}_{args.dataset}.json"
+    suffix = f"_d{args.distance}" if args.dataset == "scface" else ""
+    out = RESULTS / f"s0_3_{args.embedder}_{args.dataset}{suffix}.json"
     out.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
     print(f"wrote {out.relative_to(_ROOT)}")
     return 0
