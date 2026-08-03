@@ -61,7 +61,11 @@ NAME_RE = re.compile(r"^(\d+)_cam(\d+)_", re.IGNORECASE)
 
 
 def main() -> int:
-    ap_path = CACHE / "qmul_ident__w600k_r50.npz"
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--model", default="w600k_r50")
+    cli = ap.parse_args()
+    ap_path = CACHE / f"qmul_ident__{cli.model}.npz"
     if not ap_path.exists():
         raise SystemExit(f"missing {ap_path.name} -- run embed_qmul_ident.py first")
     OUT.mkdir(parents=True, exist_ok=True)
@@ -139,7 +143,7 @@ def main() -> int:
         print(f"    {k:<12} n={v['n']:>9,}  {v['mean_sim']:+.4f}")
 
     payload = {
-        "model": "w600k_r50",
+        "model": cli.model,
         "corpus": "qmul_ident (gallery+mated+unmated)",
         "definition": "E[sim | same cam, diff id] - E[sim | diff cam, diff id]",
         "n_cross_identity_pairs": int(a.size),
@@ -160,7 +164,7 @@ def main() -> int:
             "are learning the camera, not the face."
         ),
     }
-    out = OUT / "condition_leakage.json"
+    out = OUT / f"condition_leakage__{cli.model}.json"
     out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     print(f"\nwrote {out.relative_to(_ROOT)}")
     return 0

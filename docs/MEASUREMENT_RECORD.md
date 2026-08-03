@@ -352,3 +352,92 @@ multi-modal) or a smaller declared gallery — not a larger network.
 QMUL censoring is **0.000%**, so unlike TinyFace (13.1%) these bit figures are
 fully resolved and not a floor.
 
+## 8. LoRA fine-tune on real low-resolution data — the gate result
+
+Pre-registered in ARCHITECTURE_DECISION.md §6 **before the run**. Config:
+rank-8 LoRA on 96 attention/MLP projections (1.38M trainable / 115.1M, 1.20%),
+AdaFace margin head over 7,889 identities, 4 epochs, 53.9 min on the A3000.
+Data: TinyFace `Training_Set` + QMUL `training_set`, capped at 24 images per
+QMUL identity, **63,813 images / 7,889 identities**, contamination-audited to
+zero raw label overlap with either test split. Alignment identical to inference
+(DFA aligner, pre-cached).
+
+### QMUL official protocol — three-way
+
+| metric | R50 | ViT | **ViT+LoRA** |
+|---|---|---|---|
+| identity bits, median | 2.21 | 2.92 | **4.79** |
+| identity bits, p20 | 0.84 | 0.99 | **1.47** |
+| TAR @ FAR=1% | 8.68% | 17.06% | **38.66%** |
+| TAR @ FAR=0.1% | 2.31% | 4.98% | **22.35%** |
+| TAR @ FAR=1e-5 | 0.11% | 0.34% | **2.91%** |
+| rank-1 | 2.68% | 6.06% | **13.06%** |
+| **TPIR @ 1% FPIR** | **0.00%** | **0.00%** | **1.38%** |
+| TPIR @ 10% FPIR | 0.17% | 0.78% | **5.97%** |
+| Cllr | 0.9047 | 0.8400 | **0.7115** |
+| supportable gallery @50% rank-1 | 2 | 4 | **14** |
+
+**The open-set number moved for the first time.** TPIR@1% FPIR was 0.00% for
+the R50 *and* for the base ViT — a better backbone did not shift it at all
+(§7). Real low-resolution training data moved it to 1.38%, and TPIR@10% by
+7.7×. That is the first intervention of any kind in this project to change the
+metric that decides operational usefulness.
+
+### Gate verdict: 2 of 3 PASS, 1 FAIL — and I am not reinterpreting the third
+
+| criterion | target | measured | |
+|---|---|---|---|
+| QMUL identity bits (median) | ≥ 4.0 | **4.79** | **PASS** |
+| clean-pack regression vs R50 | ≤ 0.5 pts | **−0.38** (worst, AgeDB-30) | **PASS** |
+| condition leakage vs baseline | not above +0.0039 | **+0.0051** | **FAIL** |
+
+Clean packs, in full — the fine-tune *recovered* accuracy the base ViT had lost,
+beating it on 4 of 6:
+
+| pack | R50 | ViT | ViT+LoRA |
+|---|---|---|---|
+| lfw | 99.78 | 99.75 | **99.85** |
+| cfp_ff | 99.87 | 99.86 | 99.84 |
+| cfp_fp | 97.44 | 97.33 | **97.56** |
+| agedb_30 | 98.15 | 97.90 | 97.77 |
+| calfw | 95.95 | 95.82 | **96.05** |
+| cplfw | 94.47 | 94.40 | 94.47 |
+
+Thresholds re-derived by the same FMR=0.1%/AgeDB rule: **match 0.2561,
+review 0.1921**.
+
+### On the leakage failure
+
+Raw leakage rose from +0.0039 to +0.0051. **By the rule I registered, that is a
+FAIL, and I am recording it as one.**
+
+The honest complication, stated as a limitation of *my criterion* and not as a
+rescue: absolute leakage is not scale-invariant, and the fine-tune compressed
+the whole impostor distribution (mean cross-identity similarity 0.193 → 0.040).
+Relative to that base, leakage went from 2.0% to 12.9% — worse on that reading
+too. The decision-relevant form, the FAR amplification at a fixed operating
+point, is nearly unchanged: **1.3× → 1.4×**. So the model is not obviously
+"learning the camera" in a way that changes decisions, but it is not cleaner
+either, and the criterion I chose in advance says fail.
+
+**The right response is a second experiment, not a redefinition.** The
+adversarial leakage term (λ₅) was specified in IMPLEMENTATION-PLAN §2 and was
+*not* trained in this run — this was margin loss only. Adding it is the direct
+test of whether the leakage cost is removable while keeping the bits gain.
+
+### What this establishes
+
+1. **The discrimination deficit is partly addressable on this hardware.** A
+   1.2%-parameter adapter, 54 minutes, 63,813 real low-resolution images, and
+   QMUL identity bits rose 64% (2.92 → 4.79) with no clean-set cost.
+2. **The capacity framework remains predictive.** It said the deficit was
+   information, not architecture; adding real information moved every dependent
+   metric, and the supportable gallery grew 4 → 14.
+3. **Open-set is not immovable after all** — but 1.38% TPIR@1% FPIR is a
+   starting point, not a capability. The 11.5-bit gallery requirement is
+   unchanged and 4.79 bits does not meet it.
+4. **The prior fine-tune failure is explained.** It used *synthetic*
+   degradation and lost on every benchmark; this used real low-resolution
+   capture and gained on nearly all. That is the documented ROADMAP 10.4
+   hypothesis, confirmed.
+
