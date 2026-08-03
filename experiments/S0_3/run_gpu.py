@@ -258,7 +258,72 @@ def load_lfw_synth(n_pairs: int, seed: int, downsample: float = 8.0) -> tuple[li
 
 
 
-def load_scface(n_pairs: int, seed: int, distance: int = 1) -> tuple[list, list, np.ndarray]:
+def _scface_pairs(distance: int, seed: int, impostor_ratio: float = 10.0):
+    """Deterministic full pair list (paths only) so chunks can slice it."""
+    root = _ROOT / "src_extracted/scface/SCface_database"
+    mug_dir = root / "mugshot_frontal_cropped_all"
+    sur_dir = root / f"surveillance_cameras_distance_{distance}"
+    if not (mug_dir.is_dir() and sur_dir.is_dir()):
+        raise SystemExit(f"SCface not found under {root}")
+
+    mugs = {f.name.split("_")[0]: f for f in mug_dir.glob("*")
+            if f.suffix.lower() in (".jpg", ".jpeg", ".png")}
+    sur = defaultdict(list)
+    for cam in sorted(p for p in sur_dir.iterdir() if p.is_dir()):
+        for f in cam.glob("*"):
+            if f.suffix.lower() in (".jpg", ".jpeg", ".png"):
+                sur[f.name.split("_")[0]].append(f)
+    for k in sur:
+        sur[k].sort()
+    subjects = sorted(set(mugs) & set(sur))
+    if len(subjects) < 2:
+        raise SystemExit("SCface: could not pair mugshots to surveillance by subject id")
+
+    rng = np.random.default_rng(seed)
+    gal, prb, lab = [], [], []
+    for i in subjects:
+        for f in sur[i]:
+            gal.append(mugs[i]); prb.append(f); lab.append(True)
+    n_gen = len(gal)
+    for _ in range(int(n_gen * impostor_ratio)):
+        i = subjects[rng.integers(0, len(subjects))]
+        j = subjects[rng.integers(0, len(subjects))]
+        while j == i:
+            j = subjects[rng.integers(0, len(subjects))]
+        gal.append(mugs[i]); prb.append(sur[j][rng.integers(0, len(sur[j]))]); lab.append(False)
+    order = rng.permutation(len(gal))  # interleave so chunks hold both classes
+    return ([gal[k] for k in order], [prb[k] for k in order],
+            np.array(lab, dtype=bool)[order])
+
+
+def _read_gallery(p: Path) -> np.ndarray:
+    """Read a mugshot, capped at 448px on the long side.
+
+    SCface mugshots are 1600x1200 -- 22 MB each as float32, so 10,010 pairs is
+    220 GB. Capping is SAFE here and does not change any arm's output:
+
+      A   embeds both sides at 112x112 regardless, so the cap is invisible.
+      B1  decimates the gallery to the PROBE's size. 1600 -> 100 and 448 -> 100
+          land on the same grid; only intermediate aliasing differs.
+      B2r same, plus a probe-space operator applied after decimation.
+      B3  operates on the common passband, which the probe already bounds.
+
+    448 keeps the gallery strictly higher-resolution than every distance
+    (d3 probes are 224x168), so the HR/LR asymmetry the experiment tests is
+    preserved at all three standoffs.
+    """
+    im = cv2.imdecode(np.frombuffer(p.read_bytes(), np.uint8), cv2.IMREAD_COLOR)
+    if im is None:
+        raise ValueError(f"decode failed: {p}")
+    h, w = im.shape[:2]
+    if max(h, w) > 448:
+        sc = 448 / max(h, w)
+        im = cv2.resize(im, (int(round(w * sc)), int(round(h * sc))), interpolation=cv2.INTER_AREA)
+    return im.astype(np.float32) / np.float32(255.0)
+
+
+def load_scface(n_pairs: int, seed: int, distance: int = 1,
+                impostor_ratio: float = 10.0, offset: int = 0) -> tuple[list, list, np.ndarray]:
     """SCface: REAL mugshot vs REAL CCTV at a known standoff. The decisive test.
 
     Every other S0.3 dataset is compromised for the asymmetric case:
@@ -283,45 +348,14 @@ def load_scface(n_pairs: int, seed: int, distance: int = 1) -> tuple[list, list,
     refutes it even if a single distance passes, because a genuine mechanism
     cannot be indifferent to the amount of degradation present.
     """
-    root = _ROOT / "src_extracted/scface/SCface_database"
-    mug_dir = root / "mugshot_frontal_cropped_all"
-    sur_dir = root / f"surveillance_cameras_distance_{distance}"
-    if not (mug_dir.is_dir() and sur_dir.is_dir()):
-        raise SystemExit(f"SCface not found under {root}")
-
-    mugs: dict[str, Path] = {}
-    for f in mug_dir.glob("*"):
-        if f.suffix.lower() in (".jpg", ".jpeg", ".png"):
-            mugs[f.name.split("_")[0]] = f
-
-    sur: dict[str, list[Path]] = defaultdict(list)
-    for cam in sorted(p for p in sur_dir.iterdir() if p.is_dir()):
-        for f in cam.glob("*"):
-            if f.suffix.lower() in (".jpg", ".jpeg", ".png"):
-                sur[f.name.split("_")[0]].append(f)
-
-    subjects = sorted(set(mugs) & set(sur))
-    if len(subjects) < 2:
-        raise SystemExit("SCface: could not pair mugshots to surveillance by subject id")
-
-    rng = np.random.default_rng(seed)
-    gal, prb, lab = [], [], []
-    for _ in range(n_pairs // 2):
-        i = subjects[rng.integers(0, len(subjects))]
-        gal.append(mugs[i])
-        prb.append(sur[i][rng.integers(0, len(sur[i]))])
-        lab.append(True)
-        j = subjects[rng.integers(0, len(subjects))]
-        while j == i:
-            j = subjects[rng.integers(0, len(subjects))]
-        gal.append(mugs[i])
-        prb.append(sur[j][rng.integers(0, len(sur[j]))])
-        lab.append(False)
+    gal_all, prb_all, lab_all = _scface_pairs(distance, seed, impostor_ratio)
+    stop = len(gal_all) if n_pairs <= 0 else min(offset + n_pairs, len(gal_all))
+    gal, prb, lab = gal_all[offset:stop], prb_all[offset:stop], lab_all[offset:stop]
 
     with ThreadPoolExecutor(max_workers=8) as pool:
-        G = list(pool.map(_read, gal))
+        G = list(pool.map(_read_gallery, gal))
         P = list(pool.map(_read, prb))
-    return G, P, np.array(lab, dtype=bool)
+    return G, P, np.asarray(lab, dtype=bool)
 
 
 LOADERS = {
@@ -360,6 +394,10 @@ def main() -> int:
     # the images are released immediately. Scores are identical to the monolithic
     # path because every arm and the embedder are per-pair pure; only peak RSS
     # changes. Chunking also means --pairs is no longer limited by RAM.
+    if args.dataset == "scface":
+        # Enumerated, so the pair count is a property of the corpus.
+        args.pairs = len(_scface_pairs(args.distance, args.seed)[2])
+        print(f"scface distance {args.distance}: {args.pairs:,} enumerated pairs")
     chunk = max(1, min(args.chunk, args.pairs))
     n_chunks = (args.pairs + chunk - 1) // chunk
 
@@ -374,7 +412,9 @@ def main() -> int:
         take = min(chunk, args.pairs - ci * chunk)
         # Distinct seed per chunk so pairs are not re-drawn identically.
         if args.dataset == "scface":
-            G, P, lab = load_scface(take, args.seed + ci * 7919, args.distance)
+            G, P, lab = load_scface(take, args.seed, args.distance, offset=ci * chunk)
+            if not G:
+                break
         else:
             G, P, lab = LOADERS[args.dataset](take, args.seed + ci * 7919)
         all_labels.append(lab)
