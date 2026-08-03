@@ -188,3 +188,62 @@ def test_arm_b2r_applies_residual_when_probe_is_worse() -> None:
     assert res["blur_sigma"] > 0.1 or res["jpeg_quality"] is not None, (
         "B2r applied nothing against a pristine gallery and a degraded probe"
     )
+
+
+# --------------------------------------------------------------------------- #
+# 12: B2r must convert gallery blur into the probe's pixel grid
+# --------------------------------------------------------------------------- #
+
+
+def test_arm_b2r_converts_gallery_blur_to_probe_grid() -> None:
+    """Defect 12: raw sigma subtraction across different pixel grids.
+
+    estimate_degradation reports sigma in the units of the image it was given.
+    An earlier arm_B2r subtracted a gallery sigma measured on a 448px image from
+    a probe sigma measured on a 100px image. On SCface that made the gallery
+    look BLURRIER than the probe (0.8482 vs 0.8028), so max(p^2 - g^2, 0)
+    clamped the residual to exactly 0.0 and the arm silently degenerated into
+    "decimate + JPEG" -- it was not testing the residual operator at all.
+
+    The fix scales by 1/factor: a Gaussian of width sigma in a grid decimated by
+    f has width sigma/f in the new grid.
+    """
+    from arms import arm_B2r
+
+    gallery = _facelike(448, seed=41)
+    probe = apply_forward(
+        _facelike(448, seed=41),
+        DegradationParams(blur_sigma=2.0, downsample=4.48, jpeg_quality=75),
+        seed=0,
+    )
+    _, _, report = arm_B2r(gallery, probe)
+
+    assert "gallery_blur_in_probe_grid" in report, (
+        "B2r no longer reports the grid conversion -- the units fix may be reverted"
+    )
+    g_own = report["gallery_estimate"]["blur_sigma"]
+    g_probe = report["gallery_blur_in_probe_grid"]
+    factor = report["downsample_first"]
+    # Tolerance is loose because the two figures are rounded to different
+    # precisions in the report (sigma to 4 dp, the converted value to 6), so
+    # exact agreement is impossible. 1e-3 still proves the division happened.
+    assert g_probe == pytest.approx(g_own / factor, rel=1e-3), (
+        "gallery blur is not being divided by the decimation factor"
+    )
+    assert g_probe < g_own, "conversion must SHRINK the gallery sigma into the smaller grid"
+
+
+def test_arm_b2r_residual_blur_is_not_degenerate() -> None:
+    """A genuinely blurrier probe must yield a non-zero residual blur."""
+    from arms import arm_B2r
+
+    src = _facelike(448, seed=43)
+    probe = apply_forward(
+        src, DegradationParams(blur_sigma=2.5, downsample=4.48, jpeg_quality=60), seed=1
+    )
+    _, _, report = arm_B2r(src, probe)
+    res = report["residual_applied"]
+    assert res["blur_sigma"] > 0.05, (
+        f"residual blur {res['blur_sigma']} is degenerate against a clearly "
+        f"blurrier probe -- the grid-conversion bug is back"
+    )

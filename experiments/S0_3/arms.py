@@ -186,7 +186,25 @@ def arm_B2r(gallery: np.ndarray, probe: np.ndarray) -> tuple[np.ndarray, np.ndar
     gh, ph = gallery.shape[0], probe.shape[0]
     factor = max(gh / max(ph, 1), 1.0)
 
-    blur_r = float(np.sqrt(max(p_par.blur_sigma**2 - g_par.blur_sigma**2, 0.0)))
+    # THE GALLERY'S BLUR MUST BE CONVERTED INTO THE PROBE'S PIXEL GRID BEFORE
+    # THE QUADRATURE SUBTRACTION, OR THE RESIDUAL IS MEANINGLESS.
+    #
+    # estimate_degradation reports sigma in the pixel units of the image it was
+    # given. A 448px gallery and a 100px probe are different grids, so their
+    # sigmas are not comparable and subtracting them directly is the same units
+    # error already fixed once in arm_B2.
+    #
+    # Measured on SCface, where it bit: gallery sigma 0.8482 (448px), probe
+    # sigma 0.8028 (100px). Compared raw, the gallery looks BLURRIER than the
+    # probe, so max(p^2 - g^2, 0) clamped the residual blur to exactly 0.0 and
+    # B2r degenerated into "decimate + JPEG". In the probe's grid the gallery
+    # blur is 0.8482 * 100/448 = 0.189, giving a true residual near 0.78.
+    #
+    # Scaling by 1/factor: a Gaussian of width sigma in a grid decimated by f
+    # has width sigma/f in the new grid.
+    g_sigma_in_probe_grid = g_par.blur_sigma / factor
+
+    blur_r = float(np.sqrt(max(p_par.blur_sigma**2 - g_sigma_in_probe_grid**2, 0.0)))
     noise_r = float(np.sqrt(max(p_par.noise_sigma**2 - g_par.noise_sigma**2, 0.0)))
     jpeg_r = None
     if p_par.jpeg_quality is not None:
@@ -205,6 +223,7 @@ def arm_B2r(gallery: np.ndarray, probe: np.ndarray) -> tuple[np.ndarray, np.ndar
             "probe_estimate": p_rep,
             "gallery_estimate": g_rep,
             "downsample_first": round(factor, 4),
+            "gallery_blur_in_probe_grid": round(g_sigma_in_probe_grid, 6),
             "residual_applied": residual.as_dict(),
         },
     )
