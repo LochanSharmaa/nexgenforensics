@@ -24,12 +24,38 @@ template pooling per `IJB_11.py`, official pair lists.
 
 | | IJB-B | IJB-C | artifact |
 |---|---|---|---|
-| faces | 227,630 | 469,375 | `runtime/forensics/ijb_ijbb.json`, `ijb_ijbc.json` |
+| faces | 227,630 | 469,375 | `runtime/forensics/ijb_ijbc__w600k_r50.json`; IJB-B still at the legacy `ijb_ijbb.json` — re-run pending, see below |
 | templates | 12,115 | 23,124 | |
-| pairs | 8,010,270 | 15,658,489 | |
-| TAR @ FAR=1e-4 | **95.44%** | **96.91%** | |
-| TAR @ FAR=1e-5 | 91.09% | 94.44% | |
+| pairs (genuine / impostor) | 10,270 / 8,000,000 | 19,557 / 15,638,932 | |
 | TAR @ FAR=1e-3 | 97.03% | 98.13% | |
+| TAR @ FAR=1e-4 | **95.44%** | **96.91%** | |
+| TAR @ FAR=1e-5 | 91.07% | 94.43% | |
+| TAR @ FAR=1e-6 | 43.13% *[CI 26.73–49.80]* | 86.73% *[CI 82.65–88.96]* | |
+| impostor pairs supporting 1e-6 | **8** | **16** | |
+
+**The 1e-6 row is recorded, not published.** It was computed by the original run
+and left untranscribed; stating it is better than an absence that reads as
+"unmeasured". But both figures rest on a threshold set by single-digit or
+low-double-digit impostor pairs, so the 95% CIs above (Poissonised bootstrap of
+the impostor tail, 2,000 reps) are 6.3 points wide on IJB-C and 23.1 points wide
+on IJB-B. **Neither may be quoted as a performance figure.** An operating point
+needs ~400 exceedances for ±10% precision; that is 4×10⁸ impostor pairs, and the
+official IJB-C protocol supplies 1.56×10⁷.
+
+**Estimator change, 2026-08-04.** These figures use the exact k-th order
+statistic (k = ⌈FAR·N⌉) where the original run used `np.quantile`, which
+interpolates between adjacent impostor scores. At FAR≥1e-5 the two agree to
+within 0.02 points; at 1e-6 interpolation was manufacturing precision the data
+does not contain, which is the whole reason the row needs its support count
+beside it. Superseded: IJB-C 86.83% → **86.73%**, IJB-B 43.43% → **43.13%**.
+`benchmark_ijb.py` now records `impostor_support` in every artifact.
+
+The IJB-B column above was recomputed from the cached embeddings by
+`far_1e6_feasibility.py`, but only IJB-C has been re-run end to end through
+`benchmark_ijb.py`, so only IJB-C has a model-keyed artifact so far. **Open item:
+re-run `--dataset IJBB --model w600k_r50`** (an embedding-cache hit, minutes not
+hours) to regenerate `ijb_ijbb__w600k_r50.json` and retire the legacy file. It
+was deferred only because the GPU was occupied by the IJB-C ViT run.
 
 Published ArcFace (R100/MS1MV2) sits at ~94–95% (IJB-B) and ~96–97% (IJB-C) at
 FAR=1e-4. **This band is recalled from the literature and is not cited to a
@@ -37,8 +63,20 @@ verified source in this repository** — it is the sole external anchor for the
 harness-validation claim, so it should be pinned to a specific paper and table
 before the claim is relied on outside the team. Reproducing that band with a *smaller* backbone on the official
 protocol is the validation the harness needed: **our numbers are not harness
-artifacts.** (IJB-B @1e-6 = 43.43% rests on 8 impostor pairs and should not be
-quoted.)
+artifacts.**
+
+**Candidate sources for that anchor, 2026-08-04** — found by search, recorded so
+the pinning job starts from something concrete. **Not yet verified against the
+papers' own tables; do not treat as cited until someone reads them.** Search
+results attribute to *Discriminability Distillation in Group Representation
+Learning* (arXiv 2008.10850) an IJB-C comparison giving **ArcFace 86.25% @
+FAR=1e-6** and DDL 92.39%; and to the AdaFace line **IJB-B 96.23% / IJB-C 97.49%
+@ FAR=1e-4** for R100/WebFace12M. If the ArcFace figure survives verification it
+is a second, independent harness check: our 86.73% @1e-6 lands within half a
+point of it, which would validate the harness at the strictest operating point
+and not only at 1e-4. Note the corollary — **92.39% appears to be the best
+published IJB-C result at 1e-6**, so that is the realistic ceiling for this
+benchmark, not a starting point.
 
 This closes SCORECARD item 8, whose "1.57 GB partial download" label was stale —
 the complete 8.6 GB suite was in `Downloads/ijb-testsuite.tar`.

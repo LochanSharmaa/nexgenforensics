@@ -3,6 +3,7 @@
 
     python backend/scripts/benchmark_ijb.py --dataset IJBB
     python backend/scripts/benchmark_ijb.py --dataset IJBC
+    python backend/scripts/benchmark_ijb.py --dataset IJBC --model vit_kprpe_wf12m
 
 WHY THIS RUNS AT ALL
 --------------------
@@ -31,6 +32,23 @@ PROTOCOL, following IJB_11.py exactly:
 Expected reference (published ArcFace, R100/MS1MV2): IJB-B ~94-95% and
 IJB-C ~96-97% TAR@FAR=1e-4. We run R50/WebFace600K, so a few points lower is
 correct; a large gap means our harness is wrong.
+
+ALIGNMENT, AND WHY THE DFA ALIGNER IS NOT USED HERE
+---------------------------------------------------
+Step 1 above runs the official 5-point `norm_crop`, so what reaches the model is
+an ArcFace-aligned 112x112 crop -- structurally identical to a `.bin` pack crop.
+Canonical KP-RPE keypoints are therefore correct by construction, and the DFA
+aligner is skipped, for exactly the reason it is mandatory on TinyFace/QMUL
+detector crops. Same reasoning as embed_packs_with_vit.py; see
+test_vit_backbone_contract.py defect 10.
+
+The flip-TTA pass gets MIRRORED keypoints. Feeding unmirrored canonical points
+alongside a mirrored image is the same class of error as defect 10 -- false
+landmark information handed straight to the attention mechanism, on half of
+every embedding.
+
+Artifacts carry the model key in the filename (defect 11): a model-agnostic
+`ijb_<ds>.json` let each run destroy the previous one's result.
 """
 
 from __future__ import annotations
@@ -72,7 +90,14 @@ def read_meta(ds: str):
             parts = line.split()
             tid.append(int(parts[1]))
             mid.append(int(parts[2]))
-    pairs = np.loadtxt(meta / f"{low}_template_pair_label.txt", dtype=np.int64)
+    pair_file = meta / f"{low}_template_pair_label.txt"
+    try:
+        # np.loadtxt takes minutes on IJB-C's 15.6M-row / 222 MB list.
+        import pandas as pd  # noqa: PLC0415
+
+        pairs = pd.read_csv(pair_file, sep=r"\s+", header=None).to_numpy(dtype=np.int64)
+    except ImportError:
+        pairs = np.loadtxt(pair_file, dtype=np.int64)
     return (
         names,
         np.array(lmks, dtype=np.float32).reshape(-1, 5, 2),
@@ -83,8 +108,54 @@ def read_meta(ds: str):
     )
 
 
-def embed_all(ds: str, names, lmks, model, batch_size: int, force: bool) -> np.ndarray:
-    cache = CACHE / f"{ds.lower()}__w600k_r50.npz"
+def load_backbone(model_key: str):
+    """Return (model, embed_fn). `embed_fn(imgs)` does the flip-TTA sum."""
+    if model_key.startswith("vit_kprpe"):
+        from nexgen_engine.models.cvlface_backbone import (  # noqa: PLC0415
+            ARCFACE_5PTS,
+            CvlfaceViTKprpe,
+        )
+
+        # Mirror of the canonical template: reflect x, and swap the L/R pairs
+        # (eyes, mouth corners) so landmark identity survives the flip.
+        mirror = np.array(
+            [
+                [1.0 - ARCFACE_5PTS[1][0], ARCFACE_5PTS[1][1]],
+                [1.0 - ARCFACE_5PTS[0][0], ARCFACE_5PTS[0][1]],
+                [1.0 - ARCFACE_5PTS[2][0], ARCFACE_5PTS[2][1]],
+                [1.0 - ARCFACE_5PTS[4][0], ARCFACE_5PTS[4][1]],
+                [1.0 - ARCFACE_5PTS[3][0], ARCFACE_5PTS[3][1]],
+            ],
+            dtype=np.float32,
+        )
+        model = CvlfaceViTKprpe(batch_size=64)
+        print(f"    [{model_key}] {model.provider_label}", flush=True)
+
+        def embed(imgs):
+            n = len(imgs)
+            return np.asarray(
+                model.get_feat(imgs, np.repeat(ARCFACE_5PTS[None], n, axis=0)), dtype=np.float32
+            ) + np.asarray(
+                model.get_feat([x[:, ::-1] for x in imgs], np.repeat(mirror[None], n, axis=0)),
+                dtype=np.float32,
+            )
+
+        return model, embed
+
+    from benchmark_verification import load_recognizer  # noqa: PLC0415
+
+    model = load_recognizer(model_key)
+
+    def embed(imgs):
+        return np.asarray(model.get_feat(imgs), dtype=np.float32) + np.asarray(
+            model.get_feat([x[:, ::-1] for x in imgs]), dtype=np.float32
+        )
+
+    return model, embed
+
+
+def embed_all(ds: str, names, lmks, embed, model_key: str, batch_size: int, force: bool) -> np.ndarray:
+    cache = CACHE / f"{ds.lower()}__{model_key}.npz"
     if cache.exists() and not force:
         print(f"  cache hit: {cache.name}")
         return np.load(cache)["emb"]
@@ -107,9 +178,7 @@ def embed_all(ds: str, names, lmks, model, batch_size: int, force: bool) -> np.n
         for i in range(0, len(names), batch_size):
             idx = list(range(i, min(i + batch_size, len(names))))
             imgs = list(pool.map(prep, idx))
-            out[i : i + len(idx)] = np.asarray(model.get_feat(imgs), dtype=np.float32) + np.asarray(
-                model.get_feat([x[:, ::-1] for x in imgs]), dtype=np.float32
-            )
+            out[i : i + len(idx)] = embed(imgs)
             done = i + len(idx)
             if (i // batch_size) % 20 == 0 or done == len(names):
                 r = done / max(time.time() - t0, 1e-6)
@@ -143,6 +212,8 @@ def pool_templates(feats: np.ndarray, tid: np.ndarray, mid: np.ndarray):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dataset", default="IJBB", choices=["IJBB", "IJBC"])
+    ap.add_argument("--model", default="w600k_r50",
+                    choices=["w600k_r50", "glintr100", "vit_kprpe_wf12m"])
     ap.add_argument("--batch-size", type=int, default=96)
     ap.add_argument("--force", action="store_true")
     args = ap.parse_args()
@@ -156,10 +227,8 @@ def main() -> int:
     names, lmks, det, tid, mid, pairs = read_meta(args.dataset)
     print(f"  {len(names):,} faces, {np.unique(tid).size:,} templates, {pairs.shape[0]:,} pairs")
 
-    from benchmark_verification import load_recognizer  # noqa: PLC0415
-
-    model = load_recognizer("w600k_r50")
-    feats = embed_all(args.dataset, names, lmks, model, args.batch_size, args.force)
+    _, embed = load_backbone(args.model)
+    feats = embed_all(args.dataset, names, lmks, embed, args.model, args.batch_size, args.force)
 
     print("  pooling templates")
     tfeat, uniq = pool_templates(feats, tid, mid)
@@ -176,31 +245,42 @@ def main() -> int:
 
     imp = np.sort(scores[~labels])
     gen = scores[labels]
-    res = {}
-    print(f"\n{args.dataset}  {int(labels.sum()):,} genuine / {int((~labels).sum()):,} impostor pairs")
+    res, support = {}, {}
+    print(f"\n{args.dataset}  {int(labels.sum()):,} genuine / {imp.size:,} impostor pairs")
+    print(f"  {'FAR':>8} {'TAR':>9} {'impostor pairs above thr':>26}")
     for far in (1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1):
-        thr = float(np.quantile(imp, 1.0 - far))
+        # Exact order statistic, not an interpolated quantile: at FAR=1e-6 the
+        # threshold rests on a handful of pairs and interpolation invents
+        # precision the data does not have.
+        k = int(np.ceil(far * imp.size))
+        thr = float(imp[-k])
         tar = float((gen > thr).mean())
         res[f"tar_at_far_{far:g}"] = tar
-        print(f"  TAR @ FAR={far:g}   {tar*100:6.2f}%")
+        support[f"impostors_above_far_{far:g}"] = k
+        print(f"  {far:>8.0e} {tar*100:>8.2f}% {k:>26,}")
+    print("\n  NOTE: any operating point resting on <100 impostor pairs carries a\n"
+          "  confidence interval several points wide. See MEASUREMENT_RECORD.md.")
 
     payload = {
         "dataset": args.dataset,
-        "model": "w600k_r50",
+        "model": args.model,
         "flip_tta": True,
         "alignment": "insightface face_align.norm_crop, official 5pts",
         "pooling": "media-average then media-sum, per IJB_11.py",
         "n_faces": len(names),
         "n_templates": int(uniq.size),
         "n_pairs": int(pairs.shape[0]),
+        "n_genuine": int(labels.sum()),
+        "n_impostor": int(imp.size),
         "tar": res,
+        "impostor_support": support,
         "note": (
             "Harness validation. Published ArcFace R100/MS1MV2 reaches ~94-95% (IJB-B) "
             "and ~96-97% (IJB-C) at FAR=1e-4. This is R50/WebFace600K, so a few points "
             "lower is expected; a large gap indicates a harness fault."
         ),
     }
-    out = OUT / f"ijb_{args.dataset.lower()}.json"
+    out = OUT / f"ijb_{args.dataset.lower()}__{args.model}.json"
     out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     print(f"wrote {out.relative_to(_ROOT)}")
     return 0
