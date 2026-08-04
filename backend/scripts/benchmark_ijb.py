@@ -154,11 +154,16 @@ def load_backbone(model_key: str):
     return model, embed
 
 
-def embed_all(ds: str, names, lmks, embed, model_key: str, batch_size: int, force: bool) -> np.ndarray:
+def embed_all(ds: str, names, lmks, model_key: str, batch_size: int, force: bool) -> np.ndarray:
     cache = CACHE / f"{ds.lower()}__{model_key}.npz"
     if cache.exists() and not force:
         print(f"  cache hit: {cache.name}")
         return np.load(cache)["emb"]
+
+    # Loaded only on a cache miss. Constructing a CUDA session for a run that is
+    # about to read cached embeddings wastes VRAM and, worse, contends with any
+    # genuine GPU job already on the card.
+    _, embed = load_backbone(model_key)
 
     from insightface.utils import face_align  # noqa: PLC0415
 
@@ -227,8 +232,7 @@ def main() -> int:
     names, lmks, det, tid, mid, pairs = read_meta(args.dataset)
     print(f"  {len(names):,} faces, {np.unique(tid).size:,} templates, {pairs.shape[0]:,} pairs")
 
-    _, embed = load_backbone(args.model)
-    feats = embed_all(args.dataset, names, lmks, embed, args.model, args.batch_size, args.force)
+    feats = embed_all(args.dataset, names, lmks, args.model, args.batch_size, args.force)
 
     print("  pooling templates")
     tfeat, uniq = pool_templates(feats, tid, mid)

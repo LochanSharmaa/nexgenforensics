@@ -24,7 +24,7 @@ template pooling per `IJB_11.py`, official pair lists.
 
 | | IJB-B | IJB-C | artifact |
 |---|---|---|---|
-| faces | 227,630 | 469,375 | `runtime/forensics/ijb_ijbc__w600k_r50.json`; IJB-B still at the legacy `ijb_ijbb.json` — re-run pending, see below |
+| faces | 227,630 | 469,375 | `runtime/forensics/ijb_ijbb__w600k_r50.json`, `ijb_ijbc__w600k_r50.json` |
 | templates | 12,115 | 23,124 | |
 | pairs (genuine / impostor) | 10,270 / 8,000,000 | 19,557 / 15,638,932 | |
 | TAR @ FAR=1e-3 | 97.03% | 98.13% | |
@@ -50,12 +50,15 @@ does not contain, which is the whole reason the row needs its support count
 beside it. Superseded: IJB-C 86.83% → **86.73%**, IJB-B 43.43% → **43.13%**.
 `benchmark_ijb.py` now records `impostor_support` in every artifact.
 
-The IJB-B column above was recomputed from the cached embeddings by
-`far_1e6_feasibility.py`, but only IJB-C has been re-run end to end through
-`benchmark_ijb.py`, so only IJB-C has a model-keyed artifact so far. **Open item:
-re-run `--dataset IJBB --model w600k_r50`** (an embedding-cache hit, minutes not
-hours) to regenerate `ijb_ijbb__w600k_r50.json` and retire the legacy file. It
-was deferred only because the GPU was occupied by the IJB-C ViT run.
+Both corpora have now been re-run end to end through `benchmark_ijb.py` and
+carry model-keyed artifacts; the legacy `ijb_ijbb.json` / `ijb_ijbc.json` are
+superseded. IJB-B reproduced its every operating point exactly, including the
+figures independently recomputed by `far_1e6_feasibility.py` from the same
+cached embeddings — two code paths, one result.
+
+Backbone construction is now lazy, on cache miss only. The re-run reads cached
+embeddings, so building a CUDA session for it would have contended with a live
+GPU job on the same card for no work in return.
 
 Published ArcFace (R100/MS1MV2) sits at ~94–95% (IJB-B) and ~96–97% (IJB-C) at
 FAR=1e-4. **This band is recalled from the literature and is not cited to a
