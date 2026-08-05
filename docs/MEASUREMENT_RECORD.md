@@ -84,6 +84,49 @@ benchmark, not a starting point.
 This closes SCORECARD item 8, whose "1.57 GB partial download" label was stale —
 the complete 8.6 GB suite was in `Downloads/ijb-testsuite.tar`.
 
+### 1a. ViT-B KP-RPE on the official IJB protocol (2026-08-05)
+
+The §7 backbone had never been run on IJB. Same protocol, same pair lists, one
+variable. Artifacts `ijb_ijb{b,c}__vit_kprpe_wf12m.json`.
+
+| TAR @ FAR | IJB-C R50 | **IJB-C ViT** | IJB-B R50 | **IJB-B ViT** |
+|---|---|---|---|---|
+| 1e-1 | 99.31% | 99.19% | 99.04% | 98.74% |
+| 1e-2 | 98.74% | 98.69% | 97.97% | 97.98% |
+| 1e-3 | 98.13% | 98.15% | 97.03% | 97.27% |
+| 1e-4 | 96.91% | **97.36%** | 95.44% | **96.11%** |
+| 1e-5 | 94.43% | **95.74%** | 91.07% | **92.46%** |
+| 1e-6 | 86.73% | **89.76%** *[CI 87.99–92.61]* | 43.13% | 43.97% *(see below)* |
+
+**The gain widens as FAR tightens** on IJB-C — +0.02 at 1e-3 rising to +3.03 at
+1e-6 — the same signature as the TinyFace swap in §7, and the mark of better
+non-mate separation rather than a threshold shift. The flip side is real: at
+loose FAR the ViT is *worse* than the R50 on both corpora. It trades
+easy-operating-point accuracy for hard-operating-point accuracy.
+
+Two further consistency checks passed. IJB-C 97.36% and IJB-B 96.11% @1e-4 sit
+just under the 97.49% / 96.23% attributed above to AdaFace R100/WebFace12M —
+the correct sign and magnitude for a ViT-B against an R100.
+
+**IJB-B at 1e-6 is eight pairs of label noise, and the ViT proves it.** The
+figure moved 43.13% → 43.97%, a change buried inside a 23-point CI, while the
+same backbone moved IJB-C by 3.03 points. The cause is in the tail:
+
+| | R50 | ViT |
+|---|---|---|
+| threshold @1e-5 (80 pairs) | 0.4618 | 0.4217 |
+| threshold @1e-6 (8 pairs) | **0.7853** | **0.7794** |
+| the 8 highest impostor scores | 0.785 – 0.905 | 0.779 – 0.911 |
+| genuine median | 0.760 | 0.756 |
+
+Those eight impostor pairs sit ~0.35 cosine above the rest of the impostor
+distribution and **above the genuine median**, so the 1e-6 threshold lands above
+half of all true matches and TAR collapses by 48 points between two adjacent
+decades. Both backbones meet the same eight pairs, which is why neither can move
+the number. They are not duplicate images — zero impostor pairs exceed cosine
+0.99 — so this reads as mislabelled or pathologically confusable IJB-B
+templates. **The IJB-B 1e-6 cell measures those eight pairs, not recognition.**
+
 ## 2. Capacity and open-set, official protocols (G1 + G3)
 
 Two corpora, complementary by structure — TinyFace has a 153k-distractor gallery
@@ -114,6 +157,52 @@ errors — but on 25-pixel imagery duplicate identity labels and genuinely
 confusable people are not separable by score, so the flag is carried rather than
 dismissed. It makes QMUL's already-poor numbers, if anything, slightly
 optimistic.
+
+### 2a. QMUL at FAR=1e-6, and the ceiling (2026-08-05)
+
+Prompted by a request for 98.5% TAR @ FAR=1e-6. The 50M pool's own audit
+supports claims to FAR=2e-07, so 1e-6 is measurable here — on 50 impostor pairs,
+three times better supported than IJB-C's 16. Artifacts
+`qmul_far_ceiling__*.json`.
+
+| TAR @ FAR | `w600k_r50` | `vit_kprpe_wf12m` |
+|---|---|---|
+| 1e-2 | 8.679% | 17.060% |
+| 1e-3 | 2.309% | 4.977% |
+| 1e-4 | 0.531% | 1.291% |
+| 1e-5 | 0.114% | 0.344% |
+| **1e-6** | **0.027%** *[CI 0.021–0.032]* | **0.069%** *[CI 0.054–0.084]* |
+
+**There is no operating point on this corpus.** At FAR→0 — a threshold above
+every one of the 50M sampled impostors — the R50 recovers **0 of 500,000**
+genuine pairs and the ViT recovers **5**. For the R50 the highest-scoring
+genuine pair in the corpus (0.9197) scores *below* the highest-scoring impostor
+pair (0.9262): no threshold anywhere admits one true match while rejecting all
+strangers. This is the verification-side statement of the same fact L3a records
+as TPIR 0.00% @ 1% FPIR.
+
+**Inverting the question.** At the threshold where TAR = 98.5%, the ViT's
+threshold is **−0.031** — negative cosine — and it accepts **94.34% of all
+impostors**, 943,449× the 1e-6 target. On IJB-C the same inversion gives
+FAR=3.853e-03 for the ViT against 3.855e-03 for the R50: **the backbone upgrade
+changes nothing at that operating point**, 22 fewer false accepts in 15.6M. The
+ViT's advantage lives in the extreme tail; 98.5% TAR is not in the tail.
+
+**Duplicate images in the impostor pool.** The raw impostor maximum is exactly
+1.0000 on both backbones: **2 pairs in 50M are the same image under two identity
+labels.** Immaterial to the operating points — dropping them moves the 1e-6
+threshold 0.7811 → 0.7806 — but they set the maximum, so the FAR→0 figures above
+are computed on the cleaned pool. Quoting the raw maximum would have reported
+two mislabelled images as the ceiling. The rest of the tail is sound: zero pairs
+share an identity label, and the top 200 span 87 distinct probe identities, so
+it is genuine confusability across many people rather than one pathological pair.
+
+**On the audit verdict and the better backbone.** QMUL's
+`population_audit.verdict` improves from `label_uncertainty` (2.31% suspect) on
+the R50 to **`valid`** (0.25%) on the ViT. Most of what looked like label noise
+was confusable-by-weak-model, not mislabelled — which is a caution about reading
+that flag as a property of the corpus rather than of the corpus *and* the model
+measuring it.
 
 **The two headline findings:**
 

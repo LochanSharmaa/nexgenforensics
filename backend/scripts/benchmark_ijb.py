@@ -90,14 +90,11 @@ def read_meta(ds: str):
             parts = line.split()
             tid.append(int(parts[1]))
             mid.append(int(parts[2]))
-    pair_file = meta / f"{low}_template_pair_label.txt"
-    try:
-        # np.loadtxt takes minutes on IJB-C's 15.6M-row / 222 MB list.
-        import pandas as pd  # noqa: PLC0415
-
-        pairs = pd.read_csv(pair_file, sep=r"\s+", header=None).to_numpy(dtype=np.int64)
-    except ImportError:
-        pairs = np.loadtxt(pair_file, dtype=np.int64)
+    # np.loadtxt reads IJB-C's 15.6M-row / 222 MB pair list in ~4 s on numpy 2.x.
+    # An earlier revision here routed this through pandas on the assumption that
+    # it would be far slower; it is not, and pandas is not a dependency of this
+    # project, so the branch was dead code in every environment that runs this.
+    pairs = np.loadtxt(meta / f"{low}_template_pair_label.txt", dtype=np.int64)
     return (
         names,
         np.array(lmks, dtype=np.float32).reshape(-1, 5, 2),
