@@ -8,15 +8,15 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Restore the session on mount. A token in sessionStorage proves nothing on
-  // its own -- it may be expired or revoked -- so it is validated against the
-  // server before the app treats anyone as signed in.
+  // Resolve the operator on mount. /api/auth/me answers even without a stored
+  // token: the backend runs in single-user mode and treats a credential-less
+  // request as the local owner, so this is the whole "sign-in".
   useEffect(() => {
     let cancelled = false;
 
-    // Development convenience: sign in as the operator account so the owner is
-    // not asked for credentials on every reload. See config/ownerSession.js --
-    // this is compiled out of production builds.
+    // Fallback for a deployment running with NEXGEN_SINGLE_USER=false, where
+    // /me requires a real session. See config/ownerSession.js -- compiled out
+    // of production builds.
     async function signInAsOwner() {
       if (!ownerSession.enabled) return;
       try {
@@ -29,16 +29,11 @@ export function AuthProvider({ children }) {
       } catch (error) {
         // Left signed out rather than retried: a wrong password here would
         // otherwise walk the account into its brute-force lockout.
-        console.warn("Owner auto-session failed; sign in manually.", error);
+        console.warn("Owner auto-session failed.", error);
       }
     }
 
     async function restore() {
-      if (!tokenStore.access) {
-        await signInAsOwner();
-        if (!cancelled) setLoading(false);
-        return;
-      }
       try {
         const profile = await fetchCurrentUser();
         if (!cancelled) setUser(profile);

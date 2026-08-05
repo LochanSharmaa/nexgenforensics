@@ -59,6 +59,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings.storage_path.mkdir(parents=True, exist_ok=True)
     settings.audit_path.parent.mkdir(parents=True, exist_ok=True)
 
+    if settings.single_user:
+        # Deliberate product rule, not an oversight: iMATCH is an individual
+        # tool. Stated at startup so a future multi-user operator reading the
+        # log knows to set NEXGEN_SINGLE_USER=false.
+        logger.warning(
+            "Single-user mode: requests without credentials act as the local "
+            "owner account. Set NEXGEN_SINGLE_USER=false for multi-user deployments."
+        )
+
     engine = get_engine_service()
     # Load models during startup rather than inside the first user request, which
     # would otherwise hang for the seconds an ONNX pack takes to load. A failure

@@ -128,8 +128,8 @@ export function HeaderNavigationBar() {
         </div>
 
         <div className="nx-nav-actions">
-          <a className="nx-nav-login" href="/login" onClick={closeAll}>
-            Login
+          <a className="nx-nav-login" href="/workspace" onClick={closeAll}>
+            Open iMATCH
           </a>
           <a className="nx-nav-secondary" href="/contact" onClick={closeAll}>
             Request Access

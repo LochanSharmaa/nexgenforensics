@@ -1,5 +1,4 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
 import { destinationFor, setWorkspaceMode } from "../../context/workspaceMode";
 import "./ChooseRolePage.css";
 
@@ -32,16 +31,10 @@ const OPTIONS = [
 ];
 
 export function ChooseRolePage() {
-  // Rendered without requiring a session: picking a destination grants nothing,
-  // and the destinations themselves are still gated. Bouncing to /login from
-  // here only got in the way.
-  const { isAuthenticated, loading } = useAuth();
+  // Picking a destination grants nothing -- there is no sign-in any more, and
+  // permissions were always the server's decision.
   const navigate = useNavigate();
   const location = useLocation();
-
-  if (loading) {
-    return <section className="nx-role-page"><p className="nx-role-loading">Restoring session…</p></section>;
-  }
 
   const from = location.state?.from;
 
@@ -53,11 +46,10 @@ export function ChooseRolePage() {
   return (
     <section className="nx-role-page" id="top">
       <div className="nx-role-inner">
-        <p className="nx-kicker">{isAuthenticated ? "Signed in" : "iMATCH"}</p>
+        <p className="nx-kicker">iMATCH</p>
         <h1>How will you be using iMATCH?</h1>
         <p className="nx-role-sub">
-          This sets where you land when you sign in. It does not change your permissions — those
-          come from your account and are enforced by the server. You can change this later.
+          This sets where you land when you open iMATCH. You can change this later.
         </p>
 
         <div className="nx-role-grid">

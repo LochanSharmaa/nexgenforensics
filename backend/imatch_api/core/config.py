@@ -65,6 +65,23 @@ class Settings(BaseSettings):
     rate_limit_per_minute: int = 120
     search_rate_limit_per_minute: int = 30
 
+    # -------------------------------------------------------- single user --
+    # Individual-use mode, ON by default. The product rule changed (2026-08-05):
+    # iMATCH runs as a personal tool for one operator, so the API no longer
+    # demands a sign-in. A request presenting NO credential acts as the local
+    # owner account; a presented credential (bearer token or API key) is still
+    # verified as before and an invalid one is still rejected, never silently
+    # promoted to owner. Tenancy scoping, role checks, rate limits and audit
+    # attribution all continue to apply -- to the owner account.
+    # Set NEXGEN_SINGLE_USER=false to restore mandatory authentication for a
+    # multi-user deployment.
+    single_user: bool = True
+    # Which account credential-less requests act as. Blank: the earliest-created
+    # active admin, then the earliest active user, then a fresh "owner@local"
+    # admin on an empty database. Pin it when several accounts exist and the
+    # audit trail should keep naming the one the owner actually uses.
+    owner_email: str = ""
+
     # ------------------------------------------------------- account auth --
     # Self-service registration. OFF by default and deliberately so: this is a
     # biometric investigation tool, and who can run a search is a controlled

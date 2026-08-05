@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { EngineBanner } from "./components/EngineBanner";
 import "./workspace.css";
@@ -14,13 +14,7 @@ const LINKS = [
 ];
 
 export function WorkspaceLayout() {
-  const { user, signOut, hasRole } = useAuth();
-  const navigate = useNavigate();
-
-  async function handleSignOut() {
-    await signOut();
-    navigate("/login", { replace: true });
-  }
+  const { user, hasRole } = useAuth();
 
   return (
     <div className="wk-shell">
@@ -45,12 +39,9 @@ export function WorkspaceLayout() {
 
         <div className="wk-user">
           <span>
-            <b>{user?.full_name || user?.email}</b>
+            <b>{user?.full_name || user?.email || "Local operator"}</b>
             {user?.role}
           </span>
-          <button type="button" className="wk-button ghost small" onClick={handleSignOut}>
-            Sign out
-          </button>
         </div>
       </header>
 

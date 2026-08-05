@@ -21,6 +21,10 @@ os.environ.setdefault("NEXGEN_ENV", "test")
 os.environ.setdefault("NEXGEN_JWT_SECRET", secrets.token_urlsafe(48))
 os.environ.setdefault("NEXGEN_TEMPLATE_KEY", base64.b64encode(secrets.token_bytes(32)).decode())
 os.environ.setdefault("NEXGEN_REQUIRE_LAWFUL_BASIS", "true")
+# The suite exercises the multi-user contract (401s, roles, tenancy), so the
+# single-user default is switched off here. test_single_user_mode.py turns it
+# back on explicitly for its own cases.
+os.environ.setdefault("NEXGEN_SINGLE_USER", "false")
 
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlmodel import Session, SQLModel  # noqa: E402
