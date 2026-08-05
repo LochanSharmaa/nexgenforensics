@@ -25,6 +25,10 @@ os.environ.setdefault("NEXGEN_REQUIRE_LAWFUL_BASIS", "true")
 # single-user default is switched off here. test_single_user_mode.py turns it
 # back on explicitly for its own cases.
 os.environ.setdefault("NEXGEN_SINGLE_USER", "false")
+# Settings also reads <repo>/.env, where the laptop deployment disables CSRF
+# (no sign-in to protect). The suite asserts the guard's behaviour, so pin it
+# on regardless of that file.
+os.environ.setdefault("NEXGEN_CSRF_ENABLED", "true")
 
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlmodel import Session, SQLModel  # noqa: E402
