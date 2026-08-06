@@ -2,7 +2,8 @@
    --px-accent / --px-soft; everything else derives from the site palette. */
 
 .px-page {
-  padding-top: 66px;
+  /* Clears the fixed 59px navigation bar. */
+  padding-top: 59px;
   background:
     radial-gradient(circle at 50% 0%, var(--px-soft), transparent 34rem),
     var(--paper);

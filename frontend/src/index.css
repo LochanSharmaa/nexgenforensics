@@ -73,17 +73,6 @@ button {
   background: var(--cream);
 }
 
-/* The nav strip blends into the hero's creme instead of sitting on it as a
-   beige band. */
-.nexgen-home:has(.nx-hero) .nx-nav {
-  background: rgba(248, 248, 248, 0.88);
-  border-bottom-color: rgba(60, 45, 35, 0.08);
-}
-
-.nexgen-home:has(.nx-hero) .nx-nav.scrolled {
-  background: rgba(248, 248, 248, 0.94);
-}
-
 /* Full-page placeholder while a lazy route chunk downloads */
 .nx-route-loading {
   min-height: 100vh;

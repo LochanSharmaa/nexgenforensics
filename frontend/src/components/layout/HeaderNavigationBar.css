@@ -1,3 +1,23 @@
+/* Phonexia-standard header.
+ *
+ * Measured off the reference site rather than eyeballed: a fixed 59px bar
+ * whose background is the page tone at 70% opacity behind a 14px backdrop
+ * blur, carrying a 0 8px 16px / 8% shadow and no border; wordmark on the
+ * left, a 24px two-line menu glyph on the right — at every viewport width.
+ * Navigation itself lives in a fullscreen frosted overlay: accordion groups
+ * in large type, then pill actions at 100px radius with 16px/32px padding.
+ * Accent is the reference burnt orange on an off-white ground.
+ */
+
+.nx-nav,
+.nx-menu-overlay {
+  --nxh-ink: #10151d;
+  --nxh-icon: #0f172a;
+  --nxh-muted: #5f5b54;
+  --nxh-accent: #cc5f00;
+  --nxh-line: rgba(15, 23, 42, 0.1);
+}
+
 .nx-nav {
   position: fixed;
   top: 0;
@@ -5,428 +25,264 @@
   right: 0;
   z-index: 120;
   display: flex;
-  height: 66px;
+  height: 59px;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--page-gutter, clamp(20px, 5vw, 72px));
-  border-bottom: 1px solid rgba(60, 45, 35, 0.12);
-  /* No backdrop blur: at 95% opacity the blur was invisible but still
-     re-sampled the page behind the nav on every scrolled frame. */
-  background: rgba(247, 243, 236, 0.95);
-  transition: box-shadow 220ms ease, background 220ms ease;
-}
-
-.nx-nav.scrolled {
-  background: rgba(251, 250, 246, 0.94);
-  box-shadow: 0 18px 44px rgba(43, 33, 24, 0.08);
+  padding: 0 28px 0 20px;
+  background: rgba(248, 248, 248, 0.7);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
 }
 
 .nx-brand {
-  position: relative;
-  z-index: 2;
-  color: #15110f;
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
-.nx-nav-menu,
-.nx-nav-links,
-.nx-nav-actions {
-  display: flex;
-  align-items: center;
-}
-
-.nx-nav-menu {
-  gap: clamp(22px, 3vw, 42px);
-}
-
-.nx-nav-links {
-  gap: clamp(14px, 1.8vw, 25px);
-}
-
-.nx-nav-group {
-  position: relative;
-}
-
-.nx-nav a:not(.nx-brand),
-.nx-nav button {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: 6px;
+  color: var(--nxh-ink);
+  font: 800 17px / 1 var(--sans);
+  letter-spacing: -0.02em;
+}
+
+.nx-brand span {
+  font-weight: 450;
+  letter-spacing: -0.01em;
+}
+
+.nx-menu-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-right: -10px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--nxh-icon);
+  cursor: pointer;
+  transition: color 180ms ease;
+}
+
+.nx-menu-toggle svg {
+  width: 24px;
+  height: 24px;
+}
+
+.nx-menu-toggle:hover {
+  color: var(--nxh-accent);
+}
+
+/* ------------------------------------------------- fullscreen overlay --- */
+
+.nx-menu-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  padding-top: 59px;
+  background: rgba(248, 248, 248, 0.88);
+  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(22px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s linear 260ms;
+}
+
+.nx-menu-overlay.open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nx-menu-scroll {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.nx-menu-inner {
+  max-width: 1060px;
+  margin: 0 auto;
+  padding: clamp(14px, 4vh, 40px) clamp(20px, 4vw, 44px) 72px;
+}
+
+/* Rows fade-and-rise in sequence once the overlay opens. */
+.nx-menu-group,
+.nx-menu-direct,
+.nx-menu-actions {
+  opacity: 0;
+  transform: translateY(14px);
+}
+
+.nx-menu-overlay.open .nx-menu-group,
+.nx-menu-overlay.open .nx-menu-direct,
+.nx-menu-overlay.open .nx-menu-actions {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 340ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 400ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: calc(60ms + var(--menu-index, 0) * 45ms);
+}
+
+.nx-menu-group {
+  border-bottom: 1px solid var(--nxh-line);
+}
+
+.nx-menu-group > button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
   border: 0;
   background: transparent;
-  color: #6f6860;
+  padding: clamp(18px, 2.6vh, 24px) 0;
   cursor: pointer;
-  font: 800 12px / 1 var(--sans);
-  letter-spacing: 0.02em;
-  transition: color 180ms ease, transform 180ms ease;
+  color: var(--nxh-ink);
+  font: 600 clamp(26px, 3.4vw, 34px) / 1.05 var(--sans);
+  letter-spacing: -0.02em;
+  text-align: left;
+  transition: color 180ms ease;
 }
 
-.nx-nav-group button > span {
-  width: 5px;
-  height: 5px;
-  border-right: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor;
-  transform: rotate(45deg) translateY(-1px);
-  opacity: 0.55;
-  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+.nx-menu-group > button:hover,
+.nx-menu-group > button span.active {
+  color: var(--nxh-accent);
 }
 
-.nx-nav-group button[aria-expanded="true"] > span {
-  transform: rotate(225deg) translateY(-1px);
+.nx-menu-group > button svg {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  color: rgba(15, 23, 42, 0.55);
+  transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms ease;
 }
 
-.nx-nav a:not(.nx-brand):hover,
-.nx-nav button:hover,
-.nx-nav a:not(.nx-brand).active,
-.nx-nav button.active {
-  color: #5b1724;
+.nx-menu-group.open > button svg {
+  transform: rotate(180deg);
 }
 
-.nx-nav-actions {
-  gap: 10px;
+.nx-menu-group > button:hover svg {
+  color: var(--nxh-accent);
 }
 
-.nx-nav-login,
-.nx-nav-secondary,
-.nx-nav-cta {
-  min-height: 38px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  padding: 0 15px;
-  text-transform: uppercase;
-}
-
-.nx-nav .nx-nav-login {
-  display: inline-flex;
-  border: 1px solid rgba(60, 45, 35, 0.12);
-  background: rgba(255, 253, 248, 0.28);
-  color: #5b1724;
-  font-size: 10px;
-  letter-spacing: 0.12em;
-}
-
-.nx-nav .nx-nav-secondary {
-  display: inline-flex;
-  border: 1px solid rgba(60, 45, 35, 0.12);
-  background: rgba(255, 253, 248, 0.58);
-  color: #251113;
-  font-size: 10px;
-  letter-spacing: 0.12em;
-}
-
-.nx-nav .nx-nav-cta {
-  display: inline-flex;
-  border: 1px solid rgba(37, 17, 19, 0.18);
-  background: #251113;
-  color: #fffdf8;
-  box-shadow: 0 14px 32px rgba(91, 23, 36, 0.16);
-  font-size: 10px;
-  letter-spacing: 0.12em;
-}
-
-.nx-mega {
-  position: fixed;
-  top: 66px;
-  left: 0;
-  right: 0;
+/* 0fr -> 1fr is the whole expand/collapse animation: no measured heights. */
+.nx-menu-panel {
   display: grid;
-  place-items: start center;
-  padding: 10px var(--page-gutter, clamp(20px, 5vw, 72px)) 0;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(8px) scale(0.992);
-  transition:
-    opacity 180ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 340ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.nx-mega.open {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateY(0) scale(1);
+.nx-menu-group.open .nx-menu-panel {
+  grid-template-rows: 1fr;
 }
 
-.nx-mega-panel {
-  width: min(830px, calc(100vw - 48px));
-  max-height: calc(100vh - 92px);
-  overflow: auto;
-  border: 1px solid rgba(60, 45, 35, 0.14);
-  border-radius: 20px;
-  /* Near-opaque: at 0.96 the hero title ghosted through the panel. */
-  background: rgba(255, 253, 250, 0.99);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.9) inset,
-    0 30px 90px rgba(43, 33, 24, 0.18);
-  padding: 16px;
-  backdrop-filter: blur(20px);
+.nx-menu-panel > div {
+  overflow: hidden;
+  min-height: 0;
 }
 
-.nx-mega-intro {
-  display: flex;
-  justify-content: space-between;
-  gap: 24px;
-  border-bottom: 1px solid rgba(60, 45, 35, 0.1);
-  padding-bottom: 12px;
+.nx-menu-subtitle {
+  margin: 0 0 16px;
+  max-width: 620px;
+  color: var(--nxh-muted);
+  font-size: 14.5px;
+  line-height: 1.55;
 }
 
-.nx-mega-intro span,
-.nx-mega-card span,
-.nx-mega-feature span {
-  color: #5b1724;
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
-.nx-mega-intro p {
-  max-width: 520px;
+.nx-menu-panel ul {
+  list-style: none;
   margin: 0;
-  color: #6f6860;
-  font-size: 0.78rem;
-  line-height: 1.5;
-}
-
-.nx-mega-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 224px;
-  gap: 12px;
-  padding-top: 12px;
-}
-
-/* Two columns instead of three: seven products fill 4+3 with barely a gap,
-   so the panel reads dense and intentional instead of sparse. */
-.nx-mega-cards {
+  padding: 0 0 26px;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 12px 44px;
 }
 
-.nx-mega-card,
-.nx-mega-feature {
-  position: relative;
-  border: 1px solid rgba(60, 45, 35, 0.13);
-  border-radius: 16px;
-  background: #fffdf9;
-  transition:
-    transform 190ms cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 190ms ease,
-    box-shadow 190ms ease,
-    background 190ms ease;
+.nx-menu-panel ul a {
+  color: #3d3a34;
+  font: 500 16.5px / 1.4 var(--sans);
+  transition: color 160ms ease;
 }
 
-/* Icon on the left, text stacked beside it — a composed row, not a loose
-   pile of lines. */
-.nx-nav a.nx-mega-card {
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
-  grid-template-rows: auto auto auto;
-  align-items: start;
-  column-gap: 11px;
-  row-gap: 3px;
-  padding: 11px 32px 11px 11px;
-  letter-spacing: 0;
+.nx-menu-panel ul a:hover,
+.nx-menu-panel ul a.active {
+  color: var(--nxh-accent);
 }
 
-.nx-mega-card {
-  animation: nx-mega-card-in 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: calc(var(--mega-index, 0) * 26ms);
+.nx-menu-panel ul a.nx-menu-more {
+  font-weight: 700;
+  color: var(--nxh-accent);
 }
 
-.nx-mega-card i {
-  grid-row: 1 / span 3;
-  width: 28px;
-  height: 28px;
-  border-radius: 9px;
-  border: 1px solid rgba(91, 23, 36, 0.14);
-  background:
-    radial-gradient(circle, #5b1724 0 2.5px, transparent 3.5px),
-    linear-gradient(150deg, rgba(154, 78, 91, 0.1), rgba(91, 23, 36, 0.04));
-  transition: background 190ms ease, border-color 190ms ease;
+.nx-menu-panel ul a.nx-menu-more:hover {
+  color: #a34c00;
 }
 
-.nx-mega-card strong,
-.nx-mega-feature strong {
-  color: #15110f;
-  font: 650 0.98rem / 1.1 var(--serif);
-  letter-spacing: -0.025em;
+.nx-menu-direct {
+  display: block;
+  border-bottom: 1px solid var(--nxh-line);
+  padding: clamp(18px, 2.6vh, 24px) 0;
+  color: var(--nxh-ink);
+  font: 600 clamp(26px, 3.4vw, 34px) / 1.05 var(--sans);
+  letter-spacing: -0.02em;
+  transition: color 180ms ease;
 }
 
-.nx-mega-card p,
-.nx-mega-feature p {
-  margin: 0;
-  color: #6f6860;
-  font-size: 0.72rem;
-  line-height: 1.45;
+.nx-menu-direct:hover,
+.nx-menu-direct.active {
+  color: var(--nxh-accent);
 }
 
-/* The arrow only appears on hover — quieter at rest, rewarding on touch. */
-.nx-mega-card b {
-  position: absolute;
-  right: 15px;
-  top: 50%;
-  margin-top: -0.5em;
-  color: #9a2f42;
-  font-weight: 900;
-  opacity: 0;
-  transform: translateX(-5px);
-  transition: transform 190ms ease, opacity 190ms ease;
+/* -------------------------------------------------------- pill actions --- */
+
+.nx-menu-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 34px;
 }
 
-.nx-mega-card:hover {
-  transform: translateY(-2px);
-  background: #fffdf8;
-  border-color: rgba(91, 23, 36, 0.3);
-  box-shadow: 0 14px 34px rgba(43, 33, 24, 0.1);
+.nx-menu-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 100px;
+  padding: 16px 32px;
+  font: 600 15px / 1 var(--sans);
+  letter-spacing: 0.01em;
+  transition: background 200ms ease, color 200ms ease, border-color 200ms ease;
 }
 
-.nx-mega-card:hover i {
-  border-color: rgba(91, 23, 36, 0.3);
-  background:
-    radial-gradient(circle, #5b1724 0 2.5px, transparent 3.5px),
-    linear-gradient(150deg, rgba(154, 78, 91, 0.2), rgba(91, 23, 36, 0.08));
-}
-
-.nx-mega-card:hover b {
-  opacity: 1;
-  transform: translateX(0);
-}
-
-/* The featured rail is the panel's anchor: a deep burgundy block in a sea of
-   creme, top-aligned like an editorial sidebar. */
-.nx-nav a.nx-mega-feature {
-  display: grid;
-  align-content: start;
-  gap: 8px;
-  min-height: 100%;
-  padding: 16px 15px;
-  letter-spacing: 0;
-  border-color: rgba(43, 13, 19, 0.5);
-  background:
-    radial-gradient(circle at 82% -6%, rgba(210, 116, 132, 0.28), transparent 11rem),
-    linear-gradient(160deg, #46121d, #2a0c12);
-  box-shadow: 0 18px 44px rgba(43, 13, 19, 0.28);
-}
-
-.nx-mega-feature span {
-  color: rgba(255, 240, 236, 0.66);
-}
-
-.nx-mega-feature strong {
+.nx-menu-pill.primary {
+  background: var(--nxh-ink);
   color: #fffdf8;
-  font-size: 1.12rem;
 }
 
-.nx-mega-feature p {
-  color: rgba(255, 244, 238, 0.72);
+.nx-menu-pill.primary:hover {
+  background: var(--nxh-accent);
 }
 
-.nx-mega-feature:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 24px 54px rgba(43, 13, 19, 0.36);
+.nx-menu-pill.outline {
+  border: 1px solid rgba(15, 23, 42, 0.22);
+  color: var(--nxh-ink);
 }
 
-.nx-mega-feature em {
-  margin-top: 6px;
-  color: #ffd9cd;
-  font-style: normal;
-  font-size: 0.7rem;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  transition: transform 190ms ease;
+.nx-menu-pill.outline:hover {
+  border-color: var(--nxh-accent);
+  color: var(--nxh-accent);
 }
 
-.nx-mega-feature:hover em {
-  transform: translateX(4px);
-}
-
-.nx-mobile-toggle {
-  display: none;
-}
-
-@keyframes nx-mega-card-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@media (max-width: 980px) {
-  .nx-nav {
-    height: 64px;
-  }
-
-  .nx-mobile-toggle {
-    position: relative;
-    z-index: 2;
-    display: grid;
-    gap: 5px;
-    padding: 8px;
-  }
-
-  .nx-mobile-toggle span {
-    display: block;
-    width: 22px;
-    height: 2px;
-    background: #251113;
-  }
-
-  .nx-nav-menu {
-    position: fixed;
-    inset: 64px 14px auto;
-    display: none;
-    max-height: calc(100vh - 82px);
-    overflow: auto;
-    border: 1px solid rgba(60, 45, 35, 0.12);
-    border-radius: 22px;
-    background: rgba(255, 253, 248, 0.96);
-    box-shadow: 0 28px 80px rgba(43, 33, 24, 0.16);
-    padding: 16px;
-  }
-
-  .nx-nav-menu.open,
-  .nx-nav-links,
-  .nx-nav-actions {
-    display: grid;
-  }
-
-  .nx-nav-links,
-  .nx-nav-actions,
-  .nx-nav-menu {
-    gap: 12px;
-  }
-
-  .nx-nav-group {
-    display: grid;
-    gap: 8px;
-  }
-
-  .nx-mega {
-    position: static;
-    display: none;
-    padding: 0;
-    opacity: 1;
-    pointer-events: auto;
-    transform: none;
-  }
-
-  .nx-mega.open {
-    display: block;
-  }
-
-  .nx-mega-panel {
-    padding: 14px;
-    border-radius: 18px;
-    box-shadow: none;
-  }
-
-  .nx-mega-intro,
-  .nx-mega-grid,
-  .nx-mega-cards {
+@media (max-width: 760px) {
+  .nx-menu-panel ul {
     grid-template-columns: 1fr;
-    display: grid;
+  }
+
+  .nx-menu-pill {
+    flex: 1 1 100%;
   }
 }

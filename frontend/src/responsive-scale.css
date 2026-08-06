@@ -15,21 +15,9 @@
   font-size: 10px;
 }
 
-/* Navigation */
-.nx-nav {
-  height: 66px;
-  padding-inline: var(--page-gutter);
-}
-
-.nx-brand,
-.nx-nav a:not(.nx-brand),
-.nx-nav button {
-  font-size: 11px;
-}
-
-.nx-nav-links {
-  gap: clamp(16px, 2vw, 24px);
-}
+/* Navigation geometry lives entirely in HeaderNavigationBar.css: the bar is
+   the same minimal 59px strip at every width, so it needs no scale overrides
+   here. */
 
 /* Animated hero */
 .nx-hero-content {
@@ -452,10 +440,6 @@
     --section-space: 68px;
   }
 
-  .nx-nav {
-    height: 64px;
-  }
-
   .nx-hero-main h1 {
     font-size: clamp(42px, 11vw, 72px);
     white-space: normal;
@@ -542,10 +526,6 @@
     font-size: 13.5px;
     --page-gutter: 18px;
     --section-space: 56px;
-  }
-
-  .nx-brand {
-    font-size: 10px;
   }
 
   .nx-hero-kicker {
