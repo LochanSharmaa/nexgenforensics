@@ -930,3 +930,82 @@
   font-size: 13.5px;
   color: var(--muted);
 }
+
+/* ---- Audit trail: the images each entry's action compared ---- */
+
+.wk-evidence {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+}
+
+.wk-evidence-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wk-evidence-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wk-evidence-item {
+  display: grid;
+  gap: 3px;
+  justify-items: center;
+  margin: 0;
+}
+
+.wk-evidence-item figcaption {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.wk-evidence-thumb {
+  display: block;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  object-fit: cover;
+  background: #fff;
+}
+
+img.wk-evidence-thumb {
+  cursor: zoom-in;
+}
+
+.wk-evidence-pending {
+  background: linear-gradient(110deg, #efece5 40%, #f7f4ee 50%, #efece5 60%);
+}
+
+.wk-evidence-missing {
+  display: grid;
+  place-items: center;
+  border-style: dashed;
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: transparent;
+}
+
+.wk-evidence-sep {
+  color: var(--muted);
+  font-size: 15px;
+  /* Keeps the relation glyph clear of the caption line below the thumbs. */
+  margin-bottom: 14px;
+}
+
+.wk-evidence-note {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.wk-evidence-none {
+  color: var(--muted);
+}

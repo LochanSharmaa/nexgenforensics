@@ -103,9 +103,57 @@ def set_engine(engine: Engine | None) -> None:
     _engine = engine
 
 
+def _quote_default(value: object) -> str | None:
+    if isinstance(value, bool):
+        return "1" if value else "0"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, str):
+        escaped = value.replace("'", "''")
+        return f"'{escaped}'"
+    return None
+
+
+def _add_missing_columns(engine: Engine) -> None:
+    """Additive migration for SQLite databases created by an older model set.
+
+    ``create_all`` only creates missing *tables*; a column added to an existing
+    model (``search_runs.source_kind`` was the first) silently never reaches a
+    database that predates it, and the first SELECT of that model then fails at
+    runtime. Only ADD COLUMN is ever issued — nothing is dropped, renamed or
+    rewritten — so running this on every startup is safe. Scalar defaults are
+    carried into the DDL so existing rows read the model's default instead of
+    NULL.
+    """
+    if engine.url.get_backend_name() != "sqlite":
+        return
+
+    with engine.begin() as connection:
+        for table in SQLModel.metadata.sorted_tables:
+            rows = connection.exec_driver_sql(f"PRAGMA table_info('{table.name}')").fetchall()
+            if not rows:
+                continue  # new table: create_all handles it
+            existing = {row[1] for row in rows}
+            for column in table.columns:
+                if column.name in existing:
+                    continue
+                ddl = (
+                    f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" '
+                    f"{column.type.compile(engine.dialect)}"
+                )
+                default = None
+                if column.default is not None and getattr(column.default, "is_scalar", False):
+                    default = _quote_default(column.default.arg)
+                if default is not None:
+                    ddl += f" DEFAULT {default}"
+                connection.exec_driver_sql(ddl)
+                logger.info("Migrated %s: added column %s.", table.name, column.name)
+
+
 def init_database(engine: Engine | None = None) -> None:
     target = engine or get_engine()
     SQLModel.metadata.create_all(target)
+    _add_missing_columns(target)
     logger.info("Database schema ready at %s.", target.url.render_as_string(hide_password=True))
 
 

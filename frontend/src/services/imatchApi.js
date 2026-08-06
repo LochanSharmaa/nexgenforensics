@@ -680,6 +680,33 @@ export function verifyAuditChain() {
   return request("/api/audit/verify");
 }
 
+/**
+ * Image bytes for one of the images an audit entry references, as an object
+ * URL for <img>. Same direct-fetch reasoning as fetchEnhancementImage: the
+ * body is binary and the generic helper would decode it as text. The caller
+ * owns the returned URL and must revoke it when done.
+ *
+ * A 404 is an expected outcome here, not only an error: entries older than
+ * the probe retention window keep their sha256 in the chained detail while
+ * the bytes themselves are gone.
+ */
+export async function fetchAuditImage(recordId, key) {
+  const response = await fetch(
+    `${IMATCH_BASE}/api/audit/${encodeURIComponent(recordId)}/image/${encodeURIComponent(key)}`,
+    {
+      headers: tokenStore.access ? { Authorization: `Bearer ${tokenStore.access}` } : {},
+      credentials: "include",
+    },
+  );
+  if (!response.ok) {
+    if (response.status === 401) tokenStore.clear();
+    throw new ApiError(`Could not load the ${key} image (HTTP ${response.status}).`, {
+      status: response.status,
+    });
+  }
+  return URL.createObjectURL(await response.blob());
+}
+
 export function fetchEngineStatus() {
   return request("/api/imatch/engine/status");
 }

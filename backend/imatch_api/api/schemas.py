@@ -194,6 +194,16 @@ class EnrolRequest(BaseModel):
     case_id: str | None = None
     subject_id: str | None = Field(default=None, description="Add another image to an existing subject.")
     image_base64: str = Field(min_length=1)
+    filename: str = Field(
+        default="",
+        max_length=260,
+        description=(
+            "The name the file has on the submitter's system. Recorded for the "
+            "examination report's description of exhibits, which has to identify "
+            "a photograph the way the person who supplied it will recognise it. "
+            "Never used to build a storage path."
+        ),
+    )
     lawful_basis: str = Field(default="", max_length=500)
 
     @field_validator("image_base64")
@@ -254,6 +264,15 @@ class SearchRequest(BaseModel):
 
     image_base64: str | None = None
     source_url: str | None = Field(default=None, max_length=2000)
+    filename: str = Field(
+        default="",
+        max_length=260,
+        description=(
+            "The name the file has on the submitter's system. Recorded for the "
+            "examination report's description of exhibits. Never used to build "
+            "a storage path."
+        ),
+    )
     mode: str = Field(default="single", pattern="^(single|compare|batch|url)$")
     case_id: str | None = None
     top_k: int = Field(default=10, ge=1, le=100)
@@ -448,6 +467,19 @@ class SearchRunResponse(BaseModel):
 # ------------------------------------------------------------------ audit ----
 
 
+class AuditImageRef(BaseModel):
+    """One stored image an audit entry references, addressable by key.
+
+    ``key`` is what GET /api/audit/{id}/image/{key} accepts; ``sha256`` is the
+    hash recorded when the bytes were stored, so a reviewer can tie what the
+    endpoint serves back to what the chained entry committed to.
+    """
+
+    key: str
+    label: str
+    sha256: str = ""
+
+
 class AuditRecordResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -466,6 +498,11 @@ class AuditRecordResponse(BaseModel):
     ip_address: str
     entry_hash: str
     created_at: datetime
+    # The images this entry's action compared or produced, resolved server-side
+    # from the entry itself (verify) or the run it points at (search, enhance,
+    # enrol). Empty when the action involves no image, or when the entry
+    # predates image capture on that action.
+    images: list[AuditImageRef] = []
 
 
 class ChainVerificationResponse(BaseModel):

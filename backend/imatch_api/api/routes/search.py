@@ -202,6 +202,7 @@ def verify(
     session: Session = Depends(get_session),
     settings: Settings = Depends(get_settings),
     engine: EngineService = Depends(get_engine_service),
+    storage: StorageService = Depends(get_storage),
     audit: AuditService = Depends(get_audit_service),
 ) -> VerifyResponse:
     """One-to-one comparison of two supplied images. Nothing is enrolled."""
@@ -214,9 +215,15 @@ def verify(
             "A lawful basis must be stated for every biometric comparison.",
         )
 
+    # Both sides are stored before anything is computed. An audit entry that
+    # says two images were compared but cannot show which two is not an audit
+    # entry; the hashes go into the chained detail below, and the bytes stay
+    # retrievable under the probe retention window.
     try:
         reference_bytes = decode_base64_image(payload.reference_image_base64, settings.max_upload_bytes)
         probe_bytes = decode_base64_image(payload.probe_image_base64, settings.max_upload_bytes)
+        stored_reference = storage.store(principal.tenant_id, reference_bytes, category="probes")
+        stored_probe = storage.store(principal.tenant_id, probe_bytes, category="probes")
         reference = engine.encode(reference_bytes)
         probe = engine.encode(probe_bytes)
     except (UnsupportedImageError, ImageTooLargeError) as exc:
@@ -259,7 +266,15 @@ def verify(
         resource_id=payload.case_id or "",
         outcome="verified" if verified else "not_verified",
         lawful_basis=lawful_basis,
-        detail={"similarity": round(similarity, 6), "threshold": threshold, "recognition_capable": capable},
+        detail={
+            "similarity": round(similarity, 6),
+            "threshold": threshold,
+            "recognition_capable": capable,
+            "reference_sha256": stored_reference.sha256,
+            "reference_path": stored_reference.path,
+            "probe_sha256": stored_probe.sha256,
+            "probe_path": stored_probe.path,
+        },
         ip_address=ip_address,
         user_agent=user_agent,
     )
@@ -286,6 +301,7 @@ def batch(
     session: Session = Depends(get_session),
     settings: Settings = Depends(get_settings),
     engine: EngineService = Depends(get_engine_service),
+    storage: StorageService = Depends(get_storage),
     audit: AuditService = Depends(get_audit_service),
 ) -> BatchResponse:
     """Batch 1:1 comparison (``pair``) or batch 1:N gallery search (``gallery``).
@@ -328,6 +344,7 @@ def batch(
     # error rather than a per-item error -- unlike a bad probe, which only
     # invalidates its own item.
     shared_reference = None
+    shared_reference_stored = None
     if payload.mode == "one_to_many":
         if not payload.reference_image_base64:
             raise HTTPException(
@@ -337,6 +354,7 @@ def batch(
             )
         try:
             ref_bytes = decode_base64_image(payload.reference_image_base64, settings.max_upload_bytes)
+            shared_reference_stored = storage.store(principal.tenant_id, ref_bytes, category="probes")
             shared_reference = engine.encode(ref_bytes)
         except (UnsupportedImageError, ImageTooLargeError, InvalidImageError) as exc:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, f"reference image: {exc}") from exc
@@ -353,6 +371,7 @@ def batch(
         label = item.label or f"item-{index + 1}"
         try:
             probe_bytes = decode_base64_image(item.probe_image_base64, settings.max_upload_bytes)
+            stored_probe = storage.store(principal.tenant_id, probe_bytes, category="probes")
             probe = engine.encode(probe_bytes)
         except (UnsupportedImageError, ImageTooLargeError, InvalidImageError) as exc:
             results.append(BatchItemResult(index=index, label=label, status="error", error=str(exc)))
@@ -370,11 +389,13 @@ def batch(
         if payload.mode in ("pair", "one_to_many"):
             if shared_reference is not None:
                 reference = shared_reference
+                stored_reference = shared_reference_stored
             else:
                 try:
                     ref_bytes = decode_base64_image(
                         item.reference_image_base64, settings.max_upload_bytes
                     )
+                    stored_reference = storage.store(principal.tenant_id, ref_bytes, category="probes")
                     reference = engine.encode(ref_bytes)
                 except (
                     UnsupportedImageError,
@@ -405,6 +426,10 @@ def batch(
                     "similarity": round(similarity, 6),
                     "threshold": threshold,
                     "recognition_capable": capable,
+                    "reference_sha256": stored_reference.sha256,
+                    "reference_path": stored_reference.path,
+                    "probe_sha256": stored_probe.sha256,
+                    "probe_path": stored_probe.path,
                 },
                 ip_address=ip_address,
                 user_agent=user_agent,
@@ -456,6 +481,8 @@ def batch(
                     "gallery_size": outcome.gallery_size,
                     "match_count": len(candidates),
                     "recognition_capable": capable,
+                    "probe_sha256": stored_probe.sha256,
+                    "probe_path": stored_probe.path,
                 },
                 ip_address=ip_address,
                 user_agent=user_agent,
