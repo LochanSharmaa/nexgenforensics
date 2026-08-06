@@ -8,6 +8,7 @@ import {
   updateCase,
 } from "../services/imatchApi";
 import { CandidateTable } from "./components/CandidateTable";
+import { ExaminationNotesPanel } from "./components/ExaminationNotesPanel";
 
 const DECISION_TONE = {
   candidate_match: "good",
@@ -171,6 +172,8 @@ export function CaseDetailPage() {
           )}
         </div>
       </section>
+
+      <ExaminationNotesPanel caseId={caseId} />
 
       <section className="wk-card">
         <h2>Search history</h2>

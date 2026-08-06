@@ -408,6 +408,16 @@ export function listExaminationNotes(caseId) {
 }
 
 /**
+ * The case's exhibit marks (Q-1, S-1 …), for citing in an observation.
+ *
+ * Detection only — this does not measure or render plates, so it is cheap
+ * enough to populate a picker.
+ */
+export function listExaminationExhibits(caseId) {
+  return request(`/api/cases/${encodeURIComponent(caseId)}/examination-exhibits`);
+}
+
+/**
  * Replace this case's examination notes with `notes`.
  *
  * A whole-set replace, matching the endpoint: the observations are numbered in
