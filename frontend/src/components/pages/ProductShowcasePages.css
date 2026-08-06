@@ -2,8 +2,8 @@
    --px-accent / --px-soft; everything else derives from the site palette. */
 
 .px-page {
-  /* Clears the fixed 59px navigation bar. */
-  padding-top: 59px;
+  /* Clears the fixed navigation bar at whichever height the breakpoint gives it. */
+  padding-top: var(--nx-nav-height, 66px);
   background:
     radial-gradient(circle at 50% 0%, var(--px-soft), transparent 34rem),
     var(--paper);

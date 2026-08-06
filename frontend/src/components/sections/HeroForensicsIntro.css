@@ -119,8 +119,9 @@
 .nx-hero-main h1 {
   max-width: 1280px;
   margin: 0 auto;
-  font: 400 clamp(54px, min(10.5vh, 8vw), 140px)/0.9 Georgia, "Times New Roman", serif;
-  letter-spacing: -0.052em;
+  /* Phonexia display type: Inter at 600, tight tracking, no serifs. */
+  font: 600 clamp(54px, min(10.5vh, 8vw), 140px)/0.95 var(--sans);
+  letter-spacing: -0.03em;
   color: #211719;
   text-shadow: 0 2px 30px rgba(255, 255, 255, 0.72);
   white-space: nowrap;
@@ -129,7 +130,8 @@
 .nx-hero-main h1 span {
   display: inline-block;
   margin-left: 0.12em;
-  font-style: italic;
+  /* Inter ships no italics here; a synthesised slant reads as a glitch. */
+  font-style: normal;
   color: #9a4e5b;
 }
 

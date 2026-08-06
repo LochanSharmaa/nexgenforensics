@@ -111,28 +111,9 @@
   animation: nx-nav-enter 760ms var(--motion-soft) both;
 }
 
-.nx-nav a:not(.nx-brand) {
-  position: relative;
-}
-
-.nx-nav a:not(.nx-brand)::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -7px;
-  height: 1px;
-  background: currentColor;
-  transform: scaleX(0);
-  transform-origin: right;
-  opacity: 0.52;
-  transition: transform 260ms ease;
-}
-
-.nx-nav a:not(.nx-brand):hover::after {
-  transform: scaleX(1);
-  transform-origin: left;
-}
+/* Nav links change colour on hover (the Phonexia treatment) — no underline
+   animation, which would also have leaked onto dropdown items and the CTA
+   pill. */
 
 .nx-btn,
 .nx-nav-cta,

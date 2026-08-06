@@ -75,7 +75,7 @@
 
 .nx-svg-core-title {
   fill: #fff;
-  font: 650 32px 'Source Serif 4', Georgia, serif;
+  font: 650 32px var(--sans);
 }
 
 .nx-svg-meta-light {
