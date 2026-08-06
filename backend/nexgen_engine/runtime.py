@@ -186,6 +186,7 @@ class EngineRuntime:
         self._detector: InsightFaceDetector | None = None
         self._recognizer: FaceRecognizer | None = None
         self._analysis_app = None
+        self._landmarkers: dict[str, object] | None = None
         self._effective_device = "cpu"
         self._providers: tuple[str, ...] = ()
         self._load_seconds = 0.0
@@ -207,6 +208,57 @@ class EngineRuntime:
         """True once the real model is loaded; raises if it cannot load."""
         self._ensure_loaded()
         return True
+
+    @property
+    def landmarkers(self) -> dict[str, object]:
+        """Dense-landmark models, loaded on first use and not before.
+
+        The pack ships ``2d106det`` (106 2D points) and ``1k3d68`` (68 3D
+        points, and a fitted head pose), but ``_load`` deliberately excludes
+        them from ``allowed_modules`` because search and enrolment never touch
+        them and they cost memory and startup time on every process.
+
+        Report generation does need them, and it is not on the latency path, so
+        they are built here against the same pack directory the recogniser came
+        from -- same weights, same provider list, no second download.
+
+        Raises ``EngineUnavailableError`` if the files are absent, rather than
+        returning an empty mapping: a caller that asked for landmarks must not
+        be handed silence it might mistake for "this face has none".
+        """
+        self._ensure_loaded()
+        with self._lock:
+            if self._landmarkers is not None:
+                return self._landmarkers
+
+            from insightface.model_zoo import get_model
+
+            root = Path(self.config.model_root or "~/.insightface").expanduser()
+            pack_dir = root / "models" / self.config.model_pack
+            wanted = {"landmark_2d_106": "2d106det.onnx", "landmark_3d_68": "1k3d68.onnx"}
+
+            loaded: dict[str, object] = {}
+            missing: list[str] = []
+            for taskname, filename in wanted.items():
+                path = pack_dir / filename
+                if not path.exists():
+                    missing.append(filename)
+                    continue
+                model = get_model(str(path), providers=list(self._providers))
+                model.prepare(ctx_id=0 if self._effective_device == "cuda" else -1)
+                loaded[taskname] = model
+
+            if missing:
+                raise EngineUnavailableError(
+                    f"Model pack {self.config.model_pack!r} is missing "
+                    + ", ".join(missing)
+                    + f" in {pack_dir}. Dense landmarks are required for the "
+                    "photograph examination report."
+                )
+
+            logger.info("Dense-landmark models loaded from %s.", pack_dir)
+            self._landmarkers = loaded
+            return loaded
 
     @property
     def device(self) -> str:
