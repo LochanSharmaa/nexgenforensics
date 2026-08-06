@@ -241,6 +241,16 @@ class ExaminationNoteResponse(BaseModel):
     updated_at: datetime
 
 
+class ExaminationExhibitResponse(BaseModel):
+    """One marked face, for the notes editor's citation picker."""
+
+    mark: str
+    role: str
+    filename: str
+    sha256: str
+    subject_name: str = ""
+
+
 class SubjectResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -332,6 +342,11 @@ class ProbeAssessment(BaseModel):
     quality: dict[str, Any]
     liveness: dict[str, Any]
     deepfake_risk: float
+    # Full multi-signal synthetic-media screen: score, band, per-signal
+    # readings and reasons. deepfake_risk above is its fused score, kept for
+    # backwards compatibility.
+    deepfake: dict[str, Any] = Field(default_factory=dict)
+    reasons: list[str] = Field(default_factory=list)
     faces_detected: int
     detector: str
     box: dict[str, int]
@@ -375,6 +390,11 @@ class VerifyResponse(BaseModel):
     reference: ProbeAssessment
     probe: ProbeAssessment
     morphing: dict[str, Any]
+    # Synthetic-media screening verdict over BOTH images. When flagged, the
+    # similarity above is reported for the record but cannot support an
+    # identification until the flagged image's provenance is resolved.
+    synthetic_screen: dict[str, Any] = Field(default_factory=dict)
+    review_required: bool = False
     audit_hash: str
     notice: str = INVESTIGATIVE_NOTICE
 
@@ -444,6 +464,11 @@ class BatchItemResult(BaseModel):
     probe_quality: float | None = None
     probe_liveness: float | None = None
     probe_deepfake_risk: float | None = None
+    # Band from the synthetic-media screen (minimal/moderate/elevated/high)
+    # plus every integrity flag the probe raised, so a batch row can warn
+    # without the caller re-deriving thresholds.
+    probe_deepfake_band: str = ""
+    probe_flags: list[str] = Field(default_factory=list)
     audit_hash: str = ""
 
 
@@ -455,6 +480,10 @@ class BatchResponse(BaseModel):
     succeeded: int
     failed: int
     results: list[BatchItemResult]
+    # one_to_many only: the shared reference's assessment, screened once. A
+    # forged reference invalidates every comparison in the batch, so the
+    # caller must be able to see it was checked.
+    reference: ProbeAssessment | None = None
     notice: str = INVESTIGATIVE_NOTICE
 
 

@@ -337,13 +337,57 @@ class ExaminationService:
                 )
         return photographs
 
+    def inventory(
+        self, session: Session, tenant_id: str, case_id: str
+    ) -> list[dict[str, Any]]:
+        """The exhibit marks for a case, without measuring anything.
+
+        The notes editor needs to offer the examiner a list of marks to cite,
+        and building the full report to get one would run the jitter bootstrap
+        and render every plate -- seconds of work to populate a picker.
+
+        Detection still has to run, because a mark is per face and only the
+        detector knows how many faces a photograph holds. That is one pass per
+        image rather than the twelve the measurement path costs, and no plate
+        is rendered.
+
+        Marks are assigned by exactly the same rule as ``build``: same
+        collection order, same left-to-right ordering within a photograph. If
+        the two ever disagreed, the examiner would cite marks that the report
+        then reports as absent.
+        """
+        case = session.get(Case, case_id)
+        if case is None or case.tenant_id != tenant_id:
+            raise ValueError("Case not found.")
+
+        photographs = self._collect(session, tenant_id, case_id)
+        self._analyse(photographs, landmarkers=None, unavailable=[], measure=False)
+        return [
+            {
+                "mark": face.mark,
+                "role": photo.role,
+                "filename": photo.display_name,
+                "sha256": photo.sha256,
+                "subject_name": photo.subject_name,
+            }
+            for photo in photographs
+            for face in photo.faces
+        ]
+
     def _analyse(
         self,
         photographs: list[ExhibitPhotograph],
         landmarkers: dict[str, Any] | None,
         unavailable: list[str],
+        measure: bool = True,
     ) -> None:
-        """Load each photograph, mark every face in it, and measure each face."""
+        """Load each photograph, mark every face in it, and measure each face.
+
+        With ``measure=False`` the marks are assigned and nothing else is
+        computed -- the inventory path. That is a different thing from
+        ``landmarkers is None``, which means measurement was wanted and could
+        not be done, and which records a reason against every face.
+        """
         counters = {"questioned": 0, "specimen": 0}
         prefix = {"questioned": "Q", "specimen": "S"}
 
@@ -378,12 +422,16 @@ class ExaminationService:
             # Left to right, so the marks in a group photograph run in the order
             # a reader's eye crosses the picture.
             detected = sorted(detected, key=lambda face: face.box.left)
-            bgr = np.asarray(photo.image)[:, :, ::-1].copy()
+            bgr = None if not measure else np.asarray(photo.image)[:, :, ::-1].copy()
 
             for face in detected:
                 counters[photo.role] += 1
                 mark = f"{prefix[photo.role]}-{counters[photo.role]}"
                 box = (face.box.left, face.box.top, face.box.right, face.box.bottom)
+
+                if not measure:
+                    photo.faces.append(ExhibitFace(mark=mark, morphology=None))
+                    continue
 
                 if landmarkers is None:
                     photo.faces.append(

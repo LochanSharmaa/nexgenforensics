@@ -1,5 +1,5 @@
 from .audit_logger import AuditEntry, AuditLogger
-from .deepfake_detector import DeepfakeDetector
+from .deepfake_detector import DeepfakeDetector, DeepfakeReport, SignalReading
 from .liveness import LivenessDetector, LivenessReport
 from .morphing_detector import MorphingDetector
 from .presentation_attack import IntegrityAssessment, PresentationAttackDetector
@@ -9,6 +9,8 @@ __all__ = [
     "AuditEntry",
     "AuditLogger",
     "DeepfakeDetector",
+    "DeepfakeReport",
+    "SignalReading",
     "EncryptedTemplate",
     "IntegrityAssessment",
     "LivenessDetector",

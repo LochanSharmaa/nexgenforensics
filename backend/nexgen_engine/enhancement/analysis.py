@@ -26,7 +26,9 @@ from typing import Any
 
 import numpy as np
 
-from ..data.quality_filter import laplacian_variance
+from PIL import Image
+
+from ..data.quality_filter import laplacian_variance, match_scale_sharpness
 from ..degradation.bandlimit import effective_cutoff
 from ..degradation.estimate import estimate_degradation
 
@@ -191,7 +193,12 @@ class DegradationProfile:
 
     mean_luma: float
     contrast: float
+    # Raw Laplacian variance at native resolution: a measured property of the
+    # stored pixels, kept for continuity of recorded profiles. NOT comparable
+    # across resolutions -- anything that gates on sharpness must use
+    # ``sharpness_match_scale``, which is measured at the fixed 112px scale.
     sharpness_laplacian: float
+    sharpness_match_scale: float
 
     blur_sigma: float
     blur_confidence: float
@@ -298,6 +305,14 @@ def analyze(pixels: np.ndarray) -> DegradationProfile:
         mean_luma=round(float(gray.mean() * 255.0), 2),
         contrast=round(float(gray.std() * 255.0), 2),
         sharpness_laplacian=round(float(laplacian_variance(gray * 255.0)), 2),
+        sharpness_match_scale=round(
+            float(
+                match_scale_sharpness(
+                    Image.fromarray(np.clip(gray * 255.0, 0.0, 255.0).astype(np.uint8))
+                )
+            ),
+            2,
+        ),
         blur_sigma=round(blur_sigma, 4),
         blur_confidence=round(blur_conf, 4),
         blur_kind=kind,
@@ -325,8 +340,9 @@ def quality_metrics(pixels: np.ndarray) -> dict[str, Any]:
     """Compact before/after scorecard. Same measurements, reported as scores.
 
     Deliberately reuses the aggregation weights nobody should be inventing twice:
-    sharpness normalised at 220 Laplacian variance and contrast at 64 DN match
-    ``ImageQualityFilter`` so a number here means the same thing it means there.
+    sharpness is measured at the fixed 112px match scale and normalised at 220
+    Laplacian variance, contrast at 64 DN, matching ``ImageQualityFilter`` so a
+    number here means the same thing it means there.
     """
     arr = np.asarray(pixels)
     gray = _gray(arr) * 255.0
@@ -335,7 +351,7 @@ def quality_metrics(pixels: np.ndarray) -> dict[str, Any]:
     def clamp(value: float) -> float:
         return float(min(max(value, 0.0), 1.0))
 
-    sharpness = clamp(profile.sharpness_laplacian / 220.0)
+    sharpness = clamp(profile.sharpness_match_scale / 220.0)
     contrast = clamp(profile.contrast / 64.0)
     brightness = 1.0 - clamp(abs(float(gray.mean()) - 128.0) / 128.0)
     resolution = clamp((profile.short_side - SMALL_FACE_PIXELS) / 160.0)
@@ -366,6 +382,7 @@ def quality_metrics(pixels: np.ndarray) -> dict[str, Any]:
             "width": profile.width,
             "height": profile.height,
             "laplacian_variance": profile.sharpness_laplacian,
+            "laplacian_variance_match_scale": profile.sharpness_match_scale,
             "noise_sigma": profile.noise_sigma,
             "spectral_cutoff": profile.spectral_cutoff,
             "jpeg_quality": profile.jpeg_quality,

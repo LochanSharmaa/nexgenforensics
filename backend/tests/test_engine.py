@@ -5,7 +5,11 @@ import pytest
 from PIL import Image
 
 from nexgen_engine.config import EngineConfig
-from nexgen_engine.data.quality_filter import ImageQualityFilter, laplacian_variance
+from nexgen_engine.data.quality_filter import (
+    ImageQualityFilter,
+    laplacian_variance,
+    match_scale_sharpness,
+)
 from nexgen_engine.detection.alignment import (
     ARCFACE_REFERENCE_5PT,
     estimate_pose,
@@ -89,6 +93,28 @@ class TestAlignment:
 # --------------------------------------------------------------- quality ----
 
 
+def _structured_scene(size: int) -> Image.Image:
+    """One identical scene rendered sharp at any output size.
+
+    Drawn supersampled and LANCZOS-downscaled, so a 200px and an 800px render
+    are the same photograph at two resolutions -- the case that exposed the
+    resolution-dependence of the raw Laplacian measure.
+    """
+    from PIL import ImageDraw
+
+    ss = 4
+    s = size * ss
+    img = Image.new("L", (s, s), 200)
+    draw = ImageDraw.Draw(img)
+    draw.ellipse([s * 0.15, s * 0.10, s * 0.85, s * 0.95], fill=140, outline=30, width=max(1, s // 80))
+    draw.ellipse([s * 0.32, s * 0.35, s * 0.44, s * 0.47], fill=250, outline=20, width=max(1, s // 120))
+    draw.ellipse([s * 0.56, s * 0.35, s * 0.68, s * 0.47], fill=250, outline=20, width=max(1, s // 120))
+    draw.line([s * 0.38, s * 0.75, s * 0.62, s * 0.75], fill=40, width=max(1, s // 90))
+    for i in range(int(s * 0.15), int(s * 0.85), max(2, s // 60)):
+        draw.line([i, s * 0.10, i + s // 30, s * 0.22], fill=60, width=max(1, s // 300))
+    return img.resize((size, size), Image.LANCZOS).convert("RGB")
+
+
 class TestQuality:
     def test_laplacian_variance_separates_sharp_from_blurred(self):
         from PIL import ImageFilter
@@ -99,6 +125,45 @@ class TestQuality:
             original.filter(ImageFilter.GaussianBlur(6)).convert("L"), dtype=np.float64
         )
         assert laplacian_variance(sharp) > laplacian_variance(blurred) * 2
+
+    def test_sharpness_measure_is_stable_across_resolution(self):
+        """The same sharp content must measure the same at any upload size.
+
+        The raw Laplacian falls ~12x from 112px to 1600px on identical content;
+        in production that scored tack-sharp 250-400px ID faces at 1-3% and
+        blocked them as severe_blur.
+        """
+        measures = [match_scale_sharpness(_structured_scene(size)) for size in (112, 400, 1600)]
+        assert min(measures) > 0
+        assert max(measures) / min(measures) < 1.25
+
+    def test_large_sharp_image_is_not_flagged_as_blurred(self):
+        report = ImageQualityFilter().evaluate(_structured_scene(800))
+        assert "severe_blur" not in report.reasons
+        assert "blur_risk" not in report.reasons
+        assert report.sharpness_score > 0.5
+
+    def test_blur_still_flags_at_the_match_scale(self):
+        from PIL import ImageFilter
+
+        blurred = _structured_scene(400).filter(ImageFilter.GaussianBlur(6))
+        sharp = ImageQualityFilter().evaluate(_structured_scene(400))
+        report = ImageQualityFilter().evaluate(blurred)
+        assert report.sharpness_score < sharp.sharpness_score
+
+    def test_noise_on_a_blurred_image_does_not_read_as_sharpness(self):
+        """A defocused frame with sensor noise out-measured a genuinely sharp
+        one 2881 vs 1340 under the native-resolution Laplacian. The match-scale
+        measure must keep them in the right order."""
+        from PIL import ImageFilter
+
+        rng = np.random.default_rng(3)
+        sharp = _structured_scene(400)
+        blurred = np.asarray(sharp.filter(ImageFilter.GaussianBlur(3.0)).convert("L"), dtype=np.float64)
+        noisy = Image.fromarray(
+            np.clip(blurred + rng.normal(0.0, 12.0, blurred.shape), 0, 255).astype(np.uint8)
+        )
+        assert match_scale_sharpness(noisy) < match_scale_sharpness(sharp)
 
     def test_uniform_image_is_rejected(self):
         flat = Image.new("RGB", (300, 300), (128, 128, 128))

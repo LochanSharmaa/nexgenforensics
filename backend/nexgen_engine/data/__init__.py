@@ -1,7 +1,12 @@
 from .augmentation import TrainingAugmenter
 from .ingestion_validator import DatasetIngestionValidator, DatasetValidationReport
 from .manifest import DatasetManifest, ManifestRecord
-from .quality_filter import ImageQualityFilter, QualityReport, laplacian_variance
+from .quality_filter import (
+    ImageQualityFilter,
+    QualityReport,
+    laplacian_variance,
+    match_scale_sharpness,
+)
 
 __all__ = [
     "DatasetIngestionValidator",
@@ -12,4 +17,5 @@ __all__ = [
     "QualityReport",
     "TrainingAugmenter",
     "laplacian_variance",
+    "match_scale_sharpness",
 ]

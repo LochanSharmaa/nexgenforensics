@@ -12,7 +12,7 @@ from ..data.quality_filter import ImageQualityFilter, QualityReport
 from ..detection.alignment import FaceAligner
 from ..detection.types import DetectedFace
 from ..runtime import EngineRuntime
-from ..security.deepfake_detector import DeepfakeDetector
+from ..security.deepfake_detector import DeepfakeDetector, DeepfakeReport
 from ..security.liveness import LivenessDetector, LivenessReport
 from ..utils import l2_normalize
 
@@ -73,11 +73,17 @@ class RecognitionResult:
     # model, so reaching this object at all means recognition is live.
     recognition_capable: bool = True
 
+    # Full synthetic-media screen behind ``deepfake_risk``. Optional so that
+    # results constructed by older callers stay valid; the pipeline always
+    # populates it.
+    deepfake: DeepfakeReport | None = None
+
     def as_dict(self) -> dict[str, object]:
         return {
             "quality": self.quality.as_dict(),
             "liveness": self.liveness.as_dict(),
             "deepfake_risk": self.deepfake_risk,
+            "deepfake": self.deepfake.as_dict() if self.deepfake else None,
             "faces_detected": self.faces_detected,
             "recognition_capable": True,
             "detector": self.detector_name,
@@ -120,7 +126,10 @@ class FacialRecognitionPipeline:
         self.quality_filter = ImageQualityFilter(self.config.quality)
         self.aligner = FaceAligner()
         self.liveness = LivenessDetector(self.config.security.liveness_threshold)
-        self.deepfake = DeepfakeDetector(self.config.security.deepfake_threshold)
+        self.deepfake = DeepfakeDetector(
+            self.config.security.deepfake_threshold,
+            self.config.security.deepfake_review_threshold,
+        )
 
     # ------------------------------------------------------------------ api --
 
@@ -128,13 +137,16 @@ class FacialRecognitionPipeline:
         started = time.perf_counter()
         image = decode_image(image_bytes)
         decode_ms = (time.perf_counter() - started) * 1000
-        return self.encode_image(image, decode_ms=decode_ms, started=started)
+        # The raw bytes travel along so the synthetic-media screen can read
+        # provenance metadata (EXIF, PNG chunks, C2PA) that decoding discards.
+        return self.encode_image(image, decode_ms=decode_ms, started=started, raw_bytes=image_bytes)
 
     def encode_image(
         self,
         image: Image.Image,
         decode_ms: float = 0.0,
         started: float | None = None,
+        raw_bytes: bytes | None = None,
     ) -> RecognitionResult:
         started = started if started is not None else time.perf_counter()
         image = image.convert("RGB")
@@ -161,14 +173,17 @@ class FacialRecognitionPipeline:
         embed_ms = (time.perf_counter() - mark) * 1000
 
         liveness = self.liveness.analyze(crop)
-        deepfake_risk = self.deepfake.risk_score(crop)
+        # The screen runs on the ORIGINAL image around the detected box, plus
+        # the raw bytes for provenance metadata. The aligned 112 px crop it
+        # used to receive had already been resampled below the resolution
+        # where generator artefacts survive.
+        deepfake = self.deepfake.analyze(image, face_box=face.box, raw_bytes=raw_bytes)
 
         reasons = list(quality.reasons)
         if not liveness.passed:
             reasons.append("liveness_below_threshold")
             reasons.extend(liveness.reasons)
-        if deepfake_risk >= self.config.security.deepfake_threshold:
-            reasons.append("synthetic_media_risk")
+        reasons.extend(deepfake.reasons)
         if len(outcome.faces) > 1:
             reasons.append("multiple_faces_detected")
 
@@ -177,7 +192,8 @@ class FacialRecognitionPipeline:
             face=face,
             quality=quality,
             liveness=liveness,
-            deepfake_risk=deepfake_risk,
+            deepfake_risk=deepfake.score,
+            deepfake=deepfake,
             faces_detected=len(outcome.faces),
             detector_name=self.runtime.detector.name,
             padded_detection=outcome.padded,
@@ -215,16 +231,19 @@ class FacialRecognitionPipeline:
         for face, crop, embedding in zip(faces, crops, embeddings):
             quality = self.quality_filter.evaluate(image, face)
             liveness = self.liveness.analyze(crop)
+            deepfake = self.deepfake.analyze(image, face_box=face.box)
             reasons = list(quality.reasons)
             if not liveness.passed:
                 reasons.append("liveness_below_threshold")
+            reasons.extend(deepfake.reasons)
             results.append(
                 RecognitionResult(
                     embedding=embedding,
                     face=face,
                     quality=quality,
                     liveness=liveness,
-                    deepfake_risk=self.deepfake.risk_score(crop),
+                    deepfake_risk=deepfake.score,
+                    deepfake=deepfake,
                     faces_detected=len(faces),
                     detector_name=self.runtime.detector.name,
                     padded_detection=outcome.padded,

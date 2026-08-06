@@ -48,20 +48,19 @@ class PresentationAttackDetector:
 
     def assess(self, image: Image.Image) -> IntegrityAssessment:
         liveness_report = self.liveness.analyze(image)
-        deepfake_risk = self.deepfake.risk_score(image)
+        deepfake_report = self.deepfake.analyze(image)
         morphing_risk = self.morphing.risk_score(image)
 
         reasons: list[str] = list(liveness_report.reasons)
         if not liveness_report.passed:
             reasons.append("liveness_below_threshold")
-        if deepfake_risk >= self.deepfake.alert_threshold:
-            reasons.append("synthetic_media_risk")
+        reasons.extend(deepfake_report.reasons)
         if morphing_risk >= self.morphing.alert_threshold:
             reasons.append("morphing_risk")
 
         return IntegrityAssessment(
             liveness_score=liveness_report.score,
-            deepfake_risk=deepfake_risk,
+            deepfake_risk=deepfake_report.score,
             morphing_risk=morphing_risk,
             flagged=bool(reasons),
             reasons=tuple(dict.fromkeys(reasons)),

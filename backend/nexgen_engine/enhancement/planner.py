@@ -276,7 +276,10 @@ def plan(
     # -- 6. face restoration (Track B) ------------------------------------
     consider(
         Task.FACE_RESTORE,
-        too_small or profile.sharpness_laplacian < 60.0,
+        # Match-scale sharpness, not the native-resolution Laplacian: the raw
+        # figure shrinks as resolution grows, which read every large sharp
+        # frame as "soft" and queued restoration it did not need.
+        too_small or profile.sharpness_match_scale < 60.0,
         {
             "fidelity_weight": 0.7,
             "monochrome": profile.infrared,

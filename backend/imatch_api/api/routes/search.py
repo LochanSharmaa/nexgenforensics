@@ -256,6 +256,25 @@ def verify(
             "The images are not supported as showing the same person."
         )
 
+    # Both images pass the synthetic-media screen BEFORE the similarity is
+    # allowed to stand on its own. Comparing a deepfake against a genuine
+    # photograph produces a number either way; without this gate the number
+    # is presented as if both inputs were photographs of real scenes.
+    reference_screen = _screen_summary(reference)
+    probe_screen = _screen_summary(probe)
+    screen_flagged = bool(probe_screen["flagged"] or reference_screen["flagged"])
+    screen_review = bool(probe_screen["review_advised"] or reference_screen["review_advised"])
+    caution = _screen_caution(reference_screen, probe_screen)
+    if caution:
+        explanation = f"{explanation} {caution}"
+    synthetic_screen = {
+        "flagged": screen_flagged,
+        "review_advised": screen_review,
+        "reference": reference_screen,
+        "probe": probe_screen,
+        "explanation": caution,
+    }
+
     morphing = MorphingDetector().differential_risk(probe.embedding, reference.embedding)
 
     record = audit.record(
@@ -276,6 +295,14 @@ def verify(
             "reference_path": stored_reference.path,
             "probe_sha256": stored_probe.sha256,
             "probe_path": stored_probe.path,
+            # The screen's verdict is part of the permanent record: if either
+            # image is later shown to be synthetic, the trail must prove the
+            # system said so at comparison time.
+            "synthetic_media_flagged": screen_flagged,
+            "probe_deepfake_score": probe_screen["score"],
+            "probe_deepfake_band": probe_screen["band"],
+            "reference_deepfake_score": reference_screen["score"],
+            "reference_deepfake_band": reference_screen["band"],
         },
         ip_address=ip_address,
         user_agent=user_agent,
@@ -291,6 +318,8 @@ def verify(
         reference=_probe_assessment(reference),
         probe=_probe_assessment(probe),
         morphing=morphing,
+        synthetic_screen=synthetic_screen,
+        review_required=bool(screen_flagged or screen_review or probe.reasons or reference.reasons),
         audit_hash=record.entry_hash,
     )
 
@@ -386,7 +415,10 @@ def batch(
             "probe_quality": round(float(probe.quality.score), 4),
             "probe_liveness": round(float(probe.liveness.score), 4),
             "probe_deepfake_risk": round(float(probe.deepfake_risk), 4),
+            "probe_deepfake_band": probe.deepfake.band if probe.deepfake else "",
+            "probe_flags": list(probe.reasons),
         }
+        probe_screen = _screen_summary(probe)
 
         if payload.mode in ("pair", "one_to_many"):
             if shared_reference is not None:
@@ -412,6 +444,7 @@ def batch(
 
             similarity = engine.compare(reference.embedding, probe.embedding)
             verified = bool(capable and similarity >= threshold)
+            reference_screen = _screen_summary(reference)
             record = audit.record(
                 session,
                 tenant_id=principal.tenant_id,
@@ -432,6 +465,13 @@ def batch(
                     "reference_path": stored_reference.path,
                     "probe_sha256": stored_probe.sha256,
                     "probe_path": stored_probe.path,
+                    "probe_deepfake_score": probe_screen["score"],
+                    "probe_deepfake_band": probe_screen["band"],
+                    "reference_deepfake_score": reference_screen["score"],
+                    "reference_deepfake_band": reference_screen["band"],
+                    "synthetic_media_flagged": bool(
+                        probe_screen["flagged"] or reference_screen["flagged"]
+                    ),
                 },
                 ip_address=ip_address,
                 user_agent=user_agent,
@@ -485,6 +525,9 @@ def batch(
                     "recognition_capable": capable,
                     "probe_sha256": stored_probe.sha256,
                     "probe_path": stored_probe.path,
+                    "probe_deepfake_score": probe_screen["score"],
+                    "probe_deepfake_band": probe_screen["band"],
+                    "synthetic_media_flagged": bool(probe_screen["flagged"]),
                 },
                 ip_address=ip_address,
                 user_agent=user_agent,
@@ -512,6 +555,7 @@ def batch(
         succeeded=succeeded,
         failed=len(results) - succeeded,
         results=results,
+        reference=_probe_assessment(shared_reference) if shared_reference is not None else None,
     )
 
 
@@ -674,6 +718,8 @@ def _probe_assessment(result) -> ProbeAssessment:  # noqa: ANN001 - RecognitionR
         quality=result.quality.as_dict(),
         liveness=result.liveness.as_dict(),
         deepfake_risk=result.deepfake_risk,
+        deepfake=result.deepfake.as_dict() if result.deepfake else {},
+        reasons=list(result.reasons),
         faces_detected=result.faces_detected,
         detector=result.detector_name,
         box={
@@ -688,6 +734,53 @@ def _probe_assessment(result) -> ProbeAssessment:  # noqa: ANN001 - RecognitionR
             "roll": result.face.pose.roll,
         },
     )
+
+
+def _screen_summary(result) -> dict:  # noqa: ANN001 - RecognitionResult
+    """Compact synthetic-media verdict for one image, for responses and audit."""
+    report = result.deepfake
+    if report is None:
+        return {
+            "score": round(float(result.deepfake_risk), 4),
+            "band": "",
+            "flagged": False,
+            "review_advised": False,
+            "reasons": [],
+        }
+    return {
+        "score": report.score,
+        "band": report.band,
+        "flagged": report.flagged,
+        "review_advised": report.review_advised,
+        "reasons": list(report.reasons),
+    }
+
+
+def _screen_caution(reference_screen: dict, probe_screen: dict) -> str:
+    """One sentence naming which image(s) the screen flagged, or empty."""
+    sides = []
+    if probe_screen["flagged"]:
+        sides.append(f"the questioned image (risk {probe_screen['score']:.2f}, {probe_screen['band']})")
+    if reference_screen["flagged"]:
+        sides.append(f"the reference image (risk {reference_screen['score']:.2f}, {reference_screen['band']})")
+    if sides:
+        return (
+            f"WARNING: the synthetic-media screen flagged {' and '.join(sides)}. "
+            "The similarity score is recorded for completeness, but a comparison involving "
+            "suspected synthetic or manipulated media cannot support any identity conclusion "
+            "until the flagged image's provenance is resolved."
+        )
+    sides = []
+    if probe_screen["review_advised"]:
+        sides.append("the questioned image")
+    if reference_screen["review_advised"]:
+        sides.append("the reference image")
+    if sides:
+        return (
+            f"The synthetic-media screen raised indicators on {' and '.join(sides)} that fall "
+            "short of a flag. Examine the imagery for manipulation before relying on this result."
+        )
+    return ""
 
 
 def _audit_failure(

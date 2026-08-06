@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from io import BytesIO
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 
 from ..config import QualityConfig
 from ..detection.types import DetectedFace
@@ -20,6 +20,22 @@ _LAPLACIAN_KERNEL = np.array(
     ],
     dtype=np.float64,
 )
+
+# Sharpness is measured after resizing the face region so its shorter edge is
+# 112px -- the scale the recognizer actually consumes. Raw Laplacian variance is
+# strongly resolution-dependent: the identical scene rendered at 112px and
+# 1600px measures 3311 and 280, a 12x drift, so one fixed cutoff cannot be
+# right at more than one size. In production that surfaced as tack-sharp ID
+# photographs with 250-400px faces measuring 3-7 (scored 1-3% sharp, flagged
+# severe_blur, refused) while their content was fine. At the fixed 112px scale
+# the same scene measures within +/-2% from 112px to 1600px of source size.
+SHARPNESS_MATCH_EDGE = 112
+
+# Light Gaussian before the Laplacian. Sensor noise is pure high-frequency
+# energy: a defocused frame with mild noise out-measured a sharp one 2881 vs
+# 1340 at native scale. The pre-blur costs a genuinely sharp image little (its
+# edges survive) and stops noise reading as detail.
+_SHARPNESS_PRE_BLUR = 0.6
 
 
 # Conditions that make an image unusable, as opposed to merely imperfect.
@@ -48,6 +64,10 @@ class QualityReport:
     are not grounds for refusing the image: treating every flag as fatal caused
     perfectly usable enrolment photographs to be rejected on a single soft
     signal, and the pose estimate in particular is an approximation.
+
+    ``laplacian_variance`` is measured at the fixed 112px match scale (see
+    ``match_scale_sharpness``), not at the native crop size, so the same number
+    means the same thing regardless of upload resolution.
     """
 
     score: float
@@ -89,12 +109,44 @@ class QualityReport:
 
 
 def laplacian_variance(gray: np.ndarray) -> float:
-    """Variance of the Laplacian response, computed without OpenCV."""
+    """Variance of the Laplacian response, computed without OpenCV.
+
+    Scale-dependent by nature: the same content measures higher at smaller
+    sizes. Comparing values against a fixed threshold is only meaningful when
+    every input is measured at one scale -- use ``match_scale_sharpness`` for
+    that.
+    """
     if gray.ndim != 2 or min(gray.shape) < 3:
         return 0.0
     windows = np.lib.stride_tricks.sliding_window_view(gray, (3, 3))
     response = np.einsum("ijkl,kl->ij", windows, _LAPLACIAN_KERNEL)
     return float(response.var())
+
+
+def match_scale_sharpness(region: Image.Image) -> float:
+    """Laplacian variance at the fixed 112px match scale, noise-suppressed.
+
+    The region's shorter edge is resized to ``SHARPNESS_MATCH_EDGE`` (both up
+    and down -- one measurement scale, so one threshold means one thing), then
+    lightly smoothed so sensor noise does not read as detail. Values are
+    comparable across input resolutions and against the fixed 220 normaliser.
+    """
+    gray = region.convert("L")
+    width, height = gray.size
+    short = min(width, height)
+    if short < 3:
+        return 0.0
+    if short != SHARPNESS_MATCH_EDGE:
+        scale = SHARPNESS_MATCH_EDGE / short
+        gray = gray.resize(
+            (
+                max(SHARPNESS_MATCH_EDGE, round(width * scale)),
+                max(SHARPNESS_MATCH_EDGE, round(height * scale)),
+            ),
+            Image.LANCZOS,
+        )
+    gray = gray.filter(ImageFilter.GaussianBlur(_SHARPNESS_PRE_BLUR))
+    return laplacian_variance(np.asarray(gray, dtype=np.float64))
 
 
 class ImageQualityFilter:
@@ -135,7 +187,9 @@ class ImageQualityFilter:
         gray = np.asarray(region.convert("L"), dtype=np.float64)
         brightness = float(gray.mean()) if gray.size else 0.0
         contrast = float(gray.std()) if gray.size else 0.0
-        blur = laplacian_variance(gray)
+        # Mean and deviation are scale-invariant so the native crop is fine for
+        # them; the blur measure is not, so it is taken at the fixed match scale.
+        blur = match_scale_sharpness(region)
 
         # Face height in pixels drives how much identity signal survives; below
         # ~60px ArcFace accuracy degrades sharply, and 220px is where it plateaus.
@@ -200,4 +254,11 @@ class ImageQualityFilter:
         return float((yaw + pitch + roll) / 3.0)
 
 
-__all__ = ["BLOCKING_REASONS", "ImageQualityFilter", "QualityReport", "laplacian_variance"]
+__all__ = [
+    "BLOCKING_REASONS",
+    "SHARPNESS_MATCH_EDGE",
+    "ImageQualityFilter",
+    "QualityReport",
+    "laplacian_variance",
+    "match_scale_sharpness",
+]

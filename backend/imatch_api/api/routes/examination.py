@@ -28,8 +28,15 @@ from ...db.models import (
 )
 from ...db.session import get_session
 from ...services.audit_service import AuditService
-from ..schemas import ExaminationNoteRequest, ExaminationNoteResponse
+from ...services.engine_service import EngineService, get_engine_service
+from ...services.storage_service import StorageService
+from ..schemas import (
+    ExaminationExhibitResponse,
+    ExaminationNoteRequest,
+    ExaminationNoteResponse,
+)
 from .auth import get_audit_service
+from .search import get_storage
 
 router = APIRouter(prefix="/api/cases", tags=["examination"])
 
@@ -63,6 +70,31 @@ def _to_response(session: Session, note: ExaminationNote) -> ExaminationNoteResp
         created_at=note.created_at,
         updated_at=note.updated_at,
     )
+
+
+@router.get("/{case_id}/examination-exhibits", response_model=list[ExaminationExhibitResponse])
+def list_exhibits(
+    case_id: str,
+    principal: Principal = Depends(get_current_principal),
+    session: Session = Depends(get_session),
+    storage: StorageService = Depends(get_storage),
+    engine: EngineService = Depends(get_engine_service),
+) -> list[ExaminationExhibitResponse]:
+    """The exhibit marks for this case, so an observation can cite real ones.
+
+    Detection only -- no measurement, no plates. The editor calls this to
+    populate its mark picker, and a picker that took as long as the full report
+    would be a picker nobody waits for.
+    """
+    from ...services.examination_service import ExaminationService
+
+    try:
+        rows = ExaminationService(engine, storage.read).inventory(
+            session, principal.tenant_id, case_id
+        )
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+    return [ExaminationExhibitResponse(**row) for row in rows]
 
 
 @router.get("/{case_id}/examination-notes", response_model=list[ExaminationNoteResponse])

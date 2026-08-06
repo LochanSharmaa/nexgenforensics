@@ -64,6 +64,9 @@ class SecurityConfig:
     # presentation-attack detection; see nexgen_engine/security/liveness.py.
     liveness_threshold: float = 0.45
     deepfake_threshold: float = 0.65
+    # Below the alert threshold but above this, the synthetic-media screen
+    # asks for examiner review without asserting the image is synthetic.
+    deepfake_review_threshold: float = 0.45
     morphing_threshold: float = 0.55
     template_key_bytes: int = 32
     audit_hash_algorithm: str = "sha256"

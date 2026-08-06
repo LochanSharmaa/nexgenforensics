@@ -13,6 +13,24 @@ import { ProbeReport } from "./components/ProbeReport";
 function describeVerdict(result) {
   const similarity = Number(result.similarity);
   const threshold = Number(result.threshold);
+  const screen = result.synthetic_screen || {};
+  if (screen.flagged) {
+    const sides =
+      screen.probe?.flagged && screen.reference?.flagged
+        ? "Both images"
+        : screen.probe?.flagged
+          ? "The questioned image"
+          : "The reference image";
+    return {
+      label: "Unreliable",
+      chip: "bad",
+      detail: "Synthetic media suspected",
+      summary:
+        `${sides} triggered the synthetic-media screen. The similarity is recorded for the ` +
+        "audit trail, but it cannot support any conclusion about identity until the image's " +
+        "provenance is resolved.",
+    };
+  }
   if (result.verified) {
     return {
       label: "Match",
@@ -79,27 +97,29 @@ export function VerifyPage() {
     return () => URL.revokeObjectURL(url);
   }, [probeFile]);
 
-  const [generatingReport, setGeneratingReport] = useState(false);
+  const [generatingReport, setGeneratingReport] = useState("");
 
   // Comparisons run under a case are written to that case's audit trail, so
-  // the case report is the document that carries them. Generated server-side
-  // from persisted rows — never from what this page happens to display.
-  async function generateReport() {
+  // the case is what the report is generated from. Built server-side from
+  // persisted rows — never from what this page happens to display, which is
+  // one comparison and not the whole case.
+  async function generateReport(format) {
     setError("");
-    setGeneratingReport(true);
+    setGeneratingReport(format);
     try {
-      const pdf = await fetchCaseReport(caseId, "pdf");
+      const pdf = await fetchCaseReport(caseId, format);
       const caseRecord = cases.find((item) => item.id === caseId);
+      const stem = format === "examination" ? "examination" : "case";
       const url = URL.createObjectURL(pdf);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `case-${caseRecord?.reference || caseId}.pdf`;
+      anchor.download = `${stem}-${caseRecord?.reference || caseId}.pdf`;
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (reportError) {
       setError(reportError.message);
     } finally {
-      setGeneratingReport(false);
+      setGeneratingReport("");
     }
   }
 
@@ -188,6 +208,26 @@ export function VerifyPage() {
           <section className="wk-card">
             <h2>Comparison</h2>
 
+            {result.synthetic_screen?.flagged && (
+              <div className="wk-banner critical" style={{ marginBottom: 16 }}>
+                <div>
+                  <strong>Synthetic media suspected</strong>
+                  {result.synthetic_screen.explanation ||
+                    "The synthetic-media screen flagged one of the images. This comparison cannot support an identity conclusion."}{" "}
+                  The per-image breakdown below lists the exact indicators.
+                </div>
+              </div>
+            )}
+            {!result.synthetic_screen?.flagged && result.synthetic_screen?.review_advised && (
+              <div className="wk-banner warn" style={{ marginBottom: 16 }}>
+                <div>
+                  <strong>Synthetic-media screen: review advised</strong>
+                  {result.synthetic_screen.explanation ||
+                    "The screen found indicators short of a flag. Examine both images for manipulation before relying on this result."}
+                </div>
+              </div>
+            )}
+
             <div className="wk-compare">
               <figure>
                 {referencePreview && <img src={referencePreview} alt="Reference" />}
@@ -244,19 +284,24 @@ export function VerifyPage() {
 
       <section className="wk-card">
         <h2>Forensic report generator</h2>
-        <p style={{ fontSize: 15, lineHeight: 1.65 }}>
-          Comparisons run under a case are recorded in that case&rsquo;s audit trail. Generate
-          the case&rsquo;s forensic report as a PDF — it documents every search, comparison and
-          examiner decision on record for the case.
-        </p>
-        <button
-          type="button"
-          className="wk-button"
-          disabled={!caseId || generatingReport}
-          onClick={generateReport}
-        >
-          {generatingReport ? "Generating…" : "Generate PDF report"}
-        </button>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="wk-button"
+            disabled={!caseId || Boolean(generatingReport)}
+            onClick={() => generateReport("examination")}
+          >
+            {generatingReport === "examination" ? "Generating…" : "Examination report (PDF)"}
+          </button>
+          <button
+            type="button"
+            className="wk-button ghost"
+            disabled={!caseId || Boolean(generatingReport)}
+            onClick={() => generateReport("pdf")}
+          >
+            {generatingReport === "pdf" ? "Generating…" : "Case log (PDF)"}
+          </button>
+        </div>
         {!caseId && (
           <p className="wk-notice" style={{ marginTop: 12 }}>
             Select a case above (and run the comparison under it) to generate its report.

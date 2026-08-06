@@ -402,6 +402,25 @@ export function updateCase(caseId, payload) {
   });
 }
 
+/** The examiner-authored sections of the photograph examination report. */
+export function listExaminationNotes(caseId) {
+  return request(`/api/cases/${encodeURIComponent(caseId)}/examination-notes`);
+}
+
+/**
+ * Replace this case's examination notes with `notes`.
+ *
+ * A whole-set replace, matching the endpoint: the observations are numbered in
+ * the report and their order is the examiner's, so the list is saved as a list
+ * rather than patched note by note.
+ */
+export function saveExaminationNotes(caseId, notes) {
+  return request(`/api/cases/${encodeURIComponent(caseId)}/examination-notes`, {
+    method: "PUT",
+    body: notes,
+  });
+}
+
 /**
  * Fetch a case report in the caller's chosen format.
  *

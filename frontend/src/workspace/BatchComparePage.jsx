@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { listCases, runBatch } from "../services/imatchApi";
+import { fetchCaseReport, listCases, runBatch } from "../services/imatchApi";
 import { ImageDropZone } from "./components/ImageDropZone";
 
 const ACCEPTED = "image/jpeg,image/png,image/webp,image/bmp,image/tiff";
@@ -20,9 +20,34 @@ export function BatchComparePage() {
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
 
+  const [generatingReport, setGeneratingReport] = useState("");
+
   useEffect(() => {
     listCases().then(setCases).catch(() => setCases([]));
   }, []);
+
+  // Built server-side from every image recorded against the case, not from the
+  // batch shown above: a report assembled from this page's state would describe
+  // one run rather than the case.
+  async function generateReport(format) {
+    setError("");
+    setGeneratingReport(format);
+    try {
+      const pdf = await fetchCaseReport(caseId, format);
+      const caseRecord = cases.find((item) => item.id === caseId);
+      const stem = format === "examination" ? "examination" : "case";
+      const url = URL.createObjectURL(pdf);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `${stem}-${caseRecord?.reference || caseId}.pdf`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (reportError) {
+      setError(reportError.message);
+    } finally {
+      setGeneratingReport("");
+    }
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -144,6 +169,29 @@ export function BatchComparePage() {
             Results — {result.succeeded} of {result.submitted} compared
             {result.failed > 0 && `, ${result.failed} failed`}
           </h2>
+
+          {result.reference?.deepfake?.flagged && (
+            <div className="wk-banner critical" style={{ marginBottom: 16 }}>
+              <div>
+                <strong>Reference image: synthetic media suspected</strong>
+                The synthetic-media screen flagged the reference image (risk{" "}
+                {Math.round((result.reference.deepfake.score || 0) * 100)}%,{" "}
+                {result.reference.deepfake.band}). Every comparison below was made against
+                suspected generated or manipulated media and cannot support any identity
+                conclusion until the reference's provenance is resolved.
+              </div>
+            </div>
+          )}
+          {!result.reference?.deepfake?.flagged && result.reference?.deepfake?.review_advised && (
+            <div className="wk-banner warn" style={{ marginBottom: 16 }}>
+              <div>
+                <strong>Reference image: synthetic-media review advised</strong>
+                The screen found indicators on the reference image that fall short of a flag
+                (risk {Math.round((result.reference.deepfake.score || 0) * 100)}%). Examine the
+                reference for manipulation before relying on the comparisons below.
+              </div>
+            </div>
+          )}
           <p style={{ fontSize: 14, lineHeight: 1.6 }}>
             Decision threshold {result.threshold}. Similarity is shown to four decimal places
             so it is visible how close each decision fell to the line.
@@ -158,6 +206,7 @@ export function BatchComparePage() {
                   <th>Similarity</th>
                   <th>Decision</th>
                   <th>Quality</th>
+                  <th>Integrity</th>
                   <th>Audit hash</th>
                 </tr>
               </thead>
@@ -188,6 +237,9 @@ export function BatchComparePage() {
                       {row.probe_quality != null ? `${Math.round(row.probe_quality * 100)}%` : "—"}
                     </td>
                     <td>
+                      <IntegrityChip band={row.probe_deepfake_band} flags={row.probe_flags} />
+                    </td>
+                    <td>
                       <code style={{ fontSize: 11 }}>
                         {row.audit_hash ? `${row.audit_hash.slice(0, 12)}…` : "—"}
                       </code>
@@ -201,6 +253,33 @@ export function BatchComparePage() {
           {result.notice && <p className="wk-notice">{result.notice}</p>}
         </section>
       )}
+
+      <section className="wk-card">
+        <h2>Forensic report generator</h2>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="wk-button"
+            disabled={!caseId || Boolean(generatingReport)}
+            onClick={() => generateReport("examination")}
+          >
+            {generatingReport === "examination" ? "Generating…" : "Examination report (PDF)"}
+          </button>
+          <button
+            type="button"
+            className="wk-button ghost"
+            disabled={!caseId || Boolean(generatingReport)}
+            onClick={() => generateReport("pdf")}
+          >
+            {generatingReport === "pdf" ? "Generating…" : "Case log (PDF)"}
+          </button>
+        </div>
+        {!caseId && (
+          <p className="wk-notice" style={{ marginTop: 12 }}>
+            Select a case above (and run the comparison under it) to generate its report.
+          </p>
+        )}
+      </section>
     </>
   );
 }
