@@ -29,6 +29,7 @@ from ...services.storage_service import (
     StorageService,
     UnsupportedImageError,
     decode_base64_image,
+    safe_filename,
 )
 from ..schemas import (
     EnrolRequest,
@@ -121,6 +122,7 @@ def enrol(
         detector=result.detector_name,
         image_sha256=stored.sha256,
         image_path=stored.path,
+        image_filename=safe_filename(payload.filename),
         created_by=principal.id,
     )
     session.add(template)

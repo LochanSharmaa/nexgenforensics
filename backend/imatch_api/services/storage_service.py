@@ -32,6 +32,38 @@ _SIGNATURES: tuple[tuple[bytes, str], ...] = (
 )
 
 
+#: Longest filename kept for display. Long enough for any real camera or
+#: scanner name, short enough that one cannot be used to push a table column
+#: off the page of a generated report.
+MAX_FILENAME_LENGTH = 120
+
+
+def safe_filename(value: str | None) -> str:
+    """Reduce a client-supplied filename to something safe to store and print.
+
+    Storage never uses this -- paths come from the content hash -- but the
+    examination report prints it, so it is display data arriving from outside
+    and is treated as such:
+
+    * any directory component is discarded, so a value like
+      ``../../etc/passwd`` is recorded as ``passwd`` and cannot be mistaken for
+      a path by anything that later reads the column;
+    * control characters are stripped, since they corrupt a PDF text run and
+      can hide the real name from a reader;
+    * the result is length-capped.
+
+    Escaping for the PDF's own markup happens at render time as well. Both are
+    needed: this one keeps the database clean, that one keeps the parser safe.
+    """
+    if not value:
+        return ""
+    name = str(value).replace("\\", "/").rsplit("/", 1)[-1]
+    name = "".join(ch for ch in name if ch.isprintable()).strip()
+    if name in {".", ".."}:
+        return ""
+    return name[:MAX_FILENAME_LENGTH]
+
+
 class UnsupportedImageError(ValueError):
     """Raised when a payload is not an image format we accept."""
 
@@ -187,10 +219,12 @@ def _suffix(content_type: str) -> str:
 
 __all__ = [
     "ALLOWED_CONTENT_TYPES",
+    "MAX_FILENAME_LENGTH",
     "ImageTooLargeError",
     "StorageService",
     "StoredImage",
     "UnsupportedImageError",
     "decode_base64_image",
+    "safe_filename",
     "sniff_content_type",
 ]

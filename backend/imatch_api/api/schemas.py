@@ -214,6 +214,33 @@ class EnrolRequest(BaseModel):
         return value
 
 
+class ExaminationNoteRequest(BaseModel):
+    """One block of examiner-authored text for the examination report.
+
+    ``marks`` names the exhibits an observation is about, e.g. ``["Q-2", "S-1"]``.
+    The report builds that observation's comparison grid from this list, so the
+    images a reader sees under a finding are the ones the examiner cited.
+    """
+
+    section: str = Field(
+        description="receipt | question | purpose | observation | result",
+    )
+    ordinal: int = Field(default=0, ge=0, le=999)
+    body: str = Field(default="", max_length=20000)
+    marks: list[str] = Field(default_factory=list, max_length=64)
+
+
+class ExaminationNoteResponse(BaseModel):
+    id: str
+    section: str
+    ordinal: int
+    body: str
+    marks: list[str]
+    author: str
+    created_at: datetime
+    updated_at: datetime
+
+
 class SubjectResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

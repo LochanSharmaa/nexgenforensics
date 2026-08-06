@@ -409,10 +409,16 @@ export function updateCase(caseId, payload) {
  * generic helper would mangle both (parse-fail a .md body into `{detail}`,
  * corrupt PDF bytes via text decoding) — so they use a direct fetch and return
  * text or a Blob respectively, ready to hand to a download link.
+ *
+ * Formats: "json" | "markdown" | "pdf" are the case log. "examination" is the
+ * photograph examination report — a different document, built from the case's
+ * imagery rather than its search history — and "examination-json" is that same
+ * report as data.
  */
 export async function fetchCaseReport(caseId, fmt = "json") {
   const path = `/api/cases/${encodeURIComponent(caseId)}/report`;
   if (fmt === "json") return request(path);
+  if (fmt === "examination-json") return request(`${path}?fmt=examination-json`);
 
   const response = await fetch(`${IMATCH_BASE}${path}?fmt=${encodeURIComponent(fmt)}`, {
     headers: tokenStore.access ? { Authorization: `Bearer ${tokenStore.access}` } : {},
@@ -430,7 +436,7 @@ export async function fetchCaseReport(caseId, fmt = "json") {
       status: response.status,
     });
   }
-  return fmt === "pdf" ? response.blob() : response.text();
+  return fmt === "pdf" || fmt === "examination" ? response.blob() : response.text();
 }
 
 // -------------------------------------------------------------- subjects ---

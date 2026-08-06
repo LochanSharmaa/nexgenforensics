@@ -31,6 +31,7 @@ from ...services.storage_service import (
     StorageService,
     UnsupportedImageError,
     decode_base64_image,
+    safe_filename,
 )
 from ..schemas import (
     AdjudicateRequest,
@@ -139,6 +140,7 @@ def search(
         review_threshold=engine.config.thresholds.review,
         probe_sha256=stored.sha256,
         probe_path=stored.path,
+        probe_filename=safe_filename(payload.filename),
         duration_ms=duration_ms,
     )
     session.add(run)

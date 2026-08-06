@@ -195,6 +195,12 @@ class Template(SQLModel, table=True):
     detector: str = ""
     image_sha256: str = Field(default="", index=True)
     image_path: str = ""
+    # The name the file arrived under. Storage is content-addressed and never
+    # uses it, but an examination report has to describe an exhibit the way the
+    # person who submitted it will recognise it -- by its own filename, not by
+    # a hash. Empty when the submission carried no filename; the report then
+    # falls back to the hash and says that is what it is doing.
+    image_filename: str = ""
 
     created_by: str = Field(foreign_key="users.id")
     created_at: datetime = Field(default_factory=utcnow)
@@ -236,6 +242,8 @@ class SearchRun(SQLModel, table=True):
 
     probe_sha256: str = Field(default="", index=True)
     probe_path: str = ""
+    #: See Template.image_filename -- the name the exhibit is described by.
+    probe_filename: str = ""
     duration_ms: int = 0
     audit_hash: str = ""
     created_at: datetime = Field(default_factory=utcnow, index=True)
@@ -412,6 +420,56 @@ class AuditRecord(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utcnow, index=True)
 
 
+class ExaminationSection(str, Enum):
+    """The parts of a photograph examination report an examiner writes.
+
+    Everything else in that report is derived from the record: the exhibit
+    inventory, the measurements, the plates. These five are opinion and
+    instruction, and no part of this system may compose them.
+    """
+
+    RECEIPT = "receipt"          #: how and from whom the material arrived
+    QUESTION = "question"        #: the question put to the examiner
+    PURPOSE = "purpose"          #: what the examination set out to establish
+    OBSERVATION = "observation"  #: a secondary-identification finding
+    RESULT = "result"            #: the result of examination
+
+
+class ExaminationNote(SQLModel, table=True):
+    """One block of examiner-authored text in a photograph examination report.
+
+    THE RULE THIS TABLE EXISTS TO ENFORCE: the report prints an examiner's
+    words or it prints nothing. A missing observation renders as "not recorded",
+    never as an empty space and never as generated prose. An automated system
+    that composes a forensic opinion has fabricated expert evidence, and the
+    fact that the sentence would have read plausibly is precisely what makes it
+    dangerous.
+
+    ``marks`` is a JSON array of the exhibit marks a note refers to, e.g.
+    ``["Q-2", "S-1", "S-3"]``. The renderer builds that note's comparison grid
+    from it, so the pictures under a finding are always the exhibits the
+    examiner actually named.
+    """
+
+    __tablename__ = "examination_notes"
+    __table_args__ = (Index("ix_exam_notes_case_section", "case_id", "section"),)
+
+    id: str = Field(default_factory=_uuid, primary_key=True)
+    tenant_id: str = Field(foreign_key="tenants.id", index=True)
+    case_id: str = Field(foreign_key="cases.id", index=True)
+
+    section: ExaminationSection
+    #: Order within a section. Observations are numbered in the report and the
+    #: examiner controls that order.
+    ordinal: int = 0
+    body: str = ""
+    marks: str = "[]"
+
+    author_id: str = Field(foreign_key="users.id")
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)
+
+
 __all__ = [
     "Adjudication",
     "ApiKey",
@@ -420,6 +478,8 @@ __all__ = [
     "Case",
     "CaseStatus",
     "EnhancementRun",
+    "ExaminationNote",
+    "ExaminationSection",
     "Role",
     "SearchRun",
     "Subject",

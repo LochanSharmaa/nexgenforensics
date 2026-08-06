@@ -17,6 +17,7 @@ from .api.routes import (
     auth,
     cases,
     enhancement,
+    examination,
     health,
     reports,
     search,
@@ -227,6 +228,7 @@ def create_app() -> FastAPI:
     app.include_router(account.router)
     app.include_router(cases.router)
     app.include_router(reports.router)
+    app.include_router(examination.router)
     app.include_router(subjects.router)
     app.include_router(search.router)
     app.include_router(enhancement.router)
