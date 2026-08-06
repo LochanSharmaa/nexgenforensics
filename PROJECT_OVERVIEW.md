@@ -215,8 +215,16 @@ The measurement core.
 - `liveness.py` — passive single-frame heuristic (texture/moiré/colour spread).
   Self-reports `"method": "passive_single_frame_heuristic"`, `"certified": false`.
   **Not** presentation-attack detection.
-- `deepfake_detector.py` — FFT smoothness + Nyquist checkerboard heuristic.
-  Its own docstring states it is **not** a trained classifier.
+- `deepfake_detector.py` — multi-signal synthetic-media screen run on the
+  ORIGINAL image around the detected face box (not the 112 px crop):
+  provenance metadata (generator tags, prompt chunks, C2PA/IPTC
+  trainedAlgorithmicMedia), power-spectrum slope, upsampling-comb periodicity
+  and isolated spectral tones, texture collapse, sensor-noise floor and
+  face/background noise mismatch, JPEG error-level analysis, boundary
+  blending. Thresholds calibrated against AgeDB photographic portraits.
+  Returns a structured `DeepfakeReport` (score, band, per-signal readings,
+  reasons). Its own docstring states it is **not** a trained classifier and
+  self-reports `"certified": false`.
 - `template_encryption.py`, `morphing_detector.py`, `audit_logger.py` (hash-chained JSONL)
 
 ---
@@ -232,7 +240,8 @@ Two images (base64 JSON) + lawful_basis
       → FacialRecognitionPipeline.encode_bytes() per image
             → detection (SCRFD/RetinaFace)
             → 5-point alignment → 112x112 crop
-            → quality report + liveness heuristic + deepfake heuristic
+            → quality report + liveness heuristic + synthetic-media screen
+              (full-resolution image + raw bytes, not the crop)
             → ArcFace embedding (+ optional flip-TTA) → L2 normalize
       → cosine similarity
       → compare to ThresholdConfig.verify

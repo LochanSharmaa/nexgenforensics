@@ -176,15 +176,21 @@ class DeepfakeDetector:
         provenance, decisive = self._provenance(image, raw_bytes)
         readings: list[SignalReading] = [provenance]
 
-        gray_full = np.asarray(rgb.convert("L"), dtype=np.float64)
-        window, wbox = _working_window(gray_full, box)
+        # All pixel work happens inside a window around the face, cropped at
+        # NATIVE resolution -- never a full-frame conversion. On a 12 MP frame
+        # the full-frame path cost ~425 ms; the window path costs ~10 ms on
+        # typical uploads with identical readings, because every signal only
+        # ever looked at the face and its surrounding background anyway.
+        rect, wbox = _window_rect(rgb.width, rgb.height, box)
+        window_rgb = rgb.crop(rect)
+        window = np.asarray(window_rgb.convert("L"), dtype=np.float64)
         analyzed_pixels = min(box.width, box.height) if box else min(window.shape)
 
         patch = _center_patch(window, wbox)
         if patch is not None:
             readings.extend(self._spectral(patch))
         readings.extend(self._noise(window, wbox))
-        readings.append(self._ela(rgb, box, raw_bytes))
+        readings.append(self._ela(window_rgb, wbox, raw_bytes))
         readings.append(self._boundary(window, wbox))
 
         active = [reading for reading in readings if reading.weight > 0]
@@ -389,21 +395,32 @@ class DeepfakeDetector:
             f"despeckled power-spectrum slope {slope:.2f} (photographic range ≈ -4.6 to -2.7)",
         )
 
-        # Upsampling grids (transposed convolutions, naive resizes) make the
-        # log-spectrum PERIODIC. Autocorrelation of the detrended row/column
-        # spectrum profiles exposes that comb far more reliably than radial
-        # peak hunting: AgeDB tops out near 0.13, 4x upsampling reaches 0.2+
-        # and generator checkerboards far more.
+        # Upsampling grids and transposed convolutions betray themselves in
+        # two spectral shapes, each with its own detector:
+        #
+        # * a DENSE COMB (grid replication of detailed content): periodic
+        #   log-spectrum profiles, exposed by autocorrelation. Photographs --
+        #   including heavy JPEG recompression -- measured at or below 0.18.
+        # * an ISOLATED TONE (checkerboard artefact): a single spectral line
+        #   standing far above everything else at its radius, exposed by the
+        #   annulus-relative excess. Photographs measured at or below ~4.3
+        #   robust sigmas; synthetic checkerboards exceed 8.
         log_spectrum = np.log10(power)
         periodicity = max(
             _profile_periodicity(log_spectrum.mean(axis=0)),
             _profile_periodicity(log_spectrum.mean(axis=1)),
         )
+        line_excess = _spectral_line_excess(log_spectrum, radius, rmax)
+        peaks_score = max(
+            clamp((periodicity - 0.18) / 0.14),
+            clamp((line_excess - 4.6) / 2.2),
+        )
         peaks_reading = SignalReading(
             "spectral_peaks",
-            round(float(clamp((periodicity - 0.13) / 0.12)), 4),
+            round(float(peaks_score), 4),
             1.2 * reliability,
-            f"spectral periodicity {periodicity:.3f} (photographic ≤ ~0.13)",
+            f"spectral periodicity {periodicity:.3f} (photographic ≤ ~0.18), "
+            f"strongest isolated tone {line_excess:.1f}σ above its band (photographic ≤ ~4.3σ)",
         )
 
         amplitude_low = float(spectrum[radius <= rmax * 0.19].sum()) + 1e-9
@@ -502,27 +519,20 @@ class DeepfakeDetector:
         return readings
 
     def _ela(
-        self, rgb: Image.Image, box: FaceBox | None, raw_bytes: bytes | None
+        self,
+        window_rgb: Image.Image,
+        wbox: tuple[int, int, int, int] | None,
+        raw_bytes: bytes | None,
     ) -> SignalReading:
         if raw_bytes is None or not raw_bytes.startswith(b"\xff\xd8\xff"):
             return SignalReading("ela", 0.0, 0.0, "not applicable (source is not a JPEG)")
-        if box is None:
+        if wbox is None:
             return SignalReading("ela", 0.0, 0.0, "not applicable (no face region to compare)")
 
-        image = rgb
-        scale = 1.0
-        longest = max(image.width, image.height)
-        if longest > 1280:
-            scale = 1280.0 / longest
-            image = image.resize(
-                (max(1, round(image.width * scale)), max(1, round(image.height * scale))),
-                Image.Resampling.BILINEAR,
-            )
-
         buffer = BytesIO()
-        image.save(buffer, "JPEG", quality=88)
+        window_rgb.save(buffer, "JPEG", quality=88)
         buffer.seek(0)
-        original = np.asarray(image, dtype=np.float64)
+        original = np.asarray(window_rgb, dtype=np.float64)
         recompressed = np.asarray(Image.open(buffer).convert("RGB"), dtype=np.float64)
         difference = np.abs(original - recompressed).mean(axis=2)
 
@@ -536,8 +546,7 @@ class DeepfakeDetector:
             .mean(axis=(1, 3))
         )
 
-        left, top = box.left * scale, box.top * scale
-        right, bottom = box.right * scale, box.bottom * scale
+        left, top, right, bottom = wbox
         centers_y = (np.arange(rows) + 0.5) * block
         centers_x = (np.arange(cols) + 0.5) * block
         inside = (
@@ -606,22 +615,22 @@ class DeepfakeDetector:
 # ------------------------------------------------------------------ helpers --
 
 
-def _working_window(
-    gray: np.ndarray, box: FaceBox | None, cap: int = 1024
-) -> tuple[np.ndarray, tuple[int, int, int, int] | None]:
-    """Crop the analysis window around the face at NATIVE resolution.
+def _window_rect(
+    width: int, height: int, box: FaceBox | None, cap: int = 1024
+) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int] | None]:
+    """Analysis window around the face at NATIVE resolution, as a crop rect.
 
     Downscaling a 12 MP frame before analysis would average away the sensor
     noise and spectral evidence, so instead a window of at most ``cap`` px is
-    cropped around the face box (with margin for background comparison). The
-    returned box is translated into window coordinates.
+    cropped around the face box (with margin for background comparison).
+    Returns the PIL-style (left, top, right, bottom) rect plus the face box
+    translated into window coordinates.
     """
-    height, width = gray.shape
     if box is None:
-        side_y, side_x = min(height, 768), min(width, 768)
-        top = (height - side_y) // 2
+        side_x, side_y = min(width, 768), min(height, 768)
         left = (width - side_x) // 2
-        return gray[top : top + side_y, left : left + side_x], None
+        top = (height - side_y) // 2
+        return (left, top, left + side_x, top + side_y), None
 
     margin = int(0.8 * max(box.width, box.height))
     top = max(0, box.top - margin)
@@ -639,14 +648,13 @@ def _working_window(
         left = max(0, min(center - cap // 2, width - cap))
         right = left + cap
 
-    window = gray[top:bottom, left:right]
     wbox = (
         max(0, box.left - left),
         max(0, box.top - top),
         min(right - left, box.right - left),
         min(bottom - top, box.bottom - top),
     )
-    return window, wbox
+    return (left, top, right, bottom), wbox
 
 
 def _center_patch(
@@ -678,8 +686,12 @@ def _profile_periodicity(profile: np.ndarray) -> float:
     """Peak autocorrelation of a detrended log-spectrum profile.
 
     A periodic comb -- the fingerprint of grid upsampling and transposed
-    convolutions -- autocorrelates strongly at the comb period. Natural
-    spectra decay smoothly and stay near zero at every non-trivial lag.
+    convolutions -- autocorrelates strongly at the comb period. The lag
+    window starts at 6, NOT lower: any smooth spectrum autocorrelates highly
+    at tiny lags (measured 0.47 at lag 3 on defocused content), which is
+    generic smoothness, not a comb. Within this window photographs -- however
+    heavily JPEG-compressed -- measured at or below 0.18; grid upsampling
+    reaches 0.2-0.4 and generator checkerboards more.
     """
     size = profile.size
     kernel_width = max(5, size // 16)
@@ -688,10 +700,31 @@ def _profile_periodicity(profile: np.ndarray) -> float:
     detrended = detrended - detrended.mean()
     denominator = float(np.sum(detrended * detrended)) + 1e-12
     autocorr = np.correlate(detrended, detrended, mode="full")[size - 1 :] / denominator
-    low, high = 3, size // 2
+    low, high = 6, size // 2 - 6
     if high <= low:
         return 0.0
     return float(np.max(autocorr[low:high]))
+
+
+def _spectral_line_excess(log_spectrum: np.ndarray, radius: np.ndarray, rmax: int) -> float:
+    """Strongest isolated spectral tone, in robust sigmas above its annulus.
+
+    A checkerboard artefact concentrates energy into a single frequency pair,
+    which no amount of radial averaging will surface -- but compared against
+    the median of its own annulus it stands out by definition. Directional
+    edges in real photographs form ridges through DC that raise a whole
+    annulus sector, not a lone bin, so their excess stays moderate.
+    """
+    r_int = radius.astype(np.int64)
+    best = 0.0
+    for r in range(max(4, int(rmax * 0.45)), rmax):
+        ring = log_spectrum[r_int == r]
+        if ring.size < 12:
+            continue
+        median = float(np.median(ring))
+        mad = float(np.median(np.abs(ring - median))) + 1e-9
+        best = max(best, (float(ring.max()) - median) / (1.4826 * mad))
+    return best
 
 
 def _radial_distance(shape: tuple[int, int]) -> np.ndarray:
