@@ -61,7 +61,6 @@ from ..db.models import (
     SearchRun,
     Subject,
     Template,
-    User,
 )
 
 logger = logging.getLogger(__name__)
