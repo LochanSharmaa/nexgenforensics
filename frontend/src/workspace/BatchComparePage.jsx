@@ -283,3 +283,32 @@ export function BatchComparePage() {
     </>
   );
 }
+
+/**
+ * Per-row verdict of the synthetic-media screen. The chip carries the band;
+ * the tooltip lists every integrity flag the image raised, so a row can be
+ * triaged without opening it.
+ */
+function IntegrityChip({ band, flags }) {
+  if (!band) return "—";
+  const title = flags && flags.length > 0 ? flags.join(", ") : undefined;
+  if (band === "high") {
+    return (
+      <span className="wk-chip bad" title={title}>
+        Flagged
+      </span>
+    );
+  }
+  if (band === "elevated") {
+    return (
+      <span className="wk-chip review" title={title}>
+        Review
+      </span>
+    );
+  }
+  return (
+    <span className="wk-chip neutral" title={title}>
+      Clear
+    </span>
+  );
+}
