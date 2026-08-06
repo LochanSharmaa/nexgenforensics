@@ -195,7 +195,7 @@ class EngineService:
         outcome = self.index.search(self.tenant_id, result.embedding, top_k=top_k)
         matches = list(outcome.matches)
         confidence = matches[0].score if matches else 0.0
-        decision = "review_required" if result.review_required or confidence < self.config.search.min_match_score else "candidate_match_ready"
+        decision = "review_required" if result.review_required or confidence < self.config.thresholds.match else "candidate_match_ready"
         entry = self.audit.append(
             operator_id,
             "identify",
