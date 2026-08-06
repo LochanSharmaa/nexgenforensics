@@ -1,0 +1,164 @@
+{
+  "dataset": "scface",
+  "scface_distance_m": 2.6,
+  "embedder": "w600k_r50 (CUDA)",
+  "n_pairs": 10010,
+  "decision_rule": {
+    "pass_threshold": 2.0,
+    "fail_threshold": 0.5,
+    "metric": "TAR@FAR=0.1% (points)"
+  },
+  "arms": {
+    "A": {
+      "tar_at_far_1e3": 0.054945054945054944,
+      "tar_at_far_1e2": 0.11758241758241758,
+      "auc": 0.6961312643400556
+    },
+    "B1": {
+      "tar_at_far_1e3": 0.056043956043956046,
+      "tar_at_far_1e2": 0.11758241758241758,
+      "auc": 0.6950885158797246
+    },
+    "B2": {
+      "tar_at_far_1e3": 0.08131868131868132,
+      "tar_at_far_1e2": 0.14615384615384616,
+      "auc": 0.645486897717667
+    },
+    "B2r": {
+      "tar_at_far_1e3": 0.08241758241758242,
+      "tar_at_far_1e2": 0.14285714285714285,
+      "auc": 0.6454993358290062
+    },
+    "B3": {
+      "tar_at_far_1e3": 0.006593406593406593,
+      "tar_at_far_1e2": 0.027472527472527472,
+      "auc": 0.6006644125105663
+    },
+    "C": {
+      "tar_at_far_1e3": 0.002197802197802198,
+      "tar_at_far_1e2": 0.013186813186813187,
+      "auc": 0.5277992996014974
+    }
+  },
+  "B2_minus_B1": {
+    "points": 2.5274725274725274,
+    "ci95": [
+      0.2254475457656938,
+      4.371002132196162
+    ],
+    "verdict": "PASS"
+  },
+  "B2r_minus_B1": {
+    "points": 2.637362637362637,
+    "ci95": [
+      0.0,
+      4.49568043161537
+    ],
+    "verdict": "FAIL"
+  },
+  "decision_arm": "B2r",
+  "arm_reports": {
+    "A": {
+      "arm": "A",
+      "transform": "none"
+    },
+    "B1": {
+      "arm": "B1",
+      "downsample": 3.1111
+    },
+    "B2": {
+      "arm": "B2",
+      "estimated": {
+        "blur_sigma": 0.8266,
+        "blur_confidence_r2": 0.623,
+        "noise_sigma": 0.001938,
+        "jpeg_quality": 75,
+        "jpeg_confidence": 0.8315,
+        "jpeg_applied": true,
+        "jpeg_method": "DCT lattice fit",
+        "spectral_cutoff_cycles_per_pixel": 0.089844,
+        "psf_mtf50": 0.22372,
+        "trustworthy": true,
+        "trust_components": {
+          "blur_fit_ok": true,
+          "jpeg_decisive": true,
+          "size_ok": true
+        },
+        "caveat": "Estimated, not measured. Blur recovery on flat facial content is unreliable; prefer a measured camera response when the device is available."
+      },
+      "downsample_first": 3.1111,
+      "applied_in_probe_space": {
+        "blur_sigma": 0.8266453788971486,
+        "motion_length": 0.0,
+        "motion_angle_deg": 0.0,
+        "downsample": 1.0,
+        "noise_sigma": 0.0019380391001701353,
+        "jpeg_quality": 75,
+        "origin": "estimated",
+        "mtf50_cycles_per_pixel": 0.22372
+      }
+    },
+    "B2r": {
+      "arm": "B2r",
+      "probe_estimate": {
+        "blur_sigma": 0.8266,
+        "blur_confidence_r2": 0.623,
+        "noise_sigma": 0.001938,
+        "jpeg_quality": 75,
+        "jpeg_confidence": 0.8315,
+        "jpeg_applied": true,
+        "jpeg_method": "DCT lattice fit",
+        "spectral_cutoff_cycles_per_pixel": 0.089844,
+        "psf_mtf50": 0.22372,
+        "trustworthy": true,
+        "trust_components": {
+          "blur_fit_ok": true,
+          "jpeg_decisive": true,
+          "size_ok": true
+        },
+        "caveat": "Estimated, not measured. Blur recovery on flat facial content is unreliable; prefer a measured camera response when the device is available."
+      },
+      "gallery_estimate": {
+        "blur_sigma": 0.8482,
+        "blur_confidence_r2": 0.7333,
+        "noise_sigma": 0.003553,
+        "jpeg_quality": 95,
+        "jpeg_confidence": 0.0199,
+        "jpeg_applied": false,
+        "jpeg_method": "DCT lattice fit",
+        "spectral_cutoff_cycles_per_pixel": 0.035156,
+        "psf_mtf50": 0.217876,
+        "trustworthy": false,
+        "trust_components": {
+          "blur_fit_ok": true,
+          "jpeg_decisive": false,
+          "size_ok": true
+        },
+        "caveat": "Estimated, not measured. Blur recovery on flat facial content is unreliable; prefer a measured camera response when the device is available."
+      },
+      "downsample_first": 3.1111,
+      "gallery_blur_in_probe_grid": 0.272632,
+      "residual_applied": {
+        "blur_sigma": 0.7803937418322983,
+        "motion_length": 0.0,
+        "motion_angle_deg": 0.0,
+        "downsample": 1.0,
+        "noise_sigma": 0.0,
+        "jpeg_quality": 75,
+        "origin": "estimated_residual",
+        "mtf50_cycles_per_pixel": 0.23721
+      }
+    },
+    "B3": {
+      "arm": "B3",
+      "cutoff_hi_cycles_per_pixel": 0.035156,
+      "cutoff_lo_cycles_per_pixel": 0.089844,
+      "scale_hi": 448.0,
+      "scale_lo": 144.0,
+      "common_passband_cycles_per_face": 12.9375,
+      "applied_cutoff_hi": 0.02887835,
+      "applied_cutoff_lo": 0.08984375,
+      "psf_origin": "estimated_from_spectrum"
+    }
+  }
+}

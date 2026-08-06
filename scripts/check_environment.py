@@ -80,7 +80,7 @@ def main() -> int:
         from nexgen_engine.config import EngineConfig
         from nexgen_engine.runtime import EngineRuntime
 
-        runtime = EngineRuntime(EngineConfig(mode="real"))
+        runtime = EngineRuntime(EngineConfig())
         info = runtime.recognizer.info
         print(f"  Recognizer: {info.backend} ({info.model_pack}) on {info.device}")
         print(f"  Detector:   {runtime.detector.name}, landmarks={runtime.detector.produces_landmarks}")

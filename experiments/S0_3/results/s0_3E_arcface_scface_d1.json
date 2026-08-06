@@ -1,0 +1,506 @@
+{
+  "provenance": {
+    "experiment": "S0.3-E (enhancement arms)",
+    "embedder": "w600k_r50 (CUDA)",
+    "recogniser_modified": false,
+    "dataset": "scface",
+    "distance": 1,
+    "n_pairs": 10010,
+    "seed": 0,
+    "device": {
+      "torch_installed": true,
+      "torch_version": "2.5.1+cu121",
+      "cuda_available": true,
+      "cuda_unavailable_reason": "",
+      "devices": [
+        {
+          "index": 0,
+          "name": "NVIDIA RTX A3000 Laptop GPU",
+          "total_mb": 6143.5,
+          "compute_capability": "8.6"
+        }
+      ]
+    },
+    "cache": {
+      "enabled": true,
+      "entries": 5601,
+      "bytes": 775577990,
+      "root": "C:\\Users\\hello\\Desktop\\nexgenforensics\\runtime\\enhancement_cache"
+    },
+    "binding": true,
+    "warning": ""
+  },
+  "decision_rule": {
+    "adopt_threshold_points": 2.0,
+    "reject_threshold_points": 0.5,
+    "metric": "TAR@FAR=0.1% (points)",
+    "comparison": "enhancement arm minus arm A (untransformed baseline)",
+    "control": "E0 (Lanczos upscale only). An arm must also beat E0 to demonstrate restoration."
+  },
+  "arms_unavailable": {},
+  "arms": {
+    "A": {
+      "tar_at_far_1e3": 0.005495,
+      "auc": 0.571224,
+      "score_mean_genuine": 0.099035,
+      "score_mean_impostor": 0.081713,
+      "description": "untransformed baseline"
+    },
+    "E0": {
+      "tar_at_far_1e3": 0.003297,
+      "auc": 0.574641,
+      "score_mean_genuine": 0.10106,
+      "score_mean_impostor": 0.082786,
+      "description": "CONTROL. Lanczos upscaling only, no restoration. Separates 'the recogniser prefers a larger input' from 'restoration recovered identity information'. Without this control an improvement from any other arm is uninterpretable, because the embedder resamples every input to 112x112 and the resampling path itself changes."
+    },
+    "E1": {
+      "tar_at_far_1e3": 0.003297,
+      "auc": 0.549704,
+      "score_mean_genuine": 0.079455,
+      "score_mean_impostor": 0.06944,
+      "description": "Track A only: deterministic, classical, no learned prior. Deblock, denoise, tone, and band-limited sharpening whose correction is projected onto the measured passband, so it cannot synthesise frequencies the sensor never recorded."
+    },
+    "E2": {
+      "tar_at_far_1e3": 0.005495,
+      "auc": 0.553605,
+      "score_mean_genuine": 0.109303,
+      "score_mean_impostor": 0.096324,
+      "description": "Real-ESRGAN x4 alone. Generative super-resolution, no preprocessing."
+    },
+    "E3": {
+      "tar_at_far_1e3": 0.002198,
+      "auc": 0.570717,
+      "score_mean_genuine": 0.111343,
+      "score_mean_impostor": 0.093755,
+      "description": "CodeFormer alone, fidelity weight 0.7 (fidelity-leaning, not the pretty default)."
+    },
+    "E4": {
+      "tar_at_far_1e3": 0.004396,
+      "auc": 0.557515,
+      "score_mean_genuine": 0.102769,
+      "score_mean_impostor": 0.089295,
+      "description": "The full adaptive pipeline: clean first, then reconstruct. Restoring a cleaned input is the ordering argued for in the design -- the restorer has to invent less when its input carries less noise and fewer block artifacts."
+    },
+    "E5": {
+      "tar_at_far_1e3": 0.001099,
+      "auc": 0.56382,
+      "score_mean_genuine": 0.099881,
+      "score_mean_impostor": 0.084355,
+      "description": "GFPGAN v1.4 alone. A different prior from CodeFormer, so disagreement is informative."
+    }
+  },
+  "enhancement_reports": {
+    "E0": {
+      "arm": "E0",
+      "description": "CONTROL. Lanczos upscaling only, no restoration. Separates 'the recogniser prefers a larger input' from 'restoration recovered identity information'. Without this control an improvement from any other arm is uninterpretable, because the embedder resamples every input to 112x112 and the resampling path itself changes.",
+      "track": "measurement",
+      "stages": [],
+      "cache_hits": 500,
+      "computed": 0,
+      "device": "cuda",
+      "device_note": "",
+      "total_ms": 9681.4,
+      "example_profile": {
+        "width": 75,
+        "height": 100,
+        "short_side": 75,
+        "mean_luma": 210.7,
+        "contrast": 26.65,
+        "sharpness_laplacian": 203.5,
+        "blur_sigma": 0.8028,
+        "blur_confidence": 0.6223,
+        "blur_kind": "motion",
+        "blur_anisotropy": 0.5402,
+        "blur_angle_deg": 45.0,
+        "noise_sigma": 0.001938,
+        "jpeg_quality": 75,
+        "jpeg_confidence": 0.799,
+        "spectral_cutoff": 0.082031,
+        "effective_resolution_ratio": 0.1641,
+        "upscaled_beyond_content": true,
+        "monochrome_fraction": 1.0,
+        "infrared": true,
+        "interlace_ratio": 0.5866,
+        "interlaced": false,
+        "clipped_low": 0.0,
+        "clipped_high": 0.0,
+        "small_face": false,
+        "estimator_trustworthy": true,
+        "notes": [
+          "Infrared capture: the original contains no colour information. Any colour in an enhanced image is synthetic.",
+          "Stored size 75x100 overstates true resolution: content is band-limited at 0.082 cycles/px (16% of Nyquist). The image was probably upscaled or re-encoded before storage."
+        ]
+      }
+    },
+    "E1": {
+      "arm": "E1",
+      "description": "Track A only: deterministic, classical, no learned prior. Deblock, denoise, tone, and band-limited sharpening whose correction is projected onto the measured passband, so it cannot synthesise frequencies the sensor never recorded.",
+      "track": "measurement",
+      "stages": [],
+      "cache_hits": 500,
+      "computed": 0,
+      "device": "cuda",
+      "device_note": "",
+      "total_ms": 9241.2,
+      "example_profile": {
+        "width": 75,
+        "height": 100,
+        "short_side": 75,
+        "mean_luma": 210.7,
+        "contrast": 26.65,
+        "sharpness_laplacian": 203.5,
+        "blur_sigma": 0.8028,
+        "blur_confidence": 0.6223,
+        "blur_kind": "motion",
+        "blur_anisotropy": 0.5402,
+        "blur_angle_deg": 45.0,
+        "noise_sigma": 0.001938,
+        "jpeg_quality": 75,
+        "jpeg_confidence": 0.799,
+        "spectral_cutoff": 0.082031,
+        "effective_resolution_ratio": 0.1641,
+        "upscaled_beyond_content": true,
+        "monochrome_fraction": 1.0,
+        "infrared": true,
+        "interlace_ratio": 0.5866,
+        "interlaced": false,
+        "clipped_low": 0.0,
+        "clipped_high": 0.0,
+        "small_face": false,
+        "estimator_trustworthy": true,
+        "notes": [
+          "Infrared capture: the original contains no colour information. Any colour in an enhanced image is synthetic.",
+          "Stored size 75x100 overstates true resolution: content is band-limited at 0.082 cycles/px (16% of Nyquist). The image was probably upscaled or re-encoded before storage."
+        ]
+      }
+    },
+    "E2": {
+      "arm": "E2",
+      "description": "Real-ESRGAN x4 alone. Generative super-resolution, no preprocessing.",
+      "track": "reconstruction",
+      "stages": [],
+      "cache_hits": 500,
+      "computed": 0,
+      "device": "cuda",
+      "device_note": "",
+      "total_ms": 15108.4,
+      "example_profile": {
+        "width": 75,
+        "height": 100,
+        "short_side": 75,
+        "mean_luma": 210.7,
+        "contrast": 26.65,
+        "sharpness_laplacian": 203.5,
+        "blur_sigma": 0.8028,
+        "blur_confidence": 0.6223,
+        "blur_kind": "motion",
+        "blur_anisotropy": 0.5402,
+        "blur_angle_deg": 45.0,
+        "noise_sigma": 0.001938,
+        "jpeg_quality": 75,
+        "jpeg_confidence": 0.799,
+        "spectral_cutoff": 0.082031,
+        "effective_resolution_ratio": 0.1641,
+        "upscaled_beyond_content": true,
+        "monochrome_fraction": 1.0,
+        "infrared": true,
+        "interlace_ratio": 0.5866,
+        "interlaced": false,
+        "clipped_low": 0.0,
+        "clipped_high": 0.0,
+        "small_face": false,
+        "estimator_trustworthy": true,
+        "notes": [
+          "Infrared capture: the original contains no colour information. Any colour in an enhanced image is synthetic.",
+          "Stored size 75x100 overstates true resolution: content is band-limited at 0.082 cycles/px (16% of Nyquist). The image was probably upscaled or re-encoded before storage."
+        ]
+      }
+    },
+    "E3": {
+      "arm": "E3",
+      "description": "CodeFormer alone, fidelity weight 0.7 (fidelity-leaning, not the pretty default).",
+      "track": "reconstruction",
+      "stages": [
+        {
+          "stage": "codeformer",
+          "track": "reconstruction",
+          "task": "face_restore",
+          "images": 500,
+          "distinct_images_computed": 397,
+          "ms_total": 1070598.3,
+          "ms_per_image": 2696.72,
+          "vram_peak_mb": 0.0,
+          "unchanged_outputs": 0
+        }
+      ],
+      "cache_hits": 0,
+      "computed": 500,
+      "device": "cuda",
+      "device_note": "",
+      "total_ms": 1109024.1,
+      "example_profile": {
+        "width": 75,
+        "height": 100,
+        "short_side": 75,
+        "mean_luma": 210.7,
+        "contrast": 26.65,
+        "sharpness_laplacian": 203.5,
+        "blur_sigma": 0.8028,
+        "blur_confidence": 0.6223,
+        "blur_kind": "motion",
+        "blur_anisotropy": 0.5402,
+        "blur_angle_deg": 45.0,
+        "noise_sigma": 0.001938,
+        "jpeg_quality": 75,
+        "jpeg_confidence": 0.799,
+        "spectral_cutoff": 0.082031,
+        "effective_resolution_ratio": 0.1641,
+        "upscaled_beyond_content": true,
+        "monochrome_fraction": 1.0,
+        "infrared": true,
+        "interlace_ratio": 0.5866,
+        "interlaced": false,
+        "clipped_low": 0.0,
+        "clipped_high": 0.0,
+        "small_face": false,
+        "estimator_trustworthy": true,
+        "notes": [
+          "Infrared capture: the original contains no colour information. Any colour in an enhanced image is synthetic.",
+          "Stored size 75x100 overstates true resolution: content is band-limited at 0.082 cycles/px (16% of Nyquist). The image was probably upscaled or re-encoded before storage."
+        ]
+      }
+    },
+    "E4": {
+      "arm": "E4",
+      "description": "The full adaptive pipeline: clean first, then reconstruct. Restoring a cleaned input is the ordering argued for in the design -- the restorer has to invent less when its input carries less noise and fewer block artifacts.",
+      "track": "reconstruction",
+      "stages": [
+        {
+          "stage": "classical_deblock",
+          "track": "measurement",
+          "task": "deblock",
+          "images": 500,
+          "distinct_images_computed": 397,
+          "ms_total": 321.9,
+          "ms_per_image": 0.81,
+          "vram_peak_mb": 0.0,
+          "unchanged_outputs": 0
+        },
+        {
+          "stage": "classical_denoise",
+          "track": "measurement",
+          "task": "denoise",
+          "images": 500,
+          "distinct_images_computed": 397,
+          "ms_total": 13099.8,
+          "ms_per_image": 33.0,
+          "vram_peak_mb": 0.0,
+          "unchanged_outputs": 0
+        },
+        {
+          "stage": "classical_tone",
+          "track": "measurement",
+          "task": "tone",
+          "images": 500,
+          "distinct_images_computed": 397,
+          "ms_total": 369.6,
+          "ms_per_image": 0.93,
+          "vram_peak_mb": 0.0,
+          "unchanged_outputs": 0
+        },
+        {
+          "stage": "realesrgan_x4",
+          "track": "reconstruction",
+          "task": "upscale",
+          "images": 500,
+          "distinct_images_computed": 397,
+          "ms_total": 41840.6,
+          "ms_per_image": 105.39,
+          "vram_peak_mb": 63.0,
+          "unchanged_outputs": 0
+        },
+        {
+          "stage": "codeformer",
+          "track": "reconstruction",
+          "task": "face_restore",
+          "images": 500,
+          "distinct_images_computed": 397,
+          "ms_total": 842443.6,
+          "ms_per_image": 2122.02,
+          "vram_peak_mb": 0.0,
+          "unchanged_outputs": 0
+        }
+      ],
+      "cache_hits": 0,
+      "computed": 500,
+      "device": "cuda",
+      "device_note": "",
+      "total_ms": 934877.1,
+      "example_profile": {
+        "width": 75,
+        "height": 100,
+        "short_side": 75,
+        "mean_luma": 210.7,
+        "contrast": 26.65,
+        "sharpness_laplacian": 203.5,
+        "blur_sigma": 0.8028,
+        "blur_confidence": 0.6223,
+        "blur_kind": "motion",
+        "blur_anisotropy": 0.5402,
+        "blur_angle_deg": 45.0,
+        "noise_sigma": 0.001938,
+        "jpeg_quality": 75,
+        "jpeg_confidence": 0.799,
+        "spectral_cutoff": 0.082031,
+        "effective_resolution_ratio": 0.1641,
+        "upscaled_beyond_content": true,
+        "monochrome_fraction": 1.0,
+        "infrared": true,
+        "interlace_ratio": 0.5866,
+        "interlaced": false,
+        "clipped_low": 0.0,
+        "clipped_high": 0.0,
+        "small_face": false,
+        "estimator_trustworthy": true,
+        "notes": [
+          "Infrared capture: the original contains no colour information. Any colour in an enhanced image is synthetic.",
+          "Stored size 75x100 overstates true resolution: content is band-limited at 0.082 cycles/px (16% of Nyquist). The image was probably upscaled or re-encoded before storage."
+        ]
+      }
+    },
+    "E5": {
+      "arm": "E5",
+      "description": "GFPGAN v1.4 alone. A different prior from CodeFormer, so disagreement is informative.",
+      "track": "reconstruction",
+      "stages": [
+        {
+          "stage": "gfpgan",
+          "track": "reconstruction",
+          "task": "face_restore",
+          "images": 500,
+          "distinct_images_computed": 397,
+          "ms_total": 80408.2,
+          "ms_per_image": 202.54,
+          "vram_peak_mb": 0.0,
+          "unchanged_outputs": 0
+        }
+      ],
+      "cache_hits": 0,
+      "computed": 500,
+      "device": "cuda",
+      "device_note": "",
+      "total_ms": 117862.5,
+      "example_profile": {
+        "width": 75,
+        "height": 100,
+        "short_side": 75,
+        "mean_luma": 210.7,
+        "contrast": 26.65,
+        "sharpness_laplacian": 203.5,
+        "blur_sigma": 0.8028,
+        "blur_confidence": 0.6223,
+        "blur_kind": "motion",
+        "blur_anisotropy": 0.5402,
+        "blur_angle_deg": 45.0,
+        "noise_sigma": 0.001938,
+        "jpeg_quality": 75,
+        "jpeg_confidence": 0.799,
+        "spectral_cutoff": 0.082031,
+        "effective_resolution_ratio": 0.1641,
+        "upscaled_beyond_content": true,
+        "monochrome_fraction": 1.0,
+        "infrared": true,
+        "interlace_ratio": 0.5866,
+        "interlaced": false,
+        "clipped_low": 0.0,
+        "clipped_high": 0.0,
+        "small_face": false,
+        "estimator_trustworthy": true,
+        "notes": [
+          "Infrared capture: the original contains no colour information. Any colour in an enhanced image is synthetic.",
+          "Stored size 75x100 overstates true resolution: content is band-limited at 0.082 cycles/px (16% of Nyquist). The image was probably upscaled or re-encoded before storage."
+        ]
+      }
+    }
+  },
+  "decisions": {
+    "E0": {
+      "vs_A_points": -0.2198,
+      "ci95": [
+        -0.9042,
+        0.3011
+      ],
+      "verdict": "REJECT"
+    },
+    "E1": {
+      "vs_A_points": -0.2198,
+      "ci95": [
+        -1.1432,
+        0.4105
+      ],
+      "verdict": "REJECT",
+      "vs_E0_control_points": 0.0,
+      "vs_E0_ci95": [
+        -0.7983,
+        0.4362
+      ],
+      "beats_interpolation_control": false
+    },
+    "E2": {
+      "vs_A_points": 0.0,
+      "ci95": [
+        -0.9946,
+        0.4875
+      ],
+      "verdict": "REJECT",
+      "vs_E0_control_points": 0.2198,
+      "vs_E0_ci95": [
+        -0.6494,
+        0.663
+      ],
+      "beats_interpolation_control": false
+    },
+    "E3": {
+      "vs_A_points": -0.3297,
+      "ci95": [
+        -1.2305,
+        0.2055
+      ],
+      "verdict": "REJECT",
+      "vs_E0_control_points": -0.1099,
+      "vs_E0_ci95": [
+        -0.8679,
+        0.3268
+      ],
+      "beats_interpolation_control": false
+    },
+    "E4": {
+      "vs_A_points": -0.1099,
+      "ci95": [
+        -1.0159,
+        0.3453
+      ],
+      "verdict": "REJECT",
+      "vs_E0_control_points": 0.1099,
+      "vs_E0_ci95": [
+        -0.7676,
+        0.5544
+      ],
+      "beats_interpolation_control": false
+    },
+    "E5": {
+      "vs_A_points": -0.4396,
+      "ci95": [
+        -1.3336,
+        0.1088
+      ],
+      "verdict": "REJECT",
+      "vs_E0_control_points": -0.2198,
+      "vs_E0_ci95": [
+        -0.9198,
+        0.2198
+      ],
+      "beats_interpolation_control": false
+    }
+  }
+}
